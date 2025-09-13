@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
-import Clock from "./comaonents/clock";
 
 export default function ComingSoon() {
   const playerRef = useRef(null);
   const videoNodeRef = useRef(null);
 
+  const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({
     days: "00",
     hours: "00",
@@ -33,6 +33,9 @@ export default function ComingSoon() {
         },
       ],
     });
+
+    // Listen for video ready
+    playerRef.current.on("canplay", () => setLoading(false));
 
     return () => {
       if (playerRef.current) {
@@ -74,18 +77,26 @@ export default function ComingSoon() {
   return (
     <div className="flex flex-col text-white font-sans w-full h-full min-h-screen relative overflow-hidden">
       {/* Background video */}
-      <div className="absolute top-0 left-0 w-full h-full -z-10">
-        <div data-vjs-player className="w-full h-full">
+      <div className="absolute top-0 left-0 w-screen h-screen -z-10">
+        <div data-vjs-player className="w-screen h-full">
           <video
             ref={videoNodeRef}
-            className="video-js vjs-default-skin w-full h-full object-contain"
+            className="video-js vjs-default-skin w-full h-full object-cover"
+            playsInline
           ></video>
         </div>
       </div>
 
+      {/* Loader */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-50">
+          <div className="w-12 h-12 border-4 border-[#D79A2F] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex bg-white/50 h-18 shadow-lg items-center justify-between px-4 py-3 relative z-10">
-        <div className="flex items-center">
+        <div className="flex cursor-pointer items-center">
           <Image
             src="/realbeez.png"
             alt="logo"
@@ -101,17 +112,16 @@ export default function ComingSoon() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10 text-center">
-        {/* Coming Soon text */}
-        <p className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
-          Coming Soon
-        </p>
+      {/* Main content with gradient overlay */}
+      <main className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10 text-center px-4">
+        <div className="bg-gradient-to-r from-black/70 via-black/50 to-transparent p-8 rounded-2xl shadow-lg">
+          {/* Coming Soon text */}
+          <p className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
+            Coming Soon
+          </p>
 
-        {/* Timer + Clock side by side */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-          {/* Countdown Timer */}
-          <div className="flex gap-6 text-center bg-white/70 rounded-lg px-6 py-4 text-2xl font-bold">
+          {/* Timer */}
+          <div className="mt-6 flex gap-6 text-center bg-white/70 rounded-lg px-6 py-4 text-2xl font-bold">
             <div className="text-[#D79A2F]">
               <div className="text-4xl">{timeLeft.days}</div>
               <div className="text-sm">Days</div>
