@@ -81,7 +81,7 @@ export default function ComingSoon() {
         <div data-vjs-player className="w-screen h-full">
           <video
             ref={videoNodeRef}
-            className="video-js vjs-default-skin w-full h-full object-cover"
+            className="video-js vjs-default-skin w-full h-full object-contain"
             playsInline
           ></video>
         </div>
@@ -95,7 +95,7 @@ export default function ComingSoon() {
       )}
 
       {/* Header */}
-      <header className="flex bg-white/50 h-18 shadow-lg items-center justify-between px-4 py-3 relative z-10">
+      <header className="flex bg-white/10 h-18 shadow-lg items-center justify-between px-4 py-3 relative z-10">
         <div className="flex cursor-pointer items-center">
           <Image
             src="/realbeez.png"
