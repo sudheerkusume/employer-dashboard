@@ -22,10 +22,11 @@ export default function ComingSoon() {
 
     playerRef.current = videojs(videoNodeRef.current, {
       autoplay: true,
-      loop: true,
       muted: true,
       controls: false,
       preload: "auto",
+      loop: true, // ✅ native smooth loop
+      fluid: true,
       sources: [
         {
           src: "/postervideo.mp4",
@@ -34,7 +35,7 @@ export default function ComingSoon() {
       ],
     });
 
-    // Listen for video ready
+    // Loader when video is ready
     playerRef.current.on("canplay", () => setLoading(false));
 
     return () => {
@@ -45,6 +46,7 @@ export default function ComingSoon() {
     };
   }, []);
 
+  // Countdown Timer
   useEffect(() => {
     const launchDate = new Date("2025-12-28T00:00:00").getTime();
 
@@ -78,24 +80,26 @@ export default function ComingSoon() {
     <div className="flex flex-col text-white font-sans w-full h-full min-h-screen relative overflow-hidden">
       {/* Background video */}
       <div className="absolute top-0 left-0 w-screen h-screen -z-10">
-        <div data-vjs-player className="w-screen h-full">
+        <div data-vjs-player className="w-screen h-screen">
           <video
             ref={videoNodeRef}
-            className="video-js vjs-default-skin w-full h-full object-contain"
+            className="video-js vjs-default-skin !w-screen !h-screen object-cover"
             playsInline
-          ></video>
+            muted
+            loop
+          />
         </div>
       </div>
 
       {/* Loader */}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-50">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="w-12 h-12 border-4 border-[#D79A2F] border-t-transparent rounded-full animate-spin"></div>
         </div>
       )}
 
       {/* Header */}
-      <header className="flex bg-white/10 h-18 shadow-lg items-center justify-between px-4 py-3 relative z-10">
+      <header className="flex bg-white/10 backdrop-blur-sm h-18 shadow-lg items-center justify-between px-4 py-3 relative z-10">
         <div className="flex cursor-pointer items-center">
           <Image
             src="/realbeez.png"
@@ -106,7 +110,7 @@ export default function ComingSoon() {
           />
         </div>
         <div>
-          <span className="text-xl text-gray-800 hidden md:inline">
+          <span className="text-xl text-gray-700 hidden md:inline">
             Real Beez Estates Pvt Ltd
           </span>
         </div>
@@ -114,41 +118,40 @@ export default function ComingSoon() {
 
       {/* Main content with gradient overlay */}
       <main className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10 text-center px-4">
-        <div className="bg-gradient-to-r from-black/70 via-black/50 to-transparent p-8 rounded-2xl shadow-lg">
+        {!loading && <div className="bg-gradient-to-r from-black/70 via-black/50 to-transparent p-6 rounded-2xl shadow-lg">
           {/* Coming Soon text */}
-          <p className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
+          <p className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
             Coming Soon
           </p>
-
           {/* Timer */}
-          <div className="mt-6 flex gap-6 text-center bg-white/70 rounded-lg px-6 py-4 text-2xl font-bold">
+          <div className="mt-6 flex gap-6 text-center bg-white/70 rounded-lg px-4 py-2 text-xl font-bold">
             <div className="text-[#D79A2F]">
-              <div className="text-4xl">{timeLeft.days}</div>
+              <div className="text-2xl">{timeLeft.days}</div>
               <div className="text-sm">Days</div>
             </div>
             <div className="text-[#3D3D3D]">
-              <div className="text-4xl">{timeLeft.hours}</div>
+              <div className="text-2xl">{timeLeft.hours}</div>
               <div className="text-sm">Hours</div>
             </div>
             <div className="text-[#3D3D3D]">
-              <div className="text-4xl">{timeLeft.minutes}</div>
+              <div className="text-2xl">{timeLeft.minutes}</div>
               <div className="text-sm">Minutes</div>
             </div>
             <div className="text-[#D79A2F]">
-              <div className="text-4xl">{timeLeft.seconds}</div>
+              <div className="text-2xl">{timeLeft.seconds}</div>
               <div className="text-sm">Seconds</div>
             </div>
           </div>
-        </div>
+        </div>}
       </main>
 
       {/* Footer */}
-      <footer className="p-3 text-sm text-gray-900 bg-white/40 relative z-10">
+      <footer className="p-3 text-sm text-gray-200 bg-black/40 backdrop-blur-sm relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
           <span>© {new Date().getFullYear()} Real Beez Estates Pvt Ltd</span>
           <div className="flex gap-3">
-            <Link className="hover:underline" href="#">Privacy</Link>
-            <Link className="hover:underline" href="#">Terms</Link>
+            <Link className="hover:underline" href="/policy">Privacy</Link>
+            <Link className="hover:underline" href="/terms">Terms</Link>
           </div>
         </div>
       </footer>
