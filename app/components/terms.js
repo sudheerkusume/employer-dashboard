@@ -17,7 +17,7 @@ export default function TermsPage() {
                     </p>
                 </nav>
                 <div
-                    className="bg-yellow-50 rounded-lg h-48 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer"
+                    className="bg-yellow-200 rounded-lg h-48 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer"
                     onMouseEnter={() => setHovered(true)}
                     onMouseLeave={() => setHovered(false)}
                 >

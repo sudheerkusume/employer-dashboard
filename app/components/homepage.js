@@ -147,7 +147,7 @@ export default function HomePage() {
 
             {/* Footer */}
             <footer className="p-3 text-sm text-gray-200 bg-black/10 backdrop-blur-sm relative z-10">
-                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+                <div className="w-full mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
                     <span>© {new Date().getFullYear()} Real Beez Estates Pvt Ltd</span>
                     <div className="flex gap-3">
                         <Link className="hover:underline" href="/policy">Privacy</Link>
