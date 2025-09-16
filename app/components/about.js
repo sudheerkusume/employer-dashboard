@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function AboutPage() {
     return (
         <div className="w-full bg-white text-gray-800">
-            <div className="w-full sm:w-[60%] mx-auto py-20">
+            <div className="w-full sm:w-[60%] mx-auto py-5 sm:py-20 px-4 sm:px-0">
                 {/* Breadcrumb */}
                 <nav className="text-sm mb-6">
                     <p className="cursor-pointer">
