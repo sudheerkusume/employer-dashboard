@@ -109,10 +109,9 @@ export default function HomePage() {
                         priority
                     />
                 </div>
-                <div>
-                    <span className="text-xl text-gray-700 hidden md:inline">
-                        Real Beez Estates Pvt Ltd
-                    </span>
+                <div className="flex gap-3 justify-between items-center text-gray-800">
+                    <Link className="hover:underline hover:text-blue-800" href="/about"> About Us</Link>
+                    <Link className="hover:underline hover:text-blue-800" href="/contact"> Contact Us</Link>
                 </div>
             </header>
 
