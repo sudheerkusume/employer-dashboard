@@ -1,5 +1,6 @@
 export const runtime = "edge";
+import PolicyPage from "../components/policy";
 
 export default async function Page() {
-    return <div>Policy Page</div>
+    return <PolicyPage />
 }
