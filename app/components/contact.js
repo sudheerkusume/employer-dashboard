@@ -161,15 +161,15 @@ export default function ContactPage() {
                                     developer@real-beez.com
                                 </Link>
                             </p>
-                            <Link
+                            <a
                                 href="tel:+918121986767"
-                                className="flex items-center space-x-2 hover:text-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-lg px-1"
+                                className="flex items-center space-x-2"
                             >
                                 <Phone className="w-5 h-5 text-yellow-600" />
-                                <span>+91 8121986767</span>
-                            </Link>
+                                <span className="text-blue-600 hover:underline">+91 8121986767</span>
+                            </a>
                             <p className="flex items-start space-x-2">
-                                <MapPin className="w-5 h-5 text-yellow-600 mt-1" />
+                                <MapPin className="w-7 h-7 text-yellow-600 mt-1" />
                                 <span>
                                     Real Beez Estates Pvt Ltd, <br />
                                     2nd Floor, YS RAO Towers, Madhapur Rd, <br />
