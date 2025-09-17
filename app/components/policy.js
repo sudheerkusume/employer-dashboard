@@ -7,7 +7,7 @@ export default function PolicyPage() {
     const [hovered, setHovered] = useState(false);
     return (
         <div className="w-full bg-white text-gray-800">
-            <div className="w-full sm:w-[60%] mx-auto py-20">
+            <div className="w-full sm:w-[60%] mx-auto py-5 sm:py-20 px-4 sm:px-0">
                 <nav className="text-sm mb-6">
                     <p className="cursor-pointer">
                         <Link href="/" className="text-blue-600 hover:underline">
