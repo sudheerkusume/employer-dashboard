@@ -154,17 +154,20 @@ export default function ContactPage() {
                         <div className="space-y-3">
                             <p className="flex items-center space-x-2">
                                 <Mail className="w-5 h-5 text-yellow-600" />
-                                <a
+                                <Link
                                     href="mailto:developer@real-beez.com"
                                     className="text-blue-600 hover:underline"
                                 >
                                     developer@real-beez.com
-                                </a>
+                                </Link>
                             </p>
-                            <p className="flex items-center space-x-2">
+                            <Link
+                                href="tel:+918121986767"
+                                className="flex items-center space-x-2 hover:text-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-lg px-1"
+                            >
                                 <Phone className="w-5 h-5 text-yellow-600" />
-                                <span>+91 98765 43210</span>
-                            </p>
+                                <span>+91 8121986767</span>
+                            </Link>
                             <p className="flex items-start space-x-2">
                                 <MapPin className="w-5 h-5 text-yellow-600 mt-1" />
                                 <span>
