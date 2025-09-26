@@ -32,3 +32,35 @@ body {
   object-fit: cover !important;
   /* full screen cover */
 }
+
+@layer utilities {
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+}
+
+/* In your global CSS file (e.g., styles/globals.css) */
+
+@keyframes spin-map {
+
+  /* Starts with the map at its default position */
+  from {
+    background-position: 0 0;
+  }
+
+  /* Moves the map horizontally by its full width (100% of the image size) 
+     to complete one cycle and loop seamlessly. */
+  to {
+    background-position: 100% 0;
+  }
+}

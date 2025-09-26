@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-function Slider({ data, imageSize = "400px", rounded }) {
+function Slider({ data, rounded, className, fitMode = "cover" }) {
     const [currentSlide, setCurrentSlide] = useState(1);
     const [isTransitioning, setIsTransitioning] = useState(true);
 
     // Clone first and last slides for infinite loop
     const slides = [data[data.length - 1], ...data, data[0]];
+    const dataLength = data.length;
+
+    // Calculate the correct index for the original 'data' array (0-based)
+    const dataIndex = (currentSlide - 1 + dataLength) % dataLength;
 
     const nextSlide = useCallback(() => {
         setCurrentSlide((prev) => prev + 1);
@@ -14,18 +18,19 @@ function Slider({ data, imageSize = "400px", rounded }) {
 
     // Auto-scroll
     useEffect(() => {
+        if (dataLength <= 1) return;
         const autoScrollInterval = setInterval(nextSlide, 3000);
         return () => clearInterval(autoScrollInterval);
-    }, [nextSlide]);
+    }, [nextSlide, dataLength]);
 
     // Handle reset after transition ends
     const handleTransitionEnd = () => {
         if (currentSlide === slides.length - 1) {
             setIsTransitioning(false);
-            setCurrentSlide(1); // reset to first real slide
+            setCurrentSlide(1);
         } else if (currentSlide === 0) {
             setIsTransitioning(false);
-            setCurrentSlide(slides.length - 2); // reset to last real slide
+            setCurrentSlide(slides.length - 2);
         } else {
             setIsTransitioning(true);
         }
@@ -33,17 +38,23 @@ function Slider({ data, imageSize = "400px", rounded }) {
 
     // Jump to selected slide from dots
     const goToSlide = (index) => {
-        setCurrentSlide(index + 1); // +1 because of cloned first slide
+        setCurrentSlide(index + 1);
         setIsTransitioning(true);
     };
 
+    // ✅ Choose class based on fitMode
+    const imageClass =
+        fitMode === "contain"
+            ? "h-full w-auto object-contain mx-auto"
+            : "w-full h-full object-cover";
+
     return (
-        <div className={`relative w-full bg-[#D79A2F] overflow-hidden ${rounded}`}>
-            <div className="relative w-full" style={{ height: imageSize }}>
-                {/* ✅ Status label */}
-                {data[currentSlide - 1]?.status && (
+        <div className={`relative w-full bg-[#D79A2F] overflow-hidden ${rounded} ${className}`}>
+            <div className="relative w-full h-full">
+                {/* Status label */}
+                {data[dataIndex]?.status && (
                     <span className="absolute top-3 left-3 bg-orange-300 text-white text-[9px] font-semibold px-3 border border-white py-1 z-10">
-                        {data[currentSlide - 1]?.status}
+                        {data[dataIndex]?.status}
                     </span>
                 )}
 
@@ -54,36 +65,45 @@ function Slider({ data, imageSize = "400px", rounded }) {
                     onTransitionEnd={handleTransitionEnd}
                 >
                     {slides.map((item, index) => (
-                        <div key={index} className="relative flex-none w-full h-full">
-                            <div className="w-full" style={{ height: imageSize }}>
-                                {item?.image ? (
-                                    <img
-                                        src={item.image}
-                                        alt={`carousel-${index}`}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <img
-                                        src="https://images.travelxp.com/images/txpin/vector/general/errorimage.svg"
-                                        alt="error"
-                                        className="object-cover w-full h-full"
-                                    />
-                                )}
-                            </div>
+                        <div
+                            key={index}
+                            className="relative flex items-center justify-center flex-none w-full h-auto sm:h-screen bg-black"
+                        >
+                            {item?.image ? (
+                                <img
+                                    src={item.image}
+                                    alt={`carousel-${index}`}
+                                    className={
+                                        fitMode === "contain"
+                                            ? "h-full w-auto object-contain"
+                                            : "w-full h-full object-cover"
+                                    }
+                                />
+                            ) : (
+                                <img
+                                    src="https://images.travelxp.com/images/txpin/vector/general/errorimage.svg"
+                                    alt="error"
+                                    className={
+                                        fitMode === "contain"
+                                            ? "h-full w-auto object-contain"
+                                            : "w-full h-full object-cover"
+                                    }
+                                />
+                            )}
                         </div>
                     ))}
+
                 </div>
             </div>
 
-            {/* ✅ Dots Indicator */}
+            {/* Dots Indicator */}
             {data?.length > 1 && (
                 <div className="absolute bottom-3 cursor-pointer left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
                     {data.map((_, index) => (
                         <button
                             key={index}
                             onClick={() => goToSlide(index)}
-                            className={`w-3 h-3 rounded-full ${currentSlide - 1 === index ? "bg-white" : "bg-gray-400"
-                                }`}
+                            className={`w-3 h-3 rounded-full ${dataIndex === index ? "bg-white" : "bg-gray-400"}`}
                         />
                     ))}
                 </div>

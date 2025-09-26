@@ -21,8 +21,8 @@ const navItems = [
 const MainNavbar = () => {
     const { rootContext, setRootContext } = useContext(RootContext);
     return (
-        <nav className="bg-[#3D3D3D] w-full sm:w-[60%] z-50 mx-auto rounded-xl shadow-lg">
-            <div className="flex justify-around items-center text-white">
+        <nav className="bg-[#3D3D3D] w-full sm:w-[60%] z-50 mx-auto sm:rounded-xl sm:shadow-lg">
+            <div className="grid grid-cols-3 sm:flex sm:justify-around items-center text-white">
                 {navItems.map((item) => {
                     const isActive = rootContext.active === item.label;
                     return (

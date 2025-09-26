@@ -60,8 +60,8 @@ const HeaderNav = () => {
     }, []);
 
     return (
-        <header className="bg-white w-full text-gray-800 py-3 shadow-md">
-            <div className="w-full sm:w-[90%] mx-auto flex justify-between items-center gap-6">
+        <header className="bg-white w-full text-gray-800 px-2 sm:px-0 py-3 shadow-md">
+            <div className="w-full sm:w-[90%] mx-auto flex justify-between items-center">
                 {/* Logo */}
                 <div className="flex cursor-pointer items-center">
                     <Image
@@ -70,14 +70,14 @@ const HeaderNav = () => {
                         width={220}
                         height={90}
                         priority
-                        className="object-contain h-auto sm:h-26"
+                        className="object-contain h-20 sm:h-26"
                     />
                 </div>
 
                 {/* Right section */}
                 <div className="relative w-full sm:w-auto flex flex-col items-end space-y-2">
                     {/* Login Icon - always top-right */}
-                    <div className="absolute top-0 right-0 sm:static">
+                    <div className="absolute top-0 right-0 static">
                         <Image
                             src="/icons/login.png"
                             alt="login"
@@ -90,7 +90,7 @@ const HeaderNav = () => {
 
                     {/* Weather + Day */}
                     {weather ? (
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center sm:space-x-2">
+                        <div className="flex items-end sm:items-center sm:space-x-2 capitalize">
                             <span className="text-gray-500 text-sm sm:text-base">{day}, {weather.condition}</span>
                             {weather.temp && <span className="font-bold text-sm sm:text-base">{weather.temp}°C</span>}
                             <Image
@@ -108,7 +108,7 @@ const HeaderNav = () => {
 
                     {/* Time + City */}
                     <div className="flex items-center space-x-1 text-xs sm:text-sm">
-                        <span className="font-light">{time} IST | {weather?.city || "Locating..."}</span>
+                        <span className="font-light uppercase">{time} IST | <span className="font-medium capitalize">{weather?.city || "Locating..."}</span></span>
                         <MapPinIcon className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
                     </div>
                 </div>

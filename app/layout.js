@@ -47,7 +47,7 @@ export default function RootLayout({ children }) {
           <div className="relative">
             <HeaderNav />
             {/* MainNavbar attached to bottom of HeaderNav */}
-            <div className="absolute w-full inset-x-0 -bottom-8 flex justify-center">
+            <div className="sm:absolute w-full sm:inset-x-0 sm:-bottom-8 sm:flex sm:justify-center">
               <MainNavbar />
             </div>
           </div>

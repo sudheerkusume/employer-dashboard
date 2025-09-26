@@ -41,7 +41,7 @@ const AmenityItem = ({ label, icon: Icon, isNearby }) => (
 );
 
 const AmenitiesGrid = () => (
-    <div className="bg-white p-6 rounded-xl shadow-2xl mt-4">
+    <div className="bg-white p-6 sm:rounded-xl sm:shadow-2xl mt-4">
         <h2 className="text-xl font-semibold text-center text-gray-800 mb-6">
             PROJECT AMENITIES
         </h2>
