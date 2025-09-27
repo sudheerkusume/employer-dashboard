@@ -1,46 +1,87 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
+import ButtonTab from "../common/buttontab";
+import GlobeChart from "../common/globechar";
 
 export default function ExploreGlobal() {
-    const [activeTab, setActiveTab] = useState("Europe");
+    const [activeTab, setActiveTab] = useState(0);
 
     const tabs = [
-        "Europe",
-        "Asia",
-        "North America",
-        "Middle East",
-        "Caribbean",
-        "Africa",
-        "Australia",
-        "South America",
-        "Oceania",
+        { name: "Europe" },
+        { name: "Asia" },
+        { name: "North America" },
+        { name: "Middle East" },
+        { name: "Caribbean" },
+        { name: "Africa" },
+        { name: "Australia" },
+        { name: "South America" },
+        { name: "Oceania" },
     ];
 
-    const cities = [
-        { name: "London", img: "/images/image 50.png" },
-        { name: "Paris", img: "/images/image 50.png" },
-        { name: "Hamburg", img: "/images/image 50.png" },
-        { name: "Istanbul", img: "/images/image 50.png" },
-        { name: "Amsterdam", img: "/images/image 50.png" },
-        { name: "Lisbon", img: "/images/image 50.png" },
-        { name: "Rome", img: "/images/image 50.png" },
-        { name: "Athens", img: "/images/image 50.png" },
-        { name: "Berlin", img: "/images/image 50.png" },
-        { name: "Barcelona", img: "/images/image 50.png" },
-        { name: "Venice", img: "/images/image 50.png" },
-        { name: "Malaga", img: "/images/image 50.png" },
-        { name: "Vienna", img: "/images/image 50.png" },
-        { name: "Porto", img: "/images/image 50.png" },
-        { name: "Stockholm", img: "/images/image 50.png" },
-        { name: "Monte Carlo", img: "/images/image 50.png" },
-    ];
+    // Group cities by region with dummy real-estate related data
+    const regionCities = {
+        Europe: [
+            { name: "London", img: "/images/image 50.png", properties: 120 },
+            { name: "Paris", img: "/images/image 50.png", properties: 95 },
+            { name: "Rome", img: "/images/image 50.png", properties: 80 },
+            { name: "Berlin", img: "/images/image 50.png", properties: 70 },
+        ],
+        Asia: [
+            { name: "Chennai", img: "/images/chennai.png", properties: 75 },
+            { name: "Tokyo", img: "/images/image 50.png", properties: 110 },
+            { name: "Mumbai", img: "/images/mumbai.png", properties: 90 },
+            { name: "Bangkok", img: "/images/image 50.png", properties: 90 },
+            { name: "Singapore", img: "/images/image 50.png", properties: 60 },
+            { name: "Delhi", img: "/images/delhi.png", properties: 60 },
+            { name: "Dubai", img: "/images/image 50.png", properties: 75 },
+            { name: "Hyderabad", img: "/images/hyderabad.png", properties: 110 },
+        ],
+        "North America": [
+            { name: "New York", img: "/images/image 50.png", properties: 140 },
+            { name: "Los Angeles", img: "/images/image 50.png", properties: 100 },
+            { name: "Toronto", img: "/images/image 50.png", properties: 85 },
+            { name: "Chicago", img: "/images/image 50.png", properties: 65 },
+        ],
+        "Middle East": [
+            { name: "Dubai", img: "/images/image 50.png", properties: 80 },
+            { name: "Abu Dhabi", img: "/images/image 50.png", properties: 50 },
+            { name: "Doha", img: "/images/image 50.png", properties: 45 },
+        ],
+        Caribbean: [
+            { name: "Havana", img: "/images/image 50.png", properties: 30 },
+            { name: "Nassau", img: "/images/image 50.png", properties: 25 },
+            { name: "Kingston", img: "/images/image 50.png", properties: 20 },
+        ],
+        Africa: [
+            { name: "Cape Town", img: "/images/image 50.png", properties: 60 },
+            { name: "Johannesburg", img: "/images/image 50.png", properties: 55 },
+            { name: "Nairobi", img: "/images/image 50.png", properties: 40 },
+        ],
+        Australia: [
+            { name: "Sydney", img: "/images/image 50.png", properties: 70 },
+            { name: "Melbourne", img: "/images/image 50.png", properties: 60 },
+            { name: "Brisbane", img: "/images/image 50.png", properties: 45 },
+        ],
+        "South America": [
+            { name: "Rio de Janeiro", img: "/images/image 50.png", properties: 65 },
+            { name: "Buenos Aires", img: "/images/image 50.png", properties: 55 },
+            { name: "Santiago", img: "/images/image 50.png", properties: 50 },
+        ],
+        Oceania: [
+            { name: "Auckland", img: "/images/image 50.png", properties: 35 },
+            { name: "Wellington", img: "/images/image 50.png", properties: 25 },
+            { name: "Fiji", img: "/images/image 50.png", properties: 20 },
+        ],
+    };
 
+    // Get cities of active tab
+    const currentCities = regionCities[tabs[activeTab].name] || [];
 
     return (
         <div className="w-full min-h-screen bg-white font-sans">
             {/* Header */}
-            <div className="flex items-center px-3 sm:px-5 gap-3 py-6">
+            <div className="flex items-center px-3 sm:px-5 py-6">
                 <div>
                     <Image
                         src="/images/explore.png"
@@ -49,38 +90,19 @@ export default function ExploreGlobal() {
                         height={60}
                         className="object-contain"
                     />
+                    <h1 className="text-5xl font-bold">GLOBAL</h1>
                 </div>
-                <h1 className="text-6xl font-bold">GLOBAL</h1>
-                <div className="w-20 h-20 flex items-center justify-center">
-                    <Image
-                        src="/images/globe.png"
-                        alt="globe"
-                        width={60}
-                        height={60}
-                        className="object-contain spin-globe"
-                    />
-                </div>
+                <GlobeChart />
             </div>
 
             {/* Tabs */}
-            <div className="flex justify-center space-x-6 text-lg font-medium">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`pb-2 ${activeTab === tab
-                            ? "text-yellow-500 border-b-2 border-yellow-500"
-                            : "text-gray-700 hover:text-black"
-                            }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+            <div className="px-5">
+                <ButtonTab tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* Cities Grid */}
             <div className="max-w-7xl mx-auto px-6 mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {cities.map((city, index) => (
+                {currentCities.map((city, index) => (
                     <div key={index} className="relative rounded-lg overflow-hidden shadow-md">
                         <Image
                             src={city.img}
@@ -92,7 +114,7 @@ export default function ExploreGlobal() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 text-white">
                             <h3 className="text-lg font-bold">{city.name}</h3>
-                            <p className="text-sm">150 Featured Sites</p>
+                            <p className="text-sm">{city.properties} Featured Properties</p>
                         </div>
                     </div>
                 ))}

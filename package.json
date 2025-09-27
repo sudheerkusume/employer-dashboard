@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@amcharts/amcharts5": "^5.13.6",
     "@heroicons/react": "^2.2.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.544.0",

@@ -12,6 +12,7 @@ export default function RectangleCardTitle({
     onInfoIconClick,
     cardIndex,
     rowPosition,
+    lastIndex,
     onHover // 👈 coming from Carousel
 }) {
     const getImage = (images, ratio) => {
@@ -27,10 +28,10 @@ export default function RectangleCardTitle({
     return (
         <div
             className={`flex relative lg:w-[313px] rounded-xl ${hover
-                    ? "group/item transition-all duration-700 ease-in-out hover:w-[626px]"
-                    : ""
-                }`}
-            onMouseEnter={onHover} // 👈 auto-slide trigger
+                ? "group/item transition-all duration-700 ease-in-out hover:w-[626px]"
+                : ""
+                } ${lastIndex && "lg:mr-[313px]"}`}
+            onMouseEnter={onHover}
         >
             <div className="relative pt-[10px] flex">
                 <div

@@ -1,26 +1,111 @@
-import { BookOpenIcon, FilmIcon, CubeTransparentIcon, VideoCameraSlashIcon, PlayIcon } from '@heroicons/react/24/outline';
-import Slider from '../common/slider';
+'use client';
+import { useContext, useMemo } from 'react';
 import Image from 'next/image';
+import Slider from '../common/slider';
 import RootContext from '../config/rootcontext';
-import { useContext } from 'react';
-const dummyData = [
-    { image: "/images/image1.jpg" },
-    { image: "/images/image2.png" },
-    { image: "/images/image3.png" },
-    { image: "/images/image4.png" }
-];
+
 const HeroSection = () => {
     const { rootContext } = useContext(RootContext);
+
+    // Map activity to dummy images
+    const sliderData = useMemo(() => {
+        switch (rootContext.active) {
+            case 'Apartments':
+                return [
+                    { image: '/images/apartment1.jpg' },
+                    { image: '/images/apartment2.jpg' },
+                    { image: '/images/apartment3.jpg' },
+                    { image: '/images/apartment4.jpg' },
+                ];
+            case 'Villas':
+                return [
+                    { image: '/images/villa1.jpg' },
+                    { image: '/images/villa2.jpg' },
+                    { image: '/images/villa3.jpg' },
+                    { image: '/images/villa4.jpg' },
+                ];
+            case 'Open Plots':
+                return [
+                    { image: '/images/plot1.jpg' },
+                    { image: '/images/plot2.jpg' },
+                    { image: '/images/plot3.jpg' },
+                    { image: '/images/plot4.jpg' },
+                ];
+            case 'Farmlands':
+                return [
+                    { image: '/images/farmland1.jpg' },
+                    { image: '/images/farmland2.jpg' },
+                    { image: '/images/farmland3.jpg' },
+                    { image: '/images/farmland4.jpg' },
+                ];
+            case 'Commercial':
+                return [
+                    { image: '/images/commercial1.jpg' },
+                    { image: '/images/commercial2.jpg' },
+                    { image: '/images/commercial3.jpg' },
+                    { image: '/images/commercial4.jpg' },
+                    { image: '/images/commercial5.jpg' },
+                ];
+            case 'Go downs':
+                return [
+                    { image: '/images/godown1.jpg' },
+                    { image: '/images/godown2.jpg' },
+                    { image: '/images/godown3.jpg' },
+                    { image: '/images/godown4.jpg' },
+                    { image: '/images/godown5.jpg' },
+                ];
+            case 'Legal':
+                return [
+                    { image: '/images/godown5.jpg' },
+                    { image: '/images/commercial1.jpg' },
+                    { image: '/images/villa1.jpg' },
+                    { image: '/images/apartment3.jpg' },
+                ];
+            case 'All':
+            default:
+                return [
+                    { image: '/images/image1.jpg' },
+                    { image: '/images/apartment3.jpg' },
+                    { image: '/images/apartment4.jpg' },
+                    { image: '/images/commercial1.jpg' },
+                    { image: '/images/commercial5.jpg' },
+                    { image: '/images/image4.png' },
+                    { image: '/images/apartment1.jpg' },
+                    { image: '/images/farmland3.jpg' },
+                    { image: '/images/farmland4.jpg' },
+                    { image: '/images/apartment2.jpg' },
+                    { image: '/images/image2.png' },
+                    { image: '/images/image3.png' },
+                    { image: '/images/godown1.jpg' },
+                    { image: '/images/godown2.jpg' },
+                    { image: '/images/farmland1.jpg' },
+                    { image: '/images/farmland2.jpg' },
+                    { image: '/images/godown3.jpg' },
+                    { image: '/images/commercial2.jpg' },
+                    { image: '/images/commercial3.jpg' },
+                    { image: '/images/commercial4.jpg' },
+                    { image: '/images/godown4.jpg' },
+                    { image: '/images/godown5.jpg' },
+                ];
+        }
+    }, [rootContext.active]);
 
     return (
         <div className="relative h-auto overflow-hidden bg-[#D79A2F]">
             {/* Background Image/Carousel */}
-            <Slider data={dummyData} rounded="sm:rounded-lg" className="h-[260px] sm:h-[600px]" fitMode="cover" />
+            <div className="p-2">
+                <Slider
+                    data={sliderData}
+                    rounded="sm:rounded-lg"
+                    className="h-[260px] sm:h-[600px]"
+                    fitMode="cover"
+                />
+            </div>
 
             {/* Text Overlay */}
             <div className="absolute inset-0 p-2 sm:p-8 flex flex-col justify-start text-white">
                 <h1 className="text-lg sm:text-4xl font-blod sm:font-extrabold sm:mt-4 z-10 uppercase">
-                    {`ANKURA ${rootContext.active}`}
+                    {`Real Beez ${(rootContext.active === 'All' || rootContext.active === 'Search') ? 'Properties' : rootContext.active}`}
                 </h1>
                 <p className="text-xs sm:text-md sm:mt-2 z-10">
                     GACHIBOWLI, HYDERABAD, TELANGANA - 500032

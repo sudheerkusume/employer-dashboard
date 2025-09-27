@@ -9,9 +9,6 @@ export default function RectangleCardSwimLane({
     rowPosition,
     onWatchNowClick,
     onInfoIconClick,
-    watchListIds,
-    showPopup,
-    userData
 }) {
     return (
         <div className="relative">
@@ -27,6 +24,7 @@ export default function RectangleCardSwimLane({
                         lang={lang}
                         cardType="rectangle"
                         cardIndex={index}
+                        lastIndex={index === data.length - 1}
                         rowPosition={rowPosition}
                         row_name={item.name}
                         onWatchNowClick={onWatchNowClick}

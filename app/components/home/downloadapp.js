@@ -7,22 +7,45 @@ import { PlayIcon } from "@heroicons/react/24/outline";
 const DownloadApp = () => {
     return (
         <div className="relative flex min-h-screen items-center overflow-hidden bg-white">
-            {/* Background Layer */}
+            {/* Background SVG Curves - Extended Horizontally */}
             <div className="absolute inset-0 overflow-hidden">
-                {/* Left Curve - Wrapping left content */}
-                <div className="absolute left-0 top-0 h-full w-1/2 bg-[#f1e28c] rounded-r-full"
-                    style={{ clipPath: 'ellipse(100% 70% at 1% 50%)' }} />
+                {/* Left Side Curve - Extended */}
+                <svg
+                    className="absolute left-0 top-0 h-full w-5/6"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                >
+                    <path
+                        d="M0,0 
+                           C70,0 75,10 0,265 
+                           L0,0 Z"
+                        fill="#f1e28c"
+                    />
+                </svg>
 
-                {/* Right Curves - Wrapping mobile image */}
-                <div className="absolute right-0 top-0 h-full w-3/5">
-                    {/* Outer curve */}
-                    <div className="absolute right-0 top-0 h-full w-full bg-[#f1e28c] rounded-l-full"
-                        style={{ clipPath: 'ellipse(100% 70% at 100% 50%)' }} />
 
-                    {/* Inner curve */}
-                    <div className="absolute right-0 top-1/2 transform -translate-y-1/2 h-4/5 w-4/5 bg-[#ffc300] rounded-l-full"
-                        style={{ clipPath: 'ellipse(100% 70% at 100% 50%)' }} />
-                </div>
+                {/* Right Side Curves - Extended */}
+                <svg
+                    className="absolute right-0 top-0 h-full w-4/5"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                >
+                    {/* Outer Curve - Extended */}
+                    <path
+                        d="M100,0 
+                           C30,10 35,90 100,100 
+                           L100,0 Z"
+                        fill="#f1e28c"
+                    />
+
+                    {/* Inner Curve - Extended */}
+                    <path
+                        d="M100,15 
+                           C25,25 40,85 120,95 
+                           L100,15 Z"
+                        fill="#ffc300"
+                    />
+                </svg>
             </div>
 
             {/* Content */}
@@ -41,7 +64,7 @@ const DownloadApp = () => {
                     </div>
 
                     {/* Heading */}
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800 leading-tight mb-8 max-w-lg">
+                    <h1 className="text-lg md:text-2xl font-extrabold text-gray-800 leading-tight mb-8">
                         Download Our{" "}
                         <span className="text-[#e89d1b]">Real Estate</span> Mobile App
                     </h1>

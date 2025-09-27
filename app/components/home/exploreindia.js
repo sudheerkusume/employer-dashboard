@@ -114,7 +114,7 @@ export default function ExploreIndia() {
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}
-            <div className="flex items-center px-3 sm:px-5 gap-3 py-6">
+            <div className="flex items-center px-5 sm:px-5 py-6">
                 <div>
                     <Image
                         src="/images/explore.png"
@@ -135,7 +135,7 @@ export default function ExploreIndia() {
                 </div>
             </div>
 
-            <div className="w-full">
+            <div className="w-full px-5">
                 <RectangleCardSwimLane
                     data={properties}
                     lang="en"

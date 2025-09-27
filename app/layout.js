@@ -5,6 +5,7 @@ import HeaderNav from "./components/common/header";
 import MainNavbar from "./components/common/mainnavbar";
 import RootContext from "./components/config/rootcontext";
 import { useState } from "react";
+import HeroSection from "./components/home/herosection";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,11 +45,17 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
-          <div className="relative">
+          <div className="relative w-full">
             <HeaderNav />
-            {/* MainNavbar attached to bottom of HeaderNav */}
-            <div className="sm:absolute w-full sm:inset-x-0 sm:-bottom-8 sm:flex sm:justify-center">
-              <MainNavbar />
+            <div className="relative">
+              <div className="w-full sm:w-[70%] mx-auto z-50
+                              sm:absolute sm:left-1/2 sm:-translate-x-1/2 
+                              sm:-top-10">
+                <MainNavbar />
+              </div>
+              <div className="w-full sm:rounded-lg mt-4 sm:mt-0">
+                <HeroSection />
+              </div>
             </div>
           </div>
           {children}
