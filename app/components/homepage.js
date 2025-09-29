@@ -14,7 +14,7 @@ export default function HomePage() {
             <ExploreIndia />
             <EasyRealEstateSection />
             <ExploreGlobal />
-            <div className="w-full px-0 sm:px-4">
+            <div className="w-full px-0 sm:px-5">
                 <DownloadApp />
             </div>
             <Footer/>

@@ -6,7 +6,7 @@ import { PlayIcon } from "@heroicons/react/24/outline";
 
 const DownloadApp = () => {
     return (
-        <div className="relative flex items-center overflow-hidden bg-white">
+        <div className="relative flex mt-5 items-center overflow-hidden bg-white">
             {/* Background SVG Curves - Extended Horizontally */}
             <div className="absolute inset-0 overflow-hidden">
                 {/* Left Side Curve - Extended */}
