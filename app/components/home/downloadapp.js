@@ -6,20 +6,20 @@ import { PlayIcon } from "@heroicons/react/24/outline";
 
 const DownloadApp = () => {
     return (
-        <div className="relative flex min-h-screen items-center overflow-hidden bg-white">
+        <div className="relative flex items-center overflow-hidden bg-white">
             {/* Background SVG Curves - Extended Horizontally */}
             <div className="absolute inset-0 overflow-hidden">
                 {/* Left Side Curve - Extended */}
                 <svg
                     className="absolute left-0 top-0 h-full w-5/6"
-                    viewBox="0 0 100 100"
+                    viewBox="0 10 100 100"
                     preserveAspectRatio="none"
                 >
                     <path
                         d="M0,0 
-                           C70,0 75,10 0,265 
-                           L0,0 Z"
-                        fill="#f1e28c"
+                           C70,0 105,60 0,265 
+                           L0,90 Z"
+                        fill="#FFF7D8"
                     />
                 </svg>
 
@@ -27,23 +27,23 @@ const DownloadApp = () => {
                 {/* Right Side Curves - Extended */}
                 <svg
                     className="absolute right-0 top-0 h-full w-4/5"
-                    viewBox="0 0 100 100"
+                    viewBox="0 10 100 80"
                     preserveAspectRatio="none"
                 >
                     {/* Outer Curve - Extended */}
                     <path
                         d="M100,0 
                            C30,10 35,90 100,100 
-                           L100,0 Z"
-                        fill="#f1e28c"
+                           L100,90 Z"
+                        fill="#FFF7D8"
                     />
 
                     {/* Inner Curve - Extended */}
                     <path
-                        d="M100,15 
-                           C25,25 40,85 120,95 
-                           L100,15 Z"
-                        fill="#ffc300"
+                        d="M110,10 
+                           C25,25 40,85 120,85 
+                           L110,95 Z"
+                        fill="#FFC800"
                     />
                 </svg>
             </div>
@@ -120,13 +120,13 @@ const DownloadApp = () => {
                 {/* Right Content - Mobile Image */}
                 <div className="relative flex-1 z-10 flex items-center justify-center p-8 lg:p-16">
                     <div className="relative w-full max-w-md h-[600px] flex justify-center items-center">
-                        <div className="absolute w-[280px] h-[540px] -rotate-3 transform">
+                        <div className="absolute top-26 w-[280px] h-[540px] -rotate-3 transform">
                             <Image
-                                src="/images/mobile.png"
+                                src={"/images/mobile.png"}
                                 alt="Realbee Mobile App"
-                                fill
+                                width={260}
+                                height={250}
                                 className="object-contain drop-shadow-2xl"
-                                priority
                             />
                         </div>
                     </div>

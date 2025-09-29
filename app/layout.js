@@ -6,6 +6,7 @@ import MainNavbar from "./components/common/mainnavbar";
 import RootContext from "./components/config/rootcontext";
 import { useState } from "react";
 import HeroSection from "./components/home/herosection";
+import Toast from "./components/common/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,6 +60,7 @@ export default function RootLayout({ children }) {
             </div>
           </div>
           {children}
+          {rootContext?.toast && <Toast />}
         </RootContext.Provider>
       </body>
     </html>

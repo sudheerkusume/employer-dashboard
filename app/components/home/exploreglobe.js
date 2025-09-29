@@ -79,7 +79,7 @@ export default function ExploreGlobal() {
     const currentCities = regionCities[tabs[activeTab].name] || [];
 
     return (
-        <div className="w-full min-h-screen bg-white font-sans">
+        <div className="w-full bg-white font-sans">
             {/* Header */}
             <div className="flex items-center px-3 sm:px-5 py-6">
                 <div>
