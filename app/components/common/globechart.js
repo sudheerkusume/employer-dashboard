@@ -41,14 +41,14 @@ export default function GlobeChart() {
                 tooltipText: "{name}",
                 toggleKey: "active",
                 interactive: true,
-                fill: am5.color("#D79A2F"), // Yellow color
-                stroke: am5.color("#D79A2F"), // Dark yellow border
+                fill: am5.color("#D79A2F"),
+                stroke: am5.color("#D79A2F"),
                 strokeWidth: 0.5,
             });
 
             // Hover state with brighter yellow
             polygonSeries.mapPolygons.template.states.create("hover", {
-                fill: am5.color("#FFEC8B"), // Light yellow on hover
+                fill: am5.color("#FFEC8B"),
                 stroke: am5.color("#FFD700"),
                 strokeWidth: 1,
             });
@@ -56,7 +56,7 @@ export default function GlobeChart() {
             // Background series for ocean
             const backgroundSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {}));
             backgroundSeries.mapPolygons.template.setAll({
-                fill: am5.color("#ffffff"), // Dark blue ocean
+                fill: am5.color("#FFFFFF"),
                 fillOpacity: 0.8,
                 strokeOpacity: 0,
             });
