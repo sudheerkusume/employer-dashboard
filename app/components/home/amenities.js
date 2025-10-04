@@ -54,7 +54,7 @@ const AmenitiesGrid = () => (
 
         <hr className="my-8 border-gray-200" />
 
-        <div className="grid grid-cols-4 sm:grid-cols-12 gap-2 mb-6 z-50">
+        <div className="grid grid-cols-4 sm:grid-cols-12 gap-2 mb-10 z-50">
             {/* Nearby Locations Grid */}
             {nearby.map((item, index) => (
                 <AmenityItem key={index} label={item.label} icon={item.icon} isNearby={true} />

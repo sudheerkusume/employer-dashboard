@@ -4,7 +4,7 @@ const estateImage = '/images/luxuryvilla.png';
 
 const EasyRealEstateSection = () => {
     return (
-        <div className="p-4 md:p-10 lg:p-16 bg-white shadow-xl rounded-xl border border-gray-100 max-w-7xl mx-auto my-12">
+        <div className="p-4 md:p-10 lg:p-16 bg-white max-w-7xl mx-auto my-12">
             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center">
 
                 <div className="lg:w-1/2 flex flex-col justify-center">

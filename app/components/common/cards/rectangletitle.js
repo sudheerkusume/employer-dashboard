@@ -1,11 +1,12 @@
 "use client";
 import Image from "next/image";
 import NewOnHover from "../onhovercard";
+import { useParams } from "next/navigation";
 
 export default function RectangleCardTitle({
     item,
     hover = true,
-    lang,
+    type,
     cardType,
     row_name,
     onWatchNowClick,
@@ -14,20 +15,24 @@ export default function RectangleCardTitle({
     rowPosition,
     lastIndex
 }) {
+
+    const { city } = useParams();
     const getImage = (images, ratio) => {
         if (!images || images.length === 0) return "/images/no_image.svg";
-        const matched = images.find((img) => img.aspect === ratio);
-        return matched ? matched.image : images[0].image;
+        const matched = images.find((img) => img.aspect_ratio === ratio);
+        return matched ? matched.url : images[0].url;
     };
 
     const handleCardClick = () => {
         const safeCity = item.city ? item.city.toLowerCase().replace(/\s+/g, "-") : "listing";
-        window.location.href = `/${safeCity}`;
+        const safeArea = city ? item.area ? item.area.toLowerCase().replace(/\s+/g, "-") : "listing" : "";
+        window.location.href = `/${safeCity}/${safeArea}`;
     };
 
     return (
         <div
-            className={`flex relative lg:w-[313px] rounded-xl ${hover ? "group/item transition-all duration-700 ease-in-out hover:w-[626px]" : ""
+            // *** FIX APPLIED HERE: Added transform translate-x-0 for smooth exit transition ***
+            className={`flex relative lg:w-[313px] rounded-xl transform translate-x-0 ${hover ? "transition-all duration-700 ease-in-out group/item hover:w-[626px]" : ""
                 } ${lastIndex && "lg:mr-[320px]"}`}
         >
             {/* Left side - Image */}
@@ -64,7 +69,7 @@ export default function RectangleCardTitle({
                         cardIndex={cardIndex}
                         rowPosition={rowPosition}
                         row_name={row_name}
-                        lang={lang}
+                        type={type}
                     />
                 </div>
             )}

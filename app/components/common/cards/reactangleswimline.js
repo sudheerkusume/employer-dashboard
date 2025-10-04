@@ -5,7 +5,7 @@ import Carousel from "../carousel";
 
 export default function RectangleCardSwimLane({
     data,
-    lang,
+    type,
     rowPosition,
     onWatchNowClick,
     onInfoIconClick,
@@ -38,7 +38,7 @@ export default function RectangleCardSwimLane({
                                     { aspect: "4:3", image: "/images/default.png" },
                                 ],
                         }}
-                        lang={lang}
+                        type={type}
                         cardType="rectangle"
                         cardIndex={index}
                         lastIndex={index === data.length - 1}

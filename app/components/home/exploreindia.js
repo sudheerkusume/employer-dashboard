@@ -79,7 +79,7 @@ export default function ExploreIndia() {
             <div className="w-full h-full px-5">
                 <RectangleCardSwimLane
                     data={properties}
-                    lang={"country"}
+                    type={"country"}
                     rowPosition={0}
                     onWatchNowClick={handleWatchNowClick}
                     onInfoIconClick={handleInfoIconClick}

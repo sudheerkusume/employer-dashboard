@@ -1,5 +1,7 @@
 "use client";
 
+import { useParams } from "next/navigation";
+
 export default function NewOnHover({
     data,
     cardType,
@@ -8,15 +10,19 @@ export default function NewOnHover({
     cardIndex,
     rowPosition,
     row_name,
-    lang
+    type
 }) {
-    const isCountry = lang === "country";
 
-    // ---------- COUNTRY INFO ----------
-    const city = data?.city || "Unknown City";
+    const isCountry = type === "country";
+    const isArea = type === "city"; // 👈 city mode should show area-level summary
+
+    // ---------- COMMON for City/Country/Area Summary ----------
+    const cityName = data?.city || "Unknown City";
+    const areaName = data?.area || "Unknown Area";
+
     const propertyTypes = data?.properties?.map(
         (p) => p.type.charAt(0).toUpperCase() + p.type.slice(1)
-    ) || [data?.type.charAt(0).toUpperCase() + data?.type.slice(1)];
+    ) || [data?.type?.charAt(0).toUpperCase() + data?.type?.slice(1)];
 
     const prices = data?.properties?.map((p) => p.price) || [data?.price];
     const minPrice = prices.length ? Math.min(...prices) : 0;
@@ -26,11 +32,11 @@ export default function NewOnHover({
         ? `${currency} ${minPrice.toLocaleString()} - ${currency} ${maxPrice.toLocaleString()}`
         : "Budget Not Available";
 
-    // ---------- CITY INFO ----------
+    // ---------- CITY (detailed property view) ----------
     const location = `${data?.city || ""}${data?.state ? `, ${data?.state}` : ""}, ${data?.country || ""}${data?.region ? ` (${data?.region})` : ""}`;
     const price = data?.price ? `${data?.currency || ""} ${data?.price.toLocaleString()}` : "Price Not Available";
     const status = data?.status || "Status Unknown";
-    const area = data?.area_sq_ft ? `${data?.area_sq_ft} sq.ft` : "Area N/A";
+    const areaSize = data?.area_sq_ft ? `${data?.area_sq_ft} sq.ft` : "Area N/A";
     const bedrooms = data?.bedrooms ? `${data?.bedrooms} BHK` : "";
     const bathrooms = data?.bathrooms ? `${data?.bathrooms} Bath` : "";
     const furnishing = data?.furnishing ? data?.furnishing.replace("_", " ") : "N/A";
@@ -46,11 +52,11 @@ export default function NewOnHover({
             className={`h-full w-full rounded-r-lg bg-neutral-900 opacity-95 ${cardType === "rectangle" ? "mt-[10px] pt-[10px]" : "py-4"}`}
         >
             <div className="px-3">
-                {isCountry ? (
+                {(isCountry || isArea) ? (
                     <>
-                        {/* Country/City Name */}
+                        {/* City Name (for country) OR Area Name (for city) */}
                         <p className="mb-2 text-base font-bold leading-tight text-white line-clamp-2">
-                            {city}
+                            {isCountry ? cityName : areaName}
                         </p>
 
                         {/* Property Types */}
@@ -82,7 +88,7 @@ export default function NewOnHover({
                         <div className="flex flex-wrap gap-2 text-xs mb-2 text-white">
                             {bedrooms && <span className="px-1 bg-blue-600 rounded">{bedrooms}</span>}
                             {bathrooms && <span className="px-1 bg-blue-600 rounded">{bathrooms}</span>}
-                            {area && <span className="px-1 bg-blue-600 rounded">{area}</span>}
+                            {areaSize && <span className="px-1 bg-blue-600 rounded">{areaSize}</span>}
                             {furnishing && <span className="px-1 bg-blue-600 rounded">{furnishing}</span>}
                         </div>
 
@@ -111,7 +117,7 @@ export default function NewOnHover({
                 <div className="flex gap-2">
                     <button
                         onClick={() => onWatchNowClick(data, "watch", cardIndex, cardType, row_name, rowPosition)}
-                        className={`px-3 py-1 text-white text-xs rounded font-semibold ${isCountry ? "bg-red-500" : "bg-travelxp-red"}`}
+                        className={`px-3 py-1 text-white text-xs rounded font-semibold ${(isCountry || isArea) ? "bg-red-500" : "bg-travelxp-red"}`}
                     >
                         View Details
                     </button>

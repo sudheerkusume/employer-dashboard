@@ -74,7 +74,7 @@ const Carousel = ({ customArrow, customStyle, children }) => {
             {/* Carousel */}
             <div
                 ref={carousel}
-                className="relative flex gap-2 overflow-x-scroll scroll-smooth touch-auto no-scrollbar lg:gap-3 xl:gap-4"
+                className="relative flex gap-2 overflow-x-auto overflow-y-hidden scroll-smooth touch-pan-x no-scrollbar lg:gap-3 xl:gap-4"
             >
                 {children.map((child, index) =>
                     cloneElement(child, {

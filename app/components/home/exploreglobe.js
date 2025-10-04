@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import ButtonTab from "../common/buttontab";
-import GlobeChart from "../common/globechar";
+import GlobeChart from "../common/globechart";
 import { realEstateData } from "../config/data";
 
 export default function ExploreGlobal() {
