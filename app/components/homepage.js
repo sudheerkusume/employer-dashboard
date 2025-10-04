@@ -10,7 +10,6 @@ import Footer from "./common/footer";
 export default function HomePage() {
     return (
         <div className="w-full sm:rounded-lg bg-white">
-            <AmenitiesGrid />
             <ExploreIndia />
             <EasyRealEstateSection />
             <ExploreGlobal />

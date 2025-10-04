@@ -28,8 +28,8 @@ const HeaderNav = () => {
 
     useEffect(() => {
         const timerId = setInterval(() => {
-            setTime(getFormattedTime());
-            setDay(getDayName());
+            setTime(getFormattedTime() || "");
+            setDay(getDayName() || "");
         }, 60000);
         return () => clearInterval(timerId);
     }, []);

@@ -1,109 +1,48 @@
 "use client";
 import Image from "next/image";
 import RectangleCardSwimLane from "../common/cards/reactangleswimline";
+import { realEstateData } from "../config/data";
 
 export default function ExploreIndia() {
-    const properties = [
-        {
-            id: 1,
-            name: "Luxury Apartment in Hyderabad",
-            city: "Hyderabad",
+    // Create a map to track unique cities
+    const cityMap = new Map();
+
+    // Filter India properties and keep only the first property per city
+    const properties = realEstateData
+        .filter((item) => item.address.country.toLocaleLowerCase() === "india")
+        .filter((item) => {
+            if (!cityMap.has(item.address.city)) {
+                cityMap.set(item.address.city, true);
+                return true; // keep first property of the city
+            }
+            return false; // skip other properties from the same city
+        })
+        .map((item) => ({
+            id: item.id,
+            name: item.title,
+            description: item.description,
+            city: item.address.city,
+            area: item.address.area,
             lang: "en",
-            path: "en/property/hyderabad-luxury-apartment",
-            value: "prop_001",
-            images: [
-                { aspect: "16:9", image: "/images/hyderabad.png" },
-                { aspect: "4:3", image: "/images/hyderabad.png" },
-            ],
-            price: "₹1.2 Cr",
-            type: "Apartment",
-        },
-        {
-            id: 2,
-            name: "Beachside Villa in Chennai",
-            city: "Chennai",
-            lang: "en",
-            path: "en/property/chennai-villa",
-            value: "prop_002",
-            images: [
-                { aspect: "16:9", image: "/images/chennai.png" },
-                { aspect: "4:3", image: "/images/chennai.png" },
-            ],
-            price: "₹2.8 Cr",
-            type: "Villa",
-        },
-        {
-            id: 3,
-            name: "IT Hub Penthouse in Bangalore",
-            city: "Bangalore",
-            lang: "en",
-            path: "en/property/bangalore-penthouse",
-            value: "prop_003",
-            images: [
-                { aspect: "16:9", image: "/images/hyderabad.png" },
-                { aspect: "4:3", image: "/images/hyderabad.png" },
-            ],
-            price: "₹3.5 Cr",
-            type: "Penthouse",
-        },
-        {
-            id: 4,
-            name: "High-Rise Flat in Mumbai",
-            city: "Mumbai",
-            lang: "en",
-            path: "en/property/mumbai-highrise",
-            value: "prop_004",
-            images: [
-                { aspect: "16:9", image: "/images/mumbai.png" },
-                { aspect: "4:3", image: "/images/mumbai.png" },
-            ],
-            price: "₹4.2 Cr",
-            type: "Flat",
-        },
-        {
-            id: 5,
-            name: "Modern Duplex in Delhi",
-            city: "Delhi",
-            lang: "en",
-            path: "en/property/delhi-duplex",
-            value: "prop_005",
-            images: [
-                { aspect: "16:9", image: "/images/delhi.png" },
-                { aspect: "4:3", image: "/images/delhi.png" },
-            ],
-            price: "₹2.3 Cr",
-            type: "Duplex",
-        },
-        {
-            id: 6,
-            name: "Colonial Bungalow in Kolkatta",
-            city: "Kolkatta",
-            lang: "en",
-            path: "en/property/kolkatta-bungalow",
-            value: "prop_006",
-            images: [
-                { aspect: "16:9", image: "/images/chennai.png" },
-                { aspect: "4:3", image: "/images/chennai.png" },
-            ],
-            price: "₹3 Cr",
-            type: "Bungalow",
-        },
-        {
-            id: 7,
-            name: "Affordable 2BHK in Warangal",
-            city: "Warangal",
-            lang: "en",
-            path: "en/property/warangal-2bhk",
-            value: "prop_007",
-            images: [
-                { aspect: "16:9", image: "/images/hyderabad.png" },
-                { aspect: "4:3", image: "/images/hyderabad.png" },
-            ],
-            price: "₹65 Lakhs",
-            type: "Apartment",
-        },
-    ];
-    // Example handlers
+            path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,
+            value: `prop_${item.id}`,
+            images: item.images?.map((img) => ({
+                aspect: img.aspect_ratio || "16:9",
+                image: img.url || "/images/placeholder.png",
+            })) || [
+                    { aspect: "16:9", image: "/images/placeholder.png" },
+                    { aspect: "4:3", image: "/images/placeholder.png" },
+                ],
+            price: `${item.currency} ${item.price.toLocaleString()}`,
+            type: item.type.charAt(0).toUpperCase() + item.type.slice(1),
+            status: item.status,
+            bedrooms: item.bedrooms,
+            bathrooms: item.bathrooms,
+            furnishing: item.furnishing,
+            amenities: item.amenities,
+        }));
+
+    // Handlers
     const handleWatchNowClick = (data) => {
         console.log("Watch now clicked:", data);
     };
@@ -111,6 +50,7 @@ export default function ExploreIndia() {
     const handleInfoIconClick = (data) => {
         console.log("Info clicked:", data);
     };
+    console.log("properties", properties)
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}
@@ -135,10 +75,11 @@ export default function ExploreIndia() {
                 </div>
             </div>
 
-            <div className="w-full px-5">
+            {/* Properties List */}
+            <div className="w-full h-full px-5">
                 <RectangleCardSwimLane
                     data={properties}
-                    lang="en"
+                    lang={"country"}
                     rowPosition={0}
                     onWatchNowClick={handleWatchNowClick}
                     onInfoIconClick={handleInfoIconClick}

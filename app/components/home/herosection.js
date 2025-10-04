@@ -93,11 +93,11 @@ const HeroSection = () => {
     return (
         <div className="relative h-auto overflow-hidden bg-[#D79A2F]">
             {/* Background Image/Carousel */}
-            <div className="p-2">
+            <div className="p-2 sm:rounded-lg">
                 <Slider
                     data={sliderData}
                     rounded="sm:rounded-lg"
-                    className="h-[260px] sm:h-[600px]"
+                    className="h-[260px] sm:h-[600px] sm:rounded-lg"
                     fitMode="cover"
                 />
             </div>

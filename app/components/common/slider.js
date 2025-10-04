@@ -42,15 +42,11 @@ function Slider({ data, rounded, className, fitMode = "cover" }) {
         setIsTransitioning(true);
     };
 
-    // ✅ Choose class based on fitMode
-    const imageClass =
-        fitMode === "contain"
-            ? "h-full w-auto object-contain mx-auto"
-            : "w-full h-full object-cover";
+
 
     return (
         <div className={`relative w-full bg-[#D79A2F] overflow-hidden ${rounded} ${className}`}>
-            <div className="relative w-full h-full">
+            <div className={`relative w-full h-full ${rounded}`}>
                 {/* Status label */}
                 {data[dataIndex]?.status && (
                     <span className="absolute top-3 left-3 bg-orange-300 text-white text-[9px] font-semibold px-3 border border-white py-1 z-10">
@@ -60,14 +56,14 @@ function Slider({ data, rounded, className, fitMode = "cover" }) {
 
                 {/* Slides wrapper */}
                 <div
-                    className={`flex ${isTransitioning ? "transition-transform duration-700 ease-in-out" : ""}`}
+                    className={`${rounded} flex ${isTransitioning ? "transition-transform duration-700 ease-in-out" : `${rounded}`}`}
                     style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                     onTransitionEnd={handleTransitionEnd}
                 >
                     {slides.map((item, index) => (
                         <div
                             key={index}
-                            className="relative flex items-center justify-center flex-none w-full h-auto sm:h-screen bg-black"
+                            className={`${rounded} relative flex items-center justify-center flex-none w-full h-auto sm:h-screen bg-black`}
                         >
                             {item?.image ? (
                                 <img
@@ -75,8 +71,8 @@ function Slider({ data, rounded, className, fitMode = "cover" }) {
                                     alt={`carousel-${index}`}
                                     className={
                                         fitMode === "contain"
-                                            ? "h-full w-auto object-contain"
-                                            : "w-full h-full object-cover"
+                                            ? `${rounded} h-full w-auto object-contain`
+                                            : `${rounded} w-full h-full object-cover`
                                     }
                                 />
                             ) : (
@@ -85,8 +81,8 @@ function Slider({ data, rounded, className, fitMode = "cover" }) {
                                     alt="error"
                                     className={
                                         fitMode === "contain"
-                                            ? "h-full w-auto object-contain"
-                                            : "w-full h-full object-cover"
+                                            ? `${rounded} h-full w-auto object-contain`
+                                            : `${rounded} w-full h-full object-cover`
                                     }
                                 />
                             )}

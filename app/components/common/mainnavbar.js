@@ -22,7 +22,7 @@ const MainNavbar = () => {
     const { rootContext, setRootContext } = useContext(RootContext);
 
     return (
-        <div className="w-full sm:w-[60%] mx-auto">
+        <div className="w-full sm:w-[65%] mx-auto">
             <nav className="bg-[#3D3D3D] w-full z-50 sm:rounded-xl sm:shadow-lg">
                 <div className="grid grid-cols-3 sm:flex sm:justify-around items-center text-white">
                     {navItems.map((item) => {

@@ -20,7 +20,24 @@ export default function RectangleCardSwimLane({
                 {data.map((item, index) => (
                     <RectangleCardTitle
                         key={item.id}
-                        item={item}
+                        item={{
+                            ...item,
+                            name: item.name,
+                            city: item.city || "",
+                            state: item.state || "",
+                            country: item.country,
+                            region: item.region,
+                            price: item.price,
+                            type: item.type,
+                            status: item.status,
+                            path: `/${"india"}/${item.city?.toLowerCase() || "listing"}-${item.id}`,
+                            images: item.images?.length
+                                ? item.images
+                                : [
+                                    { aspect: "16:9", image: "/images/default.png" },
+                                    { aspect: "4:3", image: "/images/default.png" },
+                                ],
+                        }}
                         lang={lang}
                         cardType="rectangle"
                         cardIndex={index}

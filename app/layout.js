@@ -7,6 +7,8 @@ import RootContext from "./components/config/rootcontext";
 import { useState } from "react";
 import HeroSection from "./components/home/herosection";
 import Toast from "./components/common/toast";
+import AmenitiesGrid from "./components/home/amenities";
+import Requestage from "./components/request";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +58,14 @@ export default function RootLayout({ children }) {
               </div>
               <div className="w-full sm:rounded-lg mt-4 sm:mt-0">
                 <HeroSection />
+              </div>
+              <div className="bg-[#D79A2F] pt-0 px-2 pb-2">
+                <AmenitiesGrid />
+              </div>
+              <div className="w-full sm:w-[70%] mx-auto
+                              sm:absolute sm:left-1/2 sm:-translate-x-1/2 
+                              sm:-bottom-10">
+                <Requestage />
               </div>
             </div>
           </div>
