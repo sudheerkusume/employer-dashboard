@@ -65,27 +65,9 @@ const HeroSection = () => {
             default:
                 return [
                     { image: '/images/image1.jpg' },
-                    { image: '/images/apartment3.jpg' },
-                    { image: '/images/apartment4.jpg' },
-                    { image: '/images/commercial1.jpg' },
-                    { image: '/images/commercial5.jpg' },
                     { image: '/images/image4.png' },
-                    { image: '/images/apartment1.jpg' },
-                    { image: '/images/farmland3.jpg' },
-                    { image: '/images/farmland4.jpg' },
-                    { image: '/images/apartment2.jpg' },
                     { image: '/images/image2.png' },
                     { image: '/images/image3.png' },
-                    { image: '/images/godown1.jpg' },
-                    { image: '/images/godown2.jpg' },
-                    { image: '/images/farmland1.jpg' },
-                    { image: '/images/farmland2.jpg' },
-                    { image: '/images/godown3.jpg' },
-                    { image: '/images/commercial2.jpg' },
-                    { image: '/images/commercial3.jpg' },
-                    { image: '/images/commercial4.jpg' },
-                    { image: '/images/godown4.jpg' },
-                    { image: '/images/godown5.jpg' },
                 ];
         }
     }, [rootContext.active]);
