@@ -33,10 +33,10 @@ const HeroSection = () => {
                 ];
             case 'Farmlands':
                 return [
-                    { image: '/images/farmland1.jpg' },
-                    { image: '/images/farmland2.jpg' },
-                    { image: '/images/farmland3.jpg' },
-                    { image: '/images/farmland4.jpg' },
+                    { image: '/images/farmlands1.jpg' },
+                    { image: '/images/farmlands2.jpg' },
+                    { image: '/images/farmlands3.jpg' },
+                    { image: '/images/farmlands4.jpg' },
                 ];
             case 'Commercial':
                 return [
