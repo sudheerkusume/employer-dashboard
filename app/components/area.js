@@ -15,14 +15,6 @@ export default function ExploreArea() {
             (item) => item.address.city.toLowerCase() === city.toLowerCase()
         );
     }, [city]);
-
-    // Collect unique areas in this city
-    const availableAreas = useMemo(() => {
-        const set = new Set();
-        cityProperties.forEach((item) => set.add(item.address.area));
-        return ["All", ...Array.from(set)];
-    }, [cityProperties]);
-
     // Apply area filter
     const properties = useMemo(() => {
         return cityProperties
@@ -81,23 +73,7 @@ export default function ExploreArea() {
                     />
                     <h1 className="text-5xl font-bold uppercase">{area || ""}</h1>
                 </div>
-            </div>
-
-            {/* Area Filter */}
-            <div className="px-5 mb-4">
-                <select
-                    className="border px-3 py-2 rounded"
-                    value={selectedArea}
-                    onChange={(e) => setSelectedArea(e.target.value)}
-                >
-                    {availableAreas.map((area, idx) => (
-                        <option key={idx} value={area}>
-                            {area}
-                        </option>
-                    ))}
-                </select>
-            </div>
-
+            </div>           
             {/* Properties List */}
             <div className="w-full h-full px-5">
                 <RectangleCardSwimLane
