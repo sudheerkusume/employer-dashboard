@@ -14,7 +14,6 @@ export default function ExploreCity() {
             description: item.description,
             city: item.address.city,
             area: item.address.area,
-            lang: "en",
             path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,
             value: `prop_${item.id}`,
             images: item.images?.map((img) => ({
@@ -41,8 +40,6 @@ export default function ExploreCity() {
     const handleInfoIconClick = (data) => {
         console.log("Info clicked:", data);
     };
-    console.log("properties",properties)
-
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}

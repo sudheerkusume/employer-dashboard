@@ -7,7 +7,7 @@ export default function ExploreProjects() {
     const { project_id } = useParams();
     const project = realEstateData.find(item => item.id === Number(project_id))
     return (
-        <div>
+        <div className="bg-white">
             <ProjectDetailsPage project={project} />
         </div>
     );

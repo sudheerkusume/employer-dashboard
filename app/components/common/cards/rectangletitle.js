@@ -15,21 +15,19 @@ export default function RectangleCardTitle({
     rowPosition,
     lastIndex
 }) {
-    console.log("item", item)
     const { city, area } = useParams();
     const getImage = (images, ratio) => {
         if (!images || images.length === 0) return "/images/no_image.svg";
         const matched = images.find((img) => img.aspect_ratio === ratio);
-        console.log("images", images);
-        return images[0].url;
+        return matched ? (matched.url || matched.image) : (images[0].url || images[0].image);
     };
-
 
     const handleCardClick = () => {
         const safeCity = item.city ? item.city.toLowerCase().replace(/\s+/g, "-") : "city";
         const safeArea = city ? item.area ? item.area.toLowerCase().replace(/\s+/g, "-") : "area" : "";
-        const safeProject = area ? item.is ? item.is.toLowerCase().replace(/\s+/g, "-") : "project" : "";
+        const safeProject = area ? item.id ? item.id : "id" : "";
         window.location.href = `/${safeCity}/${safeArea}/${safeProject}`;
+        console.log("safeCity",safeCity,safeArea,safeProject)
     };
 
     return (
@@ -45,7 +43,7 @@ export default function RectangleCardTitle({
                     onClick={handleCardClick}
                 >
                     <Image
-                        src={item.images[0]?.image || item.images[0]?.url || ""}
+                        src={getImage(item.images, "16:9")}
                         alt={item.name}
                         fill
                         style={{ objectFit: "cover" }}

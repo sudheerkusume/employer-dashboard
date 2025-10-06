@@ -29,7 +29,6 @@ export default function ExploreArea() {
                 description: item.description,
                 city: item.address.city,
                 area: item.address.area,
-                lang: "en",
                 path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,
                 value: `prop_${item.id}`,
                 images:

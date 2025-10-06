@@ -43,8 +43,8 @@ export const realEstateData = [
                 "aspect_ratio": "16:9"
             },
             {
-                "direction": "plot",
-                "url": "/images/plot_villa_upal.jpg",
+                "direction": "plot1",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -104,7 +104,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_upal.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -164,7 +164,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_upal.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -224,7 +224,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_bandra.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -285,7 +285,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_apartment_cp.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -347,7 +347,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_godown_electronic_city.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -406,7 +406,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_farmland_alibaug.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -466,7 +466,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_goa.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -527,7 +527,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_apartment_hitech.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -589,7 +589,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_godown_bhiwandi.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -648,7 +648,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_farmland_pune.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -708,7 +708,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_jaipur.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -769,7 +769,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_apartment_kolkata.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -831,7 +831,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_godown_chennai.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -890,7 +890,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_farmland_coimbatore.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -950,7 +950,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_ahmedabad.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1011,7 +1011,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_apartment_gurgaon.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1073,7 +1073,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_godown_noida.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1132,7 +1132,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_farmland_lucknow.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1192,7 +1192,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_villa_chandigarh.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1253,7 +1253,7 @@ export const realEstateData = [
             },
             {
                 "direction": "plot",
-                "url": "/images/plot_apartment_bhubaneswar.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -1480,7 +1480,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -1707,7 +1707,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -1934,7 +1934,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -2161,7 +2161,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -2388,7 +2388,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -2615,7 +2615,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -2842,7 +2842,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -3069,7 +3069,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -3296,7 +3296,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -3523,7 +3523,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -3750,7 +3750,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -3977,7 +3977,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -4204,7 +4204,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -4431,7 +4431,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -4658,7 +4658,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -4885,7 +4885,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -5112,7 +5112,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -5339,7 +5339,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -5566,7 +5566,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -5793,7 +5793,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -6020,7 +6020,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -6247,7 +6247,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -6474,7 +6474,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -6701,7 +6701,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -6928,7 +6928,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -7155,7 +7155,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -7382,7 +7382,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -7609,7 +7609,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -7836,7 +7836,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -8063,7 +8063,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -8290,7 +8290,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -8517,7 +8517,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -8744,7 +8744,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -8971,7 +8971,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot2.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -9198,7 +9198,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -9425,7 +9425,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -9652,7 +9652,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -9879,7 +9879,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -10106,7 +10106,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -10333,7 +10333,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -10560,7 +10560,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -10787,7 +10787,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -11014,7 +11014,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -11241,7 +11241,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -11468,7 +11468,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -11695,7 +11695,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -11922,7 +11922,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -12149,7 +12149,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -12376,7 +12376,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -12603,7 +12603,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -12830,7 +12830,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -13057,7 +13057,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -13284,7 +13284,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -13511,7 +13511,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -13738,7 +13738,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -13965,7 +13965,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -14192,7 +14192,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -14419,7 +14419,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -14646,7 +14646,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -14873,7 +14873,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -15100,7 +15100,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -15327,7 +15327,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -15554,7 +15554,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -15781,7 +15781,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -16008,7 +16008,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -16235,7 +16235,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -16462,7 +16462,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -16689,7 +16689,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -16916,7 +16916,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -17143,7 +17143,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -17370,7 +17370,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -17597,7 +17597,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -17824,7 +17824,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -18051,7 +18051,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -18278,7 +18278,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -18505,7 +18505,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -18732,7 +18732,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -18959,7 +18959,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -19186,7 +19186,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -19413,7 +19413,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -19640,7 +19640,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -19867,7 +19867,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -20094,7 +20094,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -20321,7 +20321,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -20548,7 +20548,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -20775,7 +20775,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -21002,7 +21002,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -21229,7 +21229,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -21456,7 +21456,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -21683,7 +21683,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -21910,7 +21910,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -22137,7 +22137,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -22364,7 +22364,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -22591,7 +22591,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -22818,7 +22818,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -23045,7 +23045,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -23272,7 +23272,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -23499,7 +23499,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -23726,7 +23726,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -23953,7 +23953,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -24180,7 +24180,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -24407,7 +24407,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -24634,7 +24634,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -24861,7 +24861,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -25088,7 +25088,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -25315,7 +25315,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -25542,7 +25542,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -25769,7 +25769,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -25996,7 +25996,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -26223,7 +26223,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -26450,7 +26450,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot3.jpg",
                 "aspect_ratio": "4:3"
             }
         ],
@@ -26677,7 +26677,7 @@ export const realEstateData = [
             },
             {
                 "direction": "front",
-                "url": "/images/plot.jpg",
+                "url": "/images/plot1.jpg",
                 "aspect_ratio": "4:3"
             }
         ],

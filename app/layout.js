@@ -9,6 +9,7 @@ import HeroSection from "./components/home/herosection";
 import Toast from "./components/common/toast";
 import AmenitiesGrid from "./components/home/amenities";
 import Requestage from "./components/request";
+import Footer from "./components/common/footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
           </div>
           {children}
           {rootContext?.toast && <Toast />}
+          <Footer />
         </RootContext.Provider>
       </body>
     </html>

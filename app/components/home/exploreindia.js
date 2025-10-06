@@ -50,7 +50,7 @@ export default function ExploreIndia() {
     const handleInfoIconClick = (data) => {
         console.log("Info clicked:", data);
     };
-    console.log("properties", properties)
+
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}

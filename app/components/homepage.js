@@ -1,11 +1,9 @@
 "use client";
 import React from "react";
-import AmenitiesGrid from "./home/amenities";
 import ExploreIndia from "./home/exploreindia";
 import ExploreGlobal from "./home/exploreglobe";
 import EasyRealEstateSection from "./home/easyrealeste";
 import DownloadApp from "./home/downloadapp";
-import Footer from "./common/footer";
 
 export default function HomePage() {
     return (
@@ -15,8 +13,7 @@ export default function HomePage() {
             <ExploreGlobal />
             <div className="w-full px-0 sm:px-5">
                 <DownloadApp />
-            </div>
-            <Footer/>
+            </div>            
         </div>
     );
 }
