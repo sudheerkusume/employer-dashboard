@@ -94,7 +94,7 @@ function Slider({ data, rounded, className, fitMode = "cover" }) {
 
             {/* Dots Indicator */}
             {data?.length > 1 && (
-                <div className="absolute bottom-3 cursor-pointer left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                <div className="absolute bottom-10 cursor-pointer left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
                     {data.map((_, index) => (
                         <button
                             key={index}

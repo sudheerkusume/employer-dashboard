@@ -15,7 +15,7 @@ export default function RectangleCardTitle({
     rowPosition,
     lastIndex
 }) {
-    const { city, area } = useParams();
+    const { state, city, area } = useParams();
     const getImage = (images, ratio) => {
         if (!images || images.length === 0) return "/images/no_image.svg";
         const matched = images.find((img) => img.aspect_ratio === ratio);
@@ -23,12 +23,26 @@ export default function RectangleCardTitle({
     };
 
     const handleCardClick = () => {
+        const safeCountry = item.country ? item.country.toLowerCase().replace(/\s+/g, "-") : "country";
+        const safeState = item.state ? item.state.toLowerCase().replace(/\s+/g, "-") : "state";
         const safeCity = item.city ? item.city.toLowerCase().replace(/\s+/g, "-") : "city";
-        const safeArea = city ? item.area ? item.area.toLowerCase().replace(/\s+/g, "-") : "area" : "";
-        const safeProject = area ? item.id ? item.id : "id" : "";
-        window.location.href = `/${safeCity}/${safeArea}/${safeProject}`;
-        console.log("safeCity",safeCity,safeArea,safeProject)
+        const safeArea = item.area ? item.area.toLowerCase().replace(/\s+/g, "-") : "area";
+        const safeId = item.id ? item.id : "id";
+
+        let targetUrl = "/";
+        if (type === "country") {
+            targetUrl = `/${safeState}`;
+        } else if (type === "state") {
+            targetUrl = `/${safeState}/${safeCity}`;
+        } else if (type === "city") {
+            targetUrl = `/${safeState}/${safeCity}/${safeArea}`;
+        } else {
+            targetUrl = `/${safeState}/${safeCity}/${safeArea}/${safeId}`;
+        }
+
+        window.location.href = targetUrl;
     };
+
 
     return (
         <div

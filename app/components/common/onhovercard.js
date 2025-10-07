@@ -1,7 +1,5 @@
 "use client";
 
-import { useParams } from "next/navigation";
-
 export default function NewOnHover({
     data,
     cardType,
@@ -12,29 +10,36 @@ export default function NewOnHover({
     row_name,
     type
 }) {
-
+    // ✅ Type flags
     const isCountry = type === "country";
-    const isArea = type === "city"; // 👈 city mode should show area-level summary
+    const isState = type === "state";
+    const isCity = type === "city";
 
-    // ---------- COMMON for City/Country/Area Summary ----------
+    // ---------- COMMON DETAILS ----------
+    const stateName = data?.state || "Unknown State";
     const cityName = data?.city || "Unknown City";
     const areaName = data?.area || "Unknown Area";
 
-    const propertyTypes = data?.properties?.map(
-        (p) => p.type.charAt(0).toUpperCase() + p.type.slice(1)
-    ) || [data?.type?.charAt(0).toUpperCase() + data?.type?.slice(1)];
+    const propertyTypes =
+        data?.properties?.map(
+            (p) => p.type.charAt(0).toUpperCase() + p.type.slice(1)
+        ) ||
+        [data?.type?.charAt(0).toUpperCase() + data?.type?.slice(1)];
 
     const prices = data?.properties?.map((p) => p.price) || [data?.price];
     const minPrice = prices.length ? Math.min(...prices) : 0;
     const maxPrice = prices.length ? Math.max(...prices) : 0;
     const currency = data?.currency || "";
-    const budgetRange = minPrice && maxPrice
-        ? `${currency} ${minPrice.toLocaleString()} - ${currency} ${maxPrice.toLocaleString()}`
-        : "Budget Not Available";
+    const budgetRange =
+        minPrice && maxPrice
+            ? `${currency} ${minPrice.toLocaleString()} - ${currency} ${maxPrice.toLocaleString()}`
+            : "Budget Not Available";
 
-    // ---------- CITY (detailed property view) ----------
+    // ---------- PROPERTY DETAILS (default view) ----------
     const location = `${data?.city || ""}${data?.state ? `, ${data?.state}` : ""}, ${data?.country || ""}${data?.region ? ` (${data?.region})` : ""}`;
-    const price = data?.price ? `${data?.currency || ""} ${data?.price.toLocaleString()}` : "Price Not Available";
+    const price = data?.price
+        ? `${data?.currency || ""} ${data?.price.toLocaleString()}`
+        : "Price Not Available";
     const status = data?.status || "Status Unknown";
     const areaSize = data?.area_sq_ft ? `${data?.area_sq_ft} sq.ft` : "Area N/A";
     const bedrooms = data?.bedrooms ? `${data?.bedrooms} BHK` : "";
@@ -46,17 +51,21 @@ export default function NewOnHover({
     const floor_no = data?.floor_no || "N/A";
     const flat_no = data?.flat_no || "N/A";
     const description = data?.description || "No description available.";
-
     return (
         <div
-            className={`h-full w-full rounded-r-lg bg-neutral-900 opacity-95 ${cardType === "rectangle" ? "mt-[10px] pt-[10px]" : "py-4"}`}
+            className={`h-full w-full rounded-r-lg bg-neutral-900 opacity-95 ${cardType === "rectangle" ? "mt-[10px] pt-[10px]" : "py-4"
+                }`}
         >
             <div className="px-3">
-                {(isCountry || isArea) ? (
+                {(isCountry || isState || isCity) ? (
                     <>
-                        {/* City Name (for country) OR Area Name (for city) */}
+                        {/* ---------- Dynamic Title ---------- */}
                         <p className="mb-2 text-base font-bold leading-tight text-white line-clamp-2">
-                            {isCountry ? cityName : areaName}
+                            {isCountry
+                                ? stateName
+                                : isState
+                                    ? cityName
+                                    : areaName}
                         </p>
 
                         {/* Property Types */}
@@ -70,10 +79,22 @@ export default function NewOnHover({
                             <span className="font-semibold">Budget: </span>
                             {budgetRange}
                         </p>
+
+                        {/* Additional Info */}
+                        {isState && (
+                            <p className="text-xs text-gray-400 mb-2">
+                                <span className="font-semibold">State:</span> {stateName}
+                            </p>
+                        )}
+                        {isCity && (
+                            <p className="text-xs text-gray-400 mb-2">
+                                <span className="font-semibold">City:</span> {cityName}
+                            </p>
+                        )}
                     </>
                 ) : (
                     <>
-                        {/* Property Name */}
+                        {/* ---------- Default: Property Details ---------- */}
                         <p className="mb-2 text-base font-bold leading-tight text-white line-clamp-2">
                             {data?.name}
                         </p>
@@ -113,16 +134,21 @@ export default function NewOnHover({
                     </>
                 )}
 
-                {/* Buttons */}
+                {/* ---------- Buttons ---------- */}
                 <div className="flex gap-2">
                     <button
-                        onClick={() => onWatchNowClick(data, "watch", cardIndex, cardType, row_name, rowPosition)}
-                        className={`px-3 py-1 text-white text-xs rounded font-semibold ${(isCountry || isArea) ? "bg-red-500" : "bg-travelxp-red"}`}
+                        onClick={() =>
+                            onWatchNowClick(data, "watch", cardIndex, cardType, row_name, rowPosition)
+                        }
+                        className={`px-3 py-1 text-white text-xs rounded font-semibold ${isCountry || isState || isCity ? "bg-red-500" : "bg-travelxp-red"
+                            }`}
                     >
                         View Details
                     </button>
                     <button
-                        onClick={() => onInfoIconClick(data, cardIndex, cardType, row_name, rowPosition)}
+                        onClick={() =>
+                            onInfoIconClick(data, cardIndex, cardType, row_name, rowPosition)
+                        }
                         className="px-2 py-1 border border-white text-white text-xs rounded"
                     >
                         i

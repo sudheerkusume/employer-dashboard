@@ -1,9 +1,10 @@
 export const realEstateData = [
     {
         "id": 135,
-        "title": "Luxury Villa in Mahdapur",
+        "title": "Alpha Real",
         "description": "Beautiful villa located in Mahdapur, Hyderabad, India.",
         "type": "apartment",
+        "priority":"high",
         "status": "ready to move",
         "price": 805000,
         "currency": "INR",
@@ -43,8 +44,23 @@ export const realEstateData = [
                 "aspect_ratio": "16:9"
             },
             {
-                "direction": "plot1",
+                "direction": "east",
                 "url": "/images/plot1.jpg",
+                "aspect_ratio": "16:9"
+            },
+            {
+                "direction": "west",
+                "url": "/images/apartment3.jpg",
+                "aspect_ratio": "16:9"
+            },
+            {
+                "direction": "south-west",
+                "url": "/images/villa2.jpg",
+                "aspect_ratio": "16:9"
+            },
+            {
+                "direction": "north-south",
+                "url": "/images/plot4.jpg",
                 "aspect_ratio": "16:9"
             }
         ],
@@ -127,6 +143,7 @@ export const realEstateData = [
         "status": "pre_launch",
         "price": 1205000,
         "currency": "INR",
+        "priority":"high",
         "area_sq_ft": 800,
         "bedrooms": 5,
         "bathrooms": 7,
@@ -186,6 +203,7 @@ export const realEstateData = [
         "type": "villa",
         "status": "pre_launch",
         "price": 1005000,
+        "priority":"high",
         "currency": "INR",
         "area_sq_ft": 600,
         "bedrooms": 2,
@@ -247,6 +265,7 @@ export const realEstateData = [
         "status": "ready_to_move",
         "price": 1010000,
         "currency": "INR",
+        "priority":"medium",
         "area_sq_ft": 700,
         "bedrooms": 3,
         "bathrooms": 3,
@@ -308,6 +327,7 @@ export const realEstateData = [
         "status": "under_construction",
         "price": 1015000,
         "currency": "INR",
+        "priority":"medium",
         "area_sq_ft": 800,
         "bedrooms": 4,
         "bathrooms": 1,

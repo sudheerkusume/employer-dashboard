@@ -5,25 +5,25 @@ import { realEstateData } from "../config/data";
 
 export default function ExploreIndia() {
     // Create a map to track unique cities
-    const cityMap = new Map();
+    const stateMap = new Map();
 
-    // Filter India properties and keep only the first property per city
+    // Filter India properties and keep only the first property per state
     const properties = realEstateData
         .filter((item) => item.address.country.toLocaleLowerCase() === "india")
         .filter((item) => {
-            if (!cityMap.has(item.address.city)) {
-                cityMap.set(item.address.city, true);
-                return true; // keep first property of the city
+            if (!stateMap.has(item.address.state)) {
+                stateMap.set(item.address.state, true);
+                return true; // keep first property of the state
             }
-            return false; // skip other properties from the same city
+            return false; // skip other properties from the same state
         })
         .map((item) => ({
             id: item.id,
             name: item.title,
             description: item.description,
+            state: item.address.state,
             city: item.address.city,
             area: item.address.area,
-            lang: "en",
             path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,
             value: `prop_${item.id}`,
             images: item.images?.map((img) => ({
@@ -54,25 +54,21 @@ export default function ExploreIndia() {
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}
-            <div className="flex items-center px-5 sm:px-5 py-6">
-                <div>
-                    <Image
-                        src="/images/explore.png"
-                        alt="explore"
-                        width={160}
-                        height={60}
-                        className="object-contain"
-                    />
-                </div>
-                <div className="w-24 h-24 flex items-center justify-center">
-                    <Image
-                        src="/images/india.png"
-                        alt="india"
-                        width={100}
-                        height={100}
-                        className="object-contain"
-                    />
-                </div>
+            <div className="flex items-center px-5 sm:px-5 py-6 -space-x-5">
+                <Image
+                    src="/images/explore.png"
+                    alt="explore"
+                    width={160}
+                    height={60}
+                    className="object-contain z-10"
+                />
+                <Image
+                    src="/images/india.png"
+                    alt="india"
+                    width={100}
+                    height={100}
+                    className="object-contain"
+                />
             </div>
 
             {/* Properties List */}

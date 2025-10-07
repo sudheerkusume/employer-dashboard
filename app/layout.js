@@ -10,6 +10,7 @@ import Toast from "./components/common/toast";
 import AmenitiesGrid from "./components/home/amenities";
 import Requestage from "./components/request";
 import Footer from "./components/common/footer";
+import { useParams } from "next/navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export default function RootLayout({ children }) {
-
+  const { project_id } = useParams();
   const [rootContext, setRootContext] = useState({
     authenticated: false,
     loader: true,
@@ -35,7 +36,7 @@ export default function RootLayout({ children }) {
       token: "",
       isAdmin: "",
     },
-    active: 'All',
+    active: 'all',
     toast: {
       show: false,
       dismiss: true,
@@ -51,7 +52,7 @@ export default function RootLayout({ children }) {
         <RootContext.Provider value={{ rootContext, setRootContext }}>
           <div className="relative w-full">
             <HeaderNav />
-            <div className="relative">
+            {!project_id && <div className="relative">
               <div className="w-full sm:w-[70%] mx-auto z-50
                               sm:absolute sm:left-1/2 sm:-translate-x-1/2 
                               sm:-top-10">
@@ -68,7 +69,7 @@ export default function RootLayout({ children }) {
                               sm:-bottom-10">
                 <Requestage />
               </div>
-            </div>
+            </div>}
           </div>
           {children}
           {rootContext?.toast && <Toast />}

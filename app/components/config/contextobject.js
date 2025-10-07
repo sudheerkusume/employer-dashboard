@@ -10,7 +10,7 @@ export const contextObject = {
         token: "",
         isAdmin: "",
     },
-    active: 'All',
+    active: 'all',
     toast: {
         show: false,
         dismiss: true,

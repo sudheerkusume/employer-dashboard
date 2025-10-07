@@ -1,102 +1,94 @@
 'use client';
+
 import { useContext, useMemo } from 'react';
 import Image from 'next/image';
 import Slider from '../common/slider';
 import RootContext from '../config/rootcontext';
+import { realEstateData } from '../config/data';
 
 const HeroSection = () => {
     const { rootContext } = useContext(RootContext);
 
-    // Map activity to dummy images
+    // ✅ Filter data dynamically by country/city/area and rootContext.active
+    const filteredData = useMemo(() => {
+        const { selectedLocation, active } = rootContext || {};
+
+        return realEstateData.filter((item) => {
+            const addr = item.address || {};
+
+            // 1. Location Filter
+            const passesLocationFilter = !selectedLocation || (
+                (!selectedLocation.country || addr.country?.toLowerCase() === selectedLocation.country.toLowerCase()) &&
+                (!selectedLocation.city || addr.city?.toLowerCase() === selectedLocation.city.toLowerCase()) &&
+                (!selectedLocation.area || addr.area?.toLowerCase() === selectedLocation.area.toLowerCase())
+            );
+
+            if (!passesLocationFilter) return false;
+
+            // 2. Active Context Filter (New Logic)
+            if (active) {
+                if (active === 'all' || active === 'search') {
+                    // Display properties with priority "medium" or "high"
+                    return item.priority === 'medium' || item.priority === 'high';
+                } else {
+                    // Filter as per rootContext.active (assuming it is the property 'type')
+                    return item.type?.toLowerCase() === active.toLowerCase();
+                }
+            }
+
+            // If all filters pass (or are not set), include the item
+            return true;
+        });
+        // IMPORTANT: Added rootContext.active to the dependency array
+    }, [rootContext.selectedLocation, rootContext.active]);
+
+    // ✅ Build sliderData dynamically from filtered properties
     const sliderData = useMemo(() => {
-        switch (rootContext.active) {
-            case 'Apartments':
-                return [
-                    { image: '/images/apartment1.jpg' },
-                    { image: '/images/apartment2.jpg' },
-                    { image: '/images/apartment3.jpg' },
-                    { image: '/images/apartment4.jpg' },
-                ];
-            case 'Villas':
-                return [
-                    { image: '/images/villa1.jpg' },
-                    { image: '/images/villa2.jpg' },
-                    { image: '/images/villa3.jpg' },
-                    { image: '/images/villa4.jpg' },
-                ];
-            case 'Open Plots':
-                return [
-                    { image: '/images/plot1.jpg' },
-                    { image: '/images/plot2.jpg' },
-                    { image: '/images/plot3.jpg' },
-                    { image: '/images/plot4.jpg' },
-                ];
-            case 'Farmlands':
-                return [
-                    { image: '/images/farmlands1.jpg' },
-                    { image: '/images/farmlands2.jpg' },
-                    { image: '/images/farmlands3.jpg' },
-                    { image: '/images/farmlands4.jpg' },
-                ];
-            case 'Commercial':
-                return [
-                    { image: '/images/commercial1.jpg' },
-                    { image: '/images/commercial2.jpg' },
-                    { image: '/images/commercial3.jpg' },
-                    { image: '/images/commercial4.jpg' },
-                    { image: '/images/commercial5.jpg' },
-                ];
-            case 'Go downs':
-                return [
-                    { image: '/images/godown1.jpg' },
-                    { image: '/images/godown2.jpg' },
-                    { image: '/images/godown3.jpg' },
-                    { image: '/images/godown4.jpg' },
-                    { image: '/images/godown5.jpg' },
-                ];
-            case 'Legal':
-                return [
-                    { image: '/images/godown5.jpg' },
-                    { image: '/images/commercial1.jpg' },
-                    { image: '/images/villa1.jpg' },
-                    { image: '/images/apartment3.jpg' },
-                ];
-            case 'All':
-            default:
-                return [
-                    { image: '/images/image1.jpg' },
-                    { image: '/images/image4.png' },
-                    { image: '/images/image2.png' },
-                    { image: '/images/image3.png' },
-                ];
-        }
-    }, [rootContext.active]);
+        return filteredData.flatMap((property) =>
+            property.images?.map((img) => ({ image: img.url })) || []
+        );
+    }, [filteredData]);
+
+    const displayTitle =
+        filteredData[0]?.title
+            ? `${filteredData[0].title?.toUpperCase() || ''}`
+            : 'Properties';
+
+    const activeLabel =
+        rootContext.active === 'all' || rootContext.active === 'search'
+            ? 'Properties'
+            : rootContext.active;
+
+    const displayAddress =
+        filteredData[0]?.address
+            ? `${filteredData[0].address.area?.toUpperCase() || ''}, ${filteredData[0].address.city?.toUpperCase() || ''}, ${filteredData[0].address.state?.toUpperCase() || ''}`
+            : 'INDIA';
+
 
     return (
         <div className="relative h-auto overflow-hidden bg-[#D79A2F]">
-            {/* Background Image/Carousel */}
+
+            <div className="p-2 justify-center items-center sm:p-8 flex flex-col justify-start text-white">
+                <h1 className="text-lg sm:text-4xl font-bold sm:font-extrabold sm:mt-4 z-10 uppercase">
+                    {`${displayTitle}`}
+                </h1>
+                <p className="text-xs sm:text-md sm:mt-2 z-10">
+                    {displayAddress}
+                </p>
+            </div>
+            {/* Dynamic Background Slider */}
             <div className="p-2 sm:rounded-lg">
                 <Slider
-                    data={sliderData}
+                    data={sliderData.length ? sliderData : [{ image: '/images/default.jpg' }]}
                     rounded="sm:rounded-lg"
                     className="h-[260px] sm:h-[600px] sm:rounded-lg"
                     fitMode="cover"
                 />
             </div>
 
-            {/* Text Overlay */}
-            <div className="absolute inset-0 p-2 sm:p-8 flex flex-col justify-start text-white">
-                <h1 className="text-lg sm:text-4xl font-blod sm:font-extrabold sm:mt-4 z-10 uppercase">
-                    {`Real Beez ${(rootContext.active === 'All' || rootContext.active === 'Search') ? 'Properties' : rootContext.active}`}
-                </h1>
-                <p className="text-xs sm:text-md sm:mt-2 z-10">
-                    GACHIBOWLI, HYDERABAD, TELANGANA - 500032
-                </p>
-            </div>
-
-            {/* Sidebar Buttons (Right) */}
+            {/* Sidebar Buttons */}
             <div className="absolute right-2 sm:right-4 top-0 sm:top-[20%] z-20 flex flex-col items-center justify-center space-y-1 sm:space-y-3 text-center">
-                {/* VR Image with Text Overlay */}
+                {/* VR Button */}
                 <div className="relative w-18 sm:w-24 flex items-center justify-center cursor-pointer">
                     <Image
                         src="/images/vr.png"
@@ -111,41 +103,27 @@ const HeroSection = () => {
                     </span>
                 </div>
 
-                <button className="flex w-20 h-16 sm:w-32 sm:h-20 flex-col cursor-pointer items-center justify-center border border-gray-400 bg-gray-600 opacity-50 text-white p-2 rounded-lg text-xs sm:text-lg font-semibold sm:font-bold">
-                    <Image
-                        src="/icons/broucher.png"
-                        alt="logo"
-                        width={40}
-                        height={20}
-                        priority
-                        className="object-contain h-5 sm:h-8"
-                    />
-                    BROCHURE
-                </button>
-
-                <button className="flex w-20 h-16 sm:w-32 sm:h-20 flex-col cursor-pointer items-center justify-center border border-gray-400 bg-gray-600 opacity-50 text-white p-2 rounded-lg text-xs sm:text-lg font-semibold sm:font-bold">
-                    <Image
-                        src="/icons/playicon.png"
-                        alt="logo"
-                        width={40}
-                        height={20}
-                        priority
-                        className="object-contain h-5 sm:h-8"
-                    />
-                    VIDEOS
-                </button>
-
-                <button className="flex w-20 h-16 sm:w-32 sm:h-20 flex-col cursor-pointer items-center justify-center border border-gray-400 bg-gray-600 opacity-50 text-white p-2 rounded-lg text-xs sm:text-lg font-semibold sm:font-bold">
-                    <Image
-                        src="/icons/plan.png"
-                        alt="logo"
-                        width={40}
-                        height={20}
-                        priority
-                        className="object-contain h-5 sm:h-8"
-                    />
-                    3D PLAN
-                </button>
+                {/* Action Buttons */}
+                {[
+                    { icon: '/icons/broucher.png', label: 'BROCHURE' },
+                    { icon: '/icons/playicon.png', label: 'VIDEOS' },
+                    { icon: '/icons/plan.png', label: '3D PLAN' },
+                ].map((btn, i) => (
+                    <button
+                        key={i}
+                        className="flex w-20 h-16 sm:w-32 sm:h-20 flex-col cursor-pointer items-center justify-center border border-gray-400 bg-gray-600 opacity-50 text-white p-2 rounded-lg text-xs sm:text-lg font-semibold sm:font-bold hover:opacity-80 transition"
+                    >
+                        <Image
+                            src={btn.icon}
+                            alt={btn.label}
+                            width={40}
+                            height={20}
+                            priority
+                            className="object-contain h-5 sm:h-8"
+                        />
+                        {btn.label}
+                    </button>
+                ))}
             </div>
         </div>
     );

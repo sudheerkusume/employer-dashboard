@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 
 export default function ExploreArea() {
     const { city, area } = useParams();
-    const [selectedArea, setSelectedArea] = useState(area || "All");
+    const [selectedArea, setSelectedArea] = useState(area || "all");
 
     // Filter properties for the city
     const cityProperties = useMemo(() => {
@@ -19,7 +19,7 @@ export default function ExploreArea() {
     const properties = useMemo(() => {
         return cityProperties
             .filter((item) =>
-                selectedArea === "All"
+                selectedArea === "all"
                     ? true
                     : item.address.area.toLowerCase() === selectedArea.toLowerCase()
             )
@@ -27,6 +27,7 @@ export default function ExploreArea() {
                 id: item.id,
                 name: item.title,
                 description: item.description,
+                state: item.address.state,
                 city: item.address.city,
                 area: item.address.area,
                 path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,

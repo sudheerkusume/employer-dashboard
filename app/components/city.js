@@ -12,6 +12,7 @@ export default function ExploreCity() {
             id: item.id,
             name: item.title,
             description: item.description,
+            state: item.address.state,
             city: item.address.city,
             area: item.address.area,
             path: `/${item.address.country.toLowerCase()}/${item.address.city.toLowerCase()}-${item.type.toLowerCase()}-${item.id}`,
@@ -43,25 +44,21 @@ export default function ExploreCity() {
     return (
         <div className="w-full bg-white font-sans">
             {/* Header */}
-            <div className="flex items-center px-5 sm:px-5 py-6">
-                <div>
-                    <Image
-                        src="/images/explore.png"
-                        alt="explore"
-                        width={160}
-                        height={60}
-                        className="object-contain"
-                    />
-                </div>
-                <div className="w-32 h-32 flex items-center justify-center">
-                    <Image
-                        src={`/images/${city}-map.png`}
-                        alt={city || "city"}
-                        width={100}
-                        height={100}
-                        className="object-contain bg-white"
-                    />
-                </div>
+            <div className="flex items-center px-5 sm:px-5 py-6 -space-x-6">
+                <Image
+                    src="/images/explore.png"
+                    alt="explore"
+                    width={160}
+                    height={60}
+                    className="object-contain z-10"
+                />
+                <Image
+                    src={`/images/${city}-map.png`}
+                    alt={city || "city"}
+                    width={100}
+                    height={100}
+                    className="object-contain bg-white"
+                />
             </div>
 
             {/* Properties List */}

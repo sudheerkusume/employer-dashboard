@@ -7,32 +7,32 @@ import {
 import RootContext from '../config/rootcontext';
 
 const navItems = [
-    { label: 'All', icon: HomeModernIcon },
-    { label: 'Apartments', icon: ArchiveBoxIcon },
-    { label: 'Villas', icon: HomeModernIcon },
-    { label: 'Open Plots', icon: MapIcon },
-    { label: 'Farmlands', icon: SunIcon },
-    { label: 'Commercial', icon: ShoppingBagIcon },
-    { label: 'Go downs', icon: ArchiveBoxIcon },
-    { label: 'Legal', icon: ScaleIcon },
-    { label: 'Search', icon: MagnifyingGlassIcon },
+    { label: 'All', value: 'all', icon: HomeModernIcon },
+    { label: 'Apartments', value: 'apartment', icon: ArchiveBoxIcon },
+    { label: 'Villas', value: 'villa', icon: HomeModernIcon },
+    { label: 'Open Plots', value: 'plots', icon: MapIcon },
+    { label: 'Farmlands', value: 'farmlands', icon: SunIcon },
+    { label: 'Commercial', value: 'commercial', icon: ShoppingBagIcon },
+    { label: 'Go downs', value: 'godowns', icon: ArchiveBoxIcon },
+    { label: 'Legal', value: 'legal', icon: ScaleIcon },
+    { label: 'Search', value: 'search', icon: MagnifyingGlassIcon },
 ];
 
 const MainNavbar = () => {
     const { rootContext, setRootContext } = useContext(RootContext);
 
     return (
-        <div className="w-full sm:w-[65%] mx-auto">
+        <div className="w-full sm:w-[75%] mx-auto">
             <nav className="bg-[#3D3D3D] w-full z-50 sm:rounded-xl p-1 sm:shadow-lg">
                 <div className="grid grid-cols-3 sm:flex sm:justify-around items-center text-white">
                     {navItems.map((item) => {
-                        const isActive = rootContext.active === item.label;
+                        const isActive = rootContext.active === item.value;
                         return (
                             <div
                                 key={item.label}
                                 onClick={() => setRootContext({
                                     ...rootContext,
-                                    active: item.label
+                                    active: item.value
                                 })}
                                 className={`text-center cursor-pointer p-2 rounded transition duration-200`}
                             >
@@ -50,7 +50,7 @@ const MainNavbar = () => {
                 </div>
 
                 {/* Search input box - only visible when active is 'Search' */}
-                {rootContext.active === 'Search' && (
+                {rootContext.active === 'search' && (
                     <div className="px-3 py-2">
                         <input
                             type="text"

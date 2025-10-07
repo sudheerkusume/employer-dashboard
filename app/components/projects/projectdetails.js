@@ -39,7 +39,7 @@ export default function ProjectDetailsPage({ project }) {
     );
 
     return (
-        <div className="mt-20 flex flex-col md:flex-row gap-5 p-10">
+        <div className="flex flex-col md:flex-row gap-5 p-10">
             {/* Left: Images */}
             <div className="flex flex-col gap-3 w-full md:w-1/2">
                 {project.images.map((item, index) => (
