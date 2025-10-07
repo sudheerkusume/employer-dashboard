@@ -2,6 +2,7 @@
 
 import { MapPinIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 const getFormattedTime = () => {
@@ -63,15 +64,17 @@ const HeaderNav = () => {
         <header className="bg-white w-full text-gray-800 px-4 sm:px-6 py-3 shadow-md">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                 {/* Left: Logo */}
-                <div className="flex items-center justify-center sm:justify-start w-full sm:w-auto">
-                    <Image
-                        src="/realbeez.png"
-                        alt="Realbeez logo"
-                        width={200}
-                        height={50}
-                        priority
-                        className="object-contain h-12 sm:h-16"
-                    />
+                <div className="flex cursor-pointer items-center justify-center sm:justify-start w-full sm:w-auto">
+                    <Link href={"/"}>
+                        <Image
+                            src="/realbeez.png"
+                            alt="Realbeez logo"
+                            width={200}
+                            height={50}
+                            priority
+                            className="object-contain h-12 sm:h-16"
+                        />
+                    </Link>
                 </div>
 
                 {/* Right: Weather, Time, City, Login */}
