@@ -113,7 +113,7 @@ const RequestForm = () => {
 
     // --- Data for the Property Requirements Section ---
     const propertyTypes = ['APARTMENT', 'VILLA', 'OPEN PLOTS', 'FARMLANDS', 'COMMERCIAL', 'GO DOWNS', 'LEGAL'];
-    const locations = ['HYDERABAD', 'DELHI'];
+    const locations = ['HYDERABAD', 'DELHI' ];
     const directions = ['EAST', 'WEST', 'NORTH', 'SOUTH'];
     const areaTypes = ['SQ. FT.', 'SQ. YARDS'];
     const configurations = ['1 BHK', '2 BHK', '3 BHK', '4 BHK'];
