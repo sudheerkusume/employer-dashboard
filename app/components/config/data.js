@@ -73,7 +73,17 @@ export const realEstateData = [
                 "direction": "south",
                 "url": "https://www.youtube.com/watch?v=dummy302"
             }
-        ]
+        ],
+         "bookmark": {
+            "isBookmarked": false,
+            "bookmarkedBy": [],
+            "bookmarkedDate": null
+        },
+        "wishlist": {
+            "isWishlisted": false,
+            "wishlistedBy": [],
+            "wishlistedDate": null
+        }
     },
     {
         "id": 136,
@@ -133,7 +143,17 @@ export const realEstateData = [
                 "direction": "south",
                 "url": "https://www.youtube.com/watch?v=dummy302"
             }
-        ]
+        ],
+         "bookmark": {
+            "isBookmarked": false,
+            "bookmarkedBy": [],
+            "bookmarkedDate": null
+        },
+        "wishlist": {
+            "isWishlisted": false,
+            "wishlistedBy": [],
+            "wishlistedDate": null
+        }
     },
     {
         "id": 131,
