@@ -74,7 +74,7 @@ export default function LoginRoot() {
                 name: username,
                 email: user.email,
                 mobile: user.mobile,
-                token: user.token,
+                role: user.role,
             },
         };
 
@@ -88,7 +88,13 @@ export default function LoginRoot() {
                 message: "Welcome back!",
             },
         });
-        router.push("/dashboard")
+        if (user.role === "employee") {
+            router.push("/dashboard/employee")
+        } else if (user.role === "hr") {
+            router.push("/dashboard/hr")
+        } else {
+            router.push("/dashboard/manager")
+        }
         localStorage.setItem("user_details", JSON.stringify(resp.user));
         setIsLoading(false);
     };

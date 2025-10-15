@@ -17,63 +17,10 @@ export default function Attendance() {
         officeEnd: moment().set({ hour: 18, minute: 0, second: 0 }), // 6:00 PM
     };
 
-    const [events, setEvents] = useState([
-        {
-            id: 1,
-            title: "Present (9hrs)",
-            start: new Date(2025, 9, 1),
-            end: new Date(2025, 9, 1),
-            type: "present",
-            status: "approved",
-            checkIn: "09:00 AM",
-            checkOut: "06:00 PM",
-            workingHours: 9
-        },
-        {
-            id: 2,
-            title: "First Half (4.5hrs)",
-            start: new Date(2025, 9, 2),
-            end: new Date(2025, 9, 2),
-            type: "firstHalf",
-            status: "approved",
-            checkIn: "09:00 AM",
-            checkOut: "01:30 PM",
-            workingHours: 4.5
-        },
-        {
-            id: 3,
-            title: "Second Half (4hrs)",
-            start: new Date(2025, 9, 3),
-            end: new Date(2025, 9, 3),
-            type: "secondHalf",
-            status: "approved",
-            checkIn: "02:00 PM",
-            checkOut: "06:00 PM",
-            workingHours: 4
-        },
-        {
-            id: 4,
-            title: "Absent",
-            start: new Date(2025, 9, 4),
-            end: new Date(2025, 9, 4),
-            type: "absent",
-            status: "approved",
-            checkIn: "-",
-            checkOut: "-",
-            workingHours: 0
-        },
-        {
-            id: 5,
-            title: "Holiday",
-            start: new Date(2025, 9, 5),
-            end: new Date(2025, 9, 5),
-            type: "holiday",
-            status: "approved"
-        },
-    ]);
+    const [events, setEvents] = useState(employeesData?.[1]?.attendance);
 
     const [pendingLeaves, setPendingLeaves] = useState([]);
-    const [selectedRange, setSelectedRange] = useState({ start: null, end: null });
+    const [selectedDate, setSelectedDate] = useState(null);
     const [leaveReason, setLeaveReason] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
@@ -180,33 +127,61 @@ export default function Attendance() {
         };
     };
 
-    // Handle date range selection for leave
+    // Handle date selection for leave - SINGLE DAY ONLY
     const handleSelectSlot = (slotInfo) => {
-        const start = slotInfo.start;
-        const end = slotInfo.end;
+        const selectedDate = slotInfo.start;
 
-        // Check if both start and end dates are selected (multi-day range)
-        const isMultiDayRange = moment(start).isBefore(end, "day");
+        // Check if it's a single day selection (not a range)
+        const isSingleDay = moment(selectedDate).isSame(slotInfo.end, 'day');
 
-        if (isMultiDayRange) {
-            setSelectedRange({ start, end });
-            setIsModalOpen(true);
-        } else {
-            // For single day selection, set both start and end to the same date
-            setSelectedRange({ start, end: start });
-            setIsModalOpen(true);
+        if (!isSingleDay) {
+            alert("Please select only one day for leave application. Multi-day leaves are not allowed.");
+            return;
         }
+
+        // Check if the selected date is in the past
+        const today = moment().startOf('day');
+        const selectedDay = moment(selectedDate).startOf('day');
+
+        if (selectedDay.isBefore(today)) {
+            alert("You cannot apply for leave on past dates.");
+            return;
+        }
+
+        // Check if there's already an event on this date
+        const existingEvent = events.find(event =>
+            moment(event.start).isSame(selectedDate, 'day') &&
+            event.status === "approved"
+        );
+
+        if (existingEvent) {
+            alert(`You already have an event (${existingEvent.type}) on this date.`);
+            return;
+        }
+
+        // Check if there's already a pending leave for this date
+        const pendingLeave = pendingLeaves.find(leave =>
+            moment(leave.start).isSame(selectedDate, 'day')
+        );
+
+        if (pendingLeave) {
+            alert("You already have a pending leave application for this date.");
+            return;
+        }
+
+        setSelectedDate(selectedDate);
+        setIsModalOpen(true);
     };
 
     // Send email notification to manager
     const sendEmailNotification = (leaveData) => {
         const managerEmail = "manager@company.com"; // Replace with actual manager email
-        const subject = `Leave Application - ${moment(leaveData.start).format("MMM Do, YYYY")} to ${moment(leaveData.end).format("MMM Do, YYYY")}`;
+        const subject = `Leave Application - ${moment(leaveData.start).format("MMM Do, YYYY")}`;
         const body = `
             New leave application submitted:
             
             Employee: John Doe
-            Leave Period: ${moment(leaveData.start).format("MMM Do, YYYY")} to ${moment(leaveData.end).format("MMM Do, YYYY")}
+            Leave Date: ${moment(leaveData.start).format("MMM Do, YYYY")}
             Reason: ${leaveData.reason}
             Applied On: ${moment(leaveData.appliedDate).format("MMM Do, YYYY h:mm A")}
             
@@ -215,7 +190,7 @@ export default function Attendance() {
 
         // Using mailto for email notification (in real app, use backend API)
         const mailtoLink = `mailto:${managerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.location.href = mailtoLink;
+        window.open(mailtoLink, '_blank');
 
         // For production, you would use an API call:
         // fetch('/api/send-email', {
@@ -225,17 +200,16 @@ export default function Attendance() {
         // });
     };
 
-    // Apply for leave (add to pending leaves)
+    // Apply for leave (add to pending leaves) - SINGLE DAY ONLY
     const handleApplyLeave = () => {
-        const { start, end } = selectedRange;
+        if (!selectedDate) return alert("Please select a date first!");
         if (!leaveReason.trim()) return alert("Please enter a reason!");
-        if (!start || !end) return alert("Please select a date range first!");
 
         const newLeave = {
             id: Date.now(),
             title: "Leave (Pending)",
-            start,
-            end: moment(end).endOf("day").toDate(),
+            start: selectedDate,
+            end: moment(selectedDate).endOf("day").toDate(),
             type: "leave",
             status: "pending",
             reason: leaveReason,
@@ -249,8 +223,8 @@ export default function Attendance() {
 
         setIsModalOpen(false);
         setLeaveReason("");
-        setSelectedRange({ start: null, end: null });
-        alert("Leave application submitted! Notification sent to manager.");
+        setSelectedDate(null);
+        alert("Leave application submitted for one day! Notification sent to manager.");
     };
 
     // Approve a pending leave
@@ -359,8 +333,7 @@ export default function Attendance() {
     }, [events]);
 
     const defaultDate = useMemo(() => new Date(2025, 9, 1), []);
-    const startDateStr = selectedRange.start ? moment(selectedRange.start).format("MMM Do, YYYY") : "N/A";
-    const endDateStr = selectedRange.end ? moment(selectedRange.end).format("MMM Do, YYYY") : "N/A";
+    const selectedDateStr = selectedDate ? moment(selectedDate).format("MMM Do, YYYY") : "N/A";
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 p-4 sm:p-8 space-y-6">
@@ -389,8 +362,8 @@ export default function Attendance() {
                             onClick={() => setIsCheckInModalOpen(true)}
                             disabled={todayAttendance.checkIn}
                             className={`px-6 py-3 rounded-lg font-semibold transition ${todayAttendance.checkIn
-                                    ? "bg-gray-400 cursor-not-allowed"
-                                    : "bg-green-600 hover:bg-green-700 text-white"
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-green-600 hover:bg-green-700 text-white"
                                 }`}
                         >
                             Check In
@@ -399,8 +372,8 @@ export default function Attendance() {
                             onClick={handleCheckOut}
                             disabled={!canCheckOut || todayAttendance.checkOut}
                             className={`px-6 py-3 rounded-lg font-semibold transition ${(!canCheckOut || todayAttendance.checkOut)
-                                    ? "bg-gray-400 cursor-not-allowed"
-                                    : "bg-red-600 hover:bg-red-700 text-white"
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-red-600 hover:bg-red-700 text-white"
                                 }`}
                         >
                             {!canCheckOut && todayAttendance.checkIn ? "Wait 4 Hours" : "Check Out"}
@@ -425,7 +398,7 @@ export default function Attendance() {
             {/* Calendar Section */}
             <div className="bg-white p-6 rounded-2xl shadow-2xl">
                 <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-700">
-                    Attendance Calendar <span className="text-sm text-gray-500">(Drag to select leave range)</span>
+                    Attendance Calendar <span className="text-sm text-gray-500">(Click on a single date to apply for leave)</span>
                 </h2>
 
                 <div className="border border-gray-200 rounded-xl overflow-hidden shadow">
@@ -468,7 +441,7 @@ export default function Attendance() {
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-semibold text-gray-800">
-                                            {moment(leave.start).format("MMM Do, YYYY")} - {moment(leave.end).format("MMM Do, YYYY")}
+                                            Date: {moment(leave.start).format("MMM Do, YYYY")}
                                         </p>
                                         <p className="text-gray-600 mt-1">{leave.reason}</p>
                                         <p className="text-xs text-gray-500 mt-2">
@@ -540,8 +513,7 @@ export default function Attendance() {
                         </div>
 
                         <p className="text-md mb-3 text-gray-600">
-                            From: <span className="font-bold text-blue-600">{startDateStr}</span> to{" "}
-                            <span className="font-bold text-blue-600">{endDateStr}</span>
+                            Selected Date: <span className="font-bold text-blue-600">{selectedDateStr}</span>
                         </p>
 
                         <textarea
