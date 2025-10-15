@@ -44,39 +44,42 @@ export default function ButtonTab({ tabs, activeTab, setActiveTab }) {
     };
 
     return (
-        <div className="relative w-full">
-            {/* Scrollable tabs container */}
-            <div
-                className="flex overflow-x-auto no-scrollbar bg-white rounded-md relative"
-                onMouseLeave={handleMouseLeave}
-            >
-                {/* Hover indicator */}
-                <span
-                    className="absolute bottom-0 h-full bg-gray-300 rounded-md transition-all duration-500 ease-in-out z-0"
-                    style={{ ...hoverIndicator }}
-                ></span>
+        <div
+            className="flex flex-row justify-between bg-white rounded-t-md relative overflow-hidden"
+            onMouseLeave={handleMouseLeave}
+        >
+            {/* Hover indicator (gray) */}
+            <span
+                className="absolute bottom-0 h-full bg-gray-200 rounded-t-md transition-all duration-600 ease-in-out z-0"
+                style={{
+                    ...hoverIndicator,
+                }}
+            ></span>
 
-                {/* Active indicator */}
-                <span
-                    className="absolute bottom-0 h-full bg-[#D79A2F] rounded-md transition-all duration-500 ease-in-out z-0"
-                    style={{ ...activeIndicator }}
-                ></span>
+            {/* Active indicator (blue) */}
+            <span
+                className="absolute bottom-0 h-full bg-indigo-900 rounded-t-md transition-all duration-600 ease-in-out z-0"
+                style={{
+                    ...activeIndicator,
+                }}
+            ></span>
 
-                {tabs.map((tab, index) => (
-                    <button
-                        key={index}
-                        ref={(el) => (tabRefs.current[index] = el)}
-                        className={`flex-shrink-0 py-2 px-4 cursor-pointer rounded-md relative font-medium z-10
-                            transition-colors duration-300 ease-in-out
-                            ${activeTab === index ? 'text-white' : 'text-gray-700'}
-                        `}
-                        onClick={() => handleTabClick(index)}
-                        onMouseEnter={() => handleMouseEnter(index)}
-                    >
-                        {tab.name}
-                    </button>
-                ))}
-            </div>
+            {tabs.map((tab, index) => (
+                <button
+                    key={index}
+                    ref={(el) => (tabRefs.current[index] = el)}
+                    className={`py-1 px-3 rounded-t-md relative font-medium z-10
+                        transition-colors duration-300 ease-in-out
+                        ${activeTab === index ? 'text-white' : 'text-gray-700'}
+                    `}
+                    onClick={() => handleTabClick(index)}
+                    onMouseEnter={() => handleMouseEnter(index)}
+                >
+                    <span className="flex flex-wrap items-center justify-center gap-1">
+                        <span>{tab.name}</span>
+                    </span>
+                </button>
+            ))}
         </div>
     );
 }
