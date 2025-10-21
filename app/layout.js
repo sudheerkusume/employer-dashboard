@@ -60,11 +60,6 @@ export default function RootLayout({ children }) {
     }
   }, [pathname, router]);
 
-  // Show loader while checking localStorage
-  if (rootContext.loader) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#D79A2F]`}>

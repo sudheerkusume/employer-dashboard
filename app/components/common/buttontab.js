@@ -68,7 +68,7 @@ export default function ButtonTab({ tabs, activeTab, setActiveTab }) {
                 <button
                     key={index}
                     ref={(el) => (tabRefs.current[index] = el)}
-                    className={`py-1 px-3 rounded-t-md relative font-medium z-10
+                    className={`py-1 px-3 cursor-pointer rounded-t-md relative font-medium z-10
                         transition-colors duration-300 ease-in-out
                         ${activeTab === index ? 'text-white' : 'text-gray-700'}
                     `}

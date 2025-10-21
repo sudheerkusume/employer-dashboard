@@ -1,4 +1,4 @@
-const employeesData = [
+export const employeesData = [
     // Existing Profile Example
     {
         id: 1,
@@ -7,7 +7,7 @@ const employeesData = [
         image: "https://randomuser.me/api/portraits/women/93.jpg",
         category: "Channel Partners",
         title: "Channel Partners - Mumbai",
-        email: "noah.davis@example.com",
+        email: "noah.realbeez@gmail.com",
         summary: "Experienced Channel Partners with proven track record in channel partners and related projects.",
         ratings: 3.5,
         education: [
@@ -54,7 +54,7 @@ const employeesData = [
     {
         id: 2,
         name: "Bheema Guguloth",
-        email: "bheema.realbeez.com",
+        email: "bheem.realbeez@gmail.com",
         role: "employee",
         password: "bheema@123",
         attendance: [
@@ -85,7 +85,7 @@ const employeesData = [
         name: "Vikranth",
         role: "manager",
         password: "bheema@123",
-        email: "vikranth.realbeez.com",
+        email: "vikranth.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",
@@ -111,7 +111,7 @@ const employeesData = [
         id: 4,
         name: "Vinod Kumar",
         role: "employee",
-        email: "vinodkumar.realbeez.com",
+        email: "vinodkumar.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",
@@ -137,7 +137,7 @@ const employeesData = [
         id: 5,
         name: "Bhargavi",
         role: "employee",
-        email: "bhargavi.realbeez.com",
+        email: "bhargavi.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",
@@ -163,7 +163,7 @@ const employeesData = [
         id: 6,
         name: "Mohan",
         role: "employee",
-        email: "mohan.realbeez.com",
+        email: "mohan.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",
@@ -189,7 +189,7 @@ const employeesData = [
         id: 7,
         name: "Sunil",
         role: "employee",
-        email: "sunil.realbeez.com",
+        email: "sunil.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",
@@ -216,7 +216,7 @@ const employeesData = [
         name: "Parvalika",
         role: "hr",
         password: "bheema@123",
-        email: "parvalika.realbeez.com",
+        email: "parvalika.realbeez@gmail.com",
         attendance: [
             {
                 title: "Present (9hrs)",

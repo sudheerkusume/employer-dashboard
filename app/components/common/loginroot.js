@@ -5,15 +5,13 @@ import Image from "next/image";
 import RootContext from "../config/rootcontext";
 import { EyeIcon } from "@heroicons/react/20/solid";
 import { EyeSlashIcon } from "@heroicons/react/24/solid";
-import { empolyeeData } from "../config/data";
 import { useRouter } from "next/navigation";
-// import { useSWRFetch } from "../config/useswrfetch";
+import { useSWRFetch } from "../config/useswrfetch";
 
 export default function LoginRoot() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
-    // const { data, error } = useSWRFetch(`/api/users`)
-    const data = empolyeeData
+    const { data, error } = useSWRFetch(`/api/employees`)
     const [formData, setFormData] = useState({
         mobile: "",
         email: "",
@@ -28,10 +26,7 @@ export default function LoginRoot() {
         e.preventDefault();
         setIsLoading(true);
 
-        const user = data.find(
-            (u) => u.email === formData.email || u.mobile === formData.email
-        );
-
+        const user = data.find((u) => u.email === formData.email);
         if (!user) {
             setRootContext((prevContext) => ({
                 ...prevContext,
@@ -72,6 +67,7 @@ export default function LoginRoot() {
             loader: false,
             user: {
                 name: username,
+                userId: user._id,
                 email: user.email,
                 mobile: user.mobile,
                 role: user.role,
@@ -90,8 +86,8 @@ export default function LoginRoot() {
         });
         if (user.role === "employee") {
             router.push("/dashboard/employee")
-        } else if (user.role === "hr") {
-            router.push("/dashboard/hr")
+        } else if (user.role === "admin") {
+            router.push("/dashboard/admin")
         } else {
             router.push("/dashboard/manager")
         }
@@ -161,7 +157,7 @@ export default function LoginRoot() {
                             <button
                                 type="submit"
                                 className={`w-full p-3 rounded-lg hover:rounded-full font-bold text-white transition-colors duration-300
-                  ${isLoading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'}
+                  ${isLoading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-yellow-600 cursor-pointer hover:bg-yellow-700'}
                 `}
                                 disabled={isLoading}
                             >

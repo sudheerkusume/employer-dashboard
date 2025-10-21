@@ -1,5 +1,5 @@
 import useSWR, { useSWRConfig } from "swr";
-import { getServiceHeader, NODE_SERVICE_URL } from "./sitesettings";
+import { getServiceHeader } from "./sitesettings";
 
 const fetcher = async (url) => {
     try {
@@ -26,7 +26,7 @@ const fetcher = async (url) => {
     }
 };
 export function useSWRFetch(url) {
-    const { data, error, isLoading } = useSWR(url && NODE_SERVICE_URL + url, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+    const { data, error, isLoading } = useSWR(url && url, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
     return {
         data: data,
         error: error,
@@ -36,6 +36,6 @@ export function useSWRFetch(url) {
 
 export function Mutated(url) {
     const { mutate } = useSWRConfig();
-    const mutated = () => { mutate(NODE_SERVICE_URL + url) };
+    const mutated = () => { mutate(url) };
     return mutated;
 }

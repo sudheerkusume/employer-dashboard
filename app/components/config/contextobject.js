@@ -8,7 +8,7 @@ export const contextObject = {
         role: "",
         password: "",
         token: "",
-        isAdmin: "",
+        userId: "",
     },
     active: 'all',
     toast: {
