@@ -1,12 +1,17 @@
 "use client";
 import AddEmployeeForm from "@/app/components/common/addemployee";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function AdminDashboard({ currentUserRole }) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-6">
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
 
       {/* Add Employee Button */}
@@ -25,7 +30,7 @@ export default function AdminDashboard({ currentUserRole }) {
       </div>
 
       {/* Modal */}
-      {showAddForm && (
+      {isClient && showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 relative">
             <button

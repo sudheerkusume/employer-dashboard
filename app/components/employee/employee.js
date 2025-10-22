@@ -9,6 +9,7 @@ import Payslip from './payslip';
 import ButtonTab from '../common/buttontab';
 import RootContext from '../config/rootcontext';
 import { Mutated } from '../config/useswrfetch';
+import Loading from '../common/loading';
 
 const tabs = [
     { name: 'About Me', component: AboutMe },
@@ -30,7 +31,7 @@ function EmployeeProfile({ employeesData }) {
     const [editingHeader, setEditingHeader] = useState(false);
     const [tempProfile, setTempProfile] = useState(profile);
     const [accordionOpen, setAccordionOpen] = useState(null);
-
+    const [serviceCall, setServiceCall] = useState(false);
     const { rootContext } = useContext(RootContext);
 
     // Get userId from localStorage
@@ -55,6 +56,7 @@ function EmployeeProfile({ employeesData }) {
     const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null)
 
     const handleSaveHeader = async () => {
+        setServiceCall(true)
         try {
             const res = await fetch(`/api/employees`, {
                 method: 'PUT',
@@ -66,7 +68,9 @@ function EmployeeProfile({ employeesData }) {
                     role: role
                 }),
             });
-
+            if (res.status) {
+                setServiceCall(false)
+            }
             const data = await res.json();
 
             if (res.ok) {
@@ -75,17 +79,17 @@ function EmployeeProfile({ employeesData }) {
                 setEditingHeader(false);
                 mutated();
             } else {
-                alert(data.error || 'Failed to update profile');
+                console.log(data.error || 'Failed to update profile');
             }
         } catch (err) {
             console.error('Update Error:', err);
-            alert('Something went wrong while updating profile');
         }
     };
 
     return (
         <div className="mt-20 bg-white min-h-screen">
             {/* Header Section */}
+            {serviceCall && <Loading />}
             <div className="fixed inset-0 bg-white z-[-1]" />
             <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
                 <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">

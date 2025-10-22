@@ -1,7 +1,9 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import moment from "moment";
 import CalendarTab from "./calendar";
+import Loading from "../common/loading";
+import RootContext from "../config/rootcontext";
 
 export default function Attendance({ profile }) {
     const user_details =
@@ -16,9 +18,9 @@ export default function Attendance({ profile }) {
         checkInTime: null,
     });
     const [canCheckOut, setCanCheckOut] = useState(false);
-
+    const [serviceCall, setServiceCall] = useState(false);
     const todayStr = new Date().toISOString().split("T")[0];
-
+    const { setRootContext } = useContext(RootContext);
     // ✅ Fetch today's attendance from profile on mount
     useEffect(() => {
         if (!profile || !profile.attendance) return;
@@ -31,8 +33,8 @@ export default function Attendance({ profile }) {
 
         if (todayAtt) {
             setTodayAttendance({
-                checkIn: todayAtt.checkIn,
-                checkOut: todayAtt.checkOut,
+                checkIn: todayAtt.checkIn || "",
+                checkOut: todayAtt.checkOut || "",
                 date: new Date(todayStr),
                 checkInTime: todayAtt.checkIn
                     ? moment(todayAtt.date + "T" + todayAtt.checkIn)
@@ -67,6 +69,7 @@ export default function Attendance({ profile }) {
 
     // ✅ Check-In Handler
     const handleCheckIn = async () => {
+        setServiceCall(true)
         try {
             const now = new Date();
             const res = await fetch("/api/attendance", {
@@ -75,12 +78,17 @@ export default function Attendance({ profile }) {
                 body: JSON.stringify({
                     employeeId,
                     action: "checkin",
-                    time: now.toLocaleTimeString("en-GB", { hour12: false }).slice(0, 5),
+                    time: now
+                        .toLocaleTimeString("en-GB", { hour12: false })
+                        .slice(0, 5),
                     date: todayStr,
                 }),
             });
 
             const data = await res.json().catch(() => ({}));
+            if (res.status) {
+                setServiceCall(false)
+            }
             if (res.ok) {
                 setTodayAttendance({
                     checkIn: data.attendance.checkIn,
@@ -89,19 +97,57 @@ export default function Attendance({ profile }) {
                     checkInTime: moment(),
                 });
                 setCanCheckOut(false);
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: `success`,
+                        message: "Check-in Success",
+                    },
+                }));
             } else {
-                alert(data?.message || data?.error || "Check-in failed");
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: `Failed`,
+                        message: `${data?.message || data?.error}` || "Check-in failed",
+                    },
+                }));
             }
         } catch (err) {
             console.error(err);
-            alert("Failed to check in");
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: `Failed`,
+                    message: `"Failed to check in"` || "Check-in failed",
+                },
+            }));
         }
     };
 
     // ✅ Check-Out Handler
     const handleCheckOut = async () => {
+        setServiceCall(true)
         if (!todayAttendance.checkIn)
-            return alert("Please check in first!");
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "warning",
+                    title: `Warning`,
+                    message: "Please check in first!",
+                },
+            }));
 
         try {
             const now = new Date();
@@ -111,16 +157,28 @@ export default function Attendance({ profile }) {
                 body: JSON.stringify({
                     employeeId,
                     action: "checkout",
-                    time: now.toLocaleTimeString("en-GB", { hour12: false }).slice(0, 5),
+                    time: now
+                        .toLocaleTimeString("en-GB", { hour12: false })
+                        .slice(0, 5),
                     date: todayStr,
                 }),
             });
-
+            if (res.status) {
+                setServiceCall(false)
+            }
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                alert(
-                    `Checked out successfully.\nWorking Hours: ${data.attendance.workingHours} hrs\nStatus: ${data.attendance.status}`
-                );
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: `success`,
+                        message: `Checked out successfully.\nWorking Hours: ${data.attendance.workingHours} hrs\nStatus: ${data.attendance.status}`,
+                    },
+                }));
+
                 setTodayAttendance({
                     checkIn: "",
                     checkOut: data.attendance.checkOut,
@@ -129,60 +187,47 @@ export default function Attendance({ profile }) {
                 });
                 setCanCheckOut(false);
             } else {
-                alert(data?.message || data?.error || "Check-out failed");
+                console.log(data?.message || data?.error || "Check-out failed");
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: `Failed`,
+                        message: `${data?.message || data?.error}` || "Check-in failed",
+                    },
+                }));
             }
         } catch (err) {
             console.error(err);
-            alert("Failed to check out");
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: `Failed`,
+                    message: `"Failed to check Out"` || "Check-Out failed",
+                },
+            }));
         }
     };
+
+    // ✅ Check if already checked in
+    const isCheckedIn =
+        !!todayAttendance.checkIn && !todayAttendance.checkOut;
 
     // ✅ UI
     return (
         <div className="min-h-screen bg-gray-100 p-6 space-y-6">
-            {/* Check-In/Out Section */}
-            <div className="bg-white p-6 rounded-xl shadow-xl">
-                <div className="flex flex-wrap gap-4 items-center">
-                    {/* ✅ Check-In Button */}
-                    <button
-                        onClick={handleCheckIn}
-                        disabled={!!todayAttendance.checkIn || !!todayAttendance.checkOut}
-                        className={`px-6 py-3 rounded-lg font-semibold ${todayAttendance.checkIn || todayAttendance.checkOut
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-green-600 hover:bg-green-700 text-white"
-                            }`}
-                    >
-                        {todayAttendance.checkIn ? "Checked In" : "Check In"}
-                    </button>
-
-                    {/* ✅ Check-Out Button */}
-                    <button
-                        onClick={handleCheckOut}
-                        disabled={
-                            !todayAttendance.checkIn ||
-                            !!todayAttendance.checkOut ||
-                            !canCheckOut
-                        }
-                        className={`px-6 py-3 rounded-lg font-semibold ${!todayAttendance.checkIn ||
-                            todayAttendance.checkOut ||
-                            !canCheckOut
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-red-600 hover:bg-red-700 text-white"
-                            }`}
-                    >
-                        {!todayAttendance.checkIn
-                            ? "Check-In First"
-                            : todayAttendance.checkOut
-                                ? "Checked Out"
-                                : !canCheckOut
-                                    ? "Wait 4.5 Hours"
-                                    : "Check Out"}
-                    </button>
-                </div>
-            </div>
-
-            {/* ✅ Calendar */}
-            <CalendarTab profile={profile} />
+            {serviceCall && <Loading />}
+            <CalendarTab
+                profile={profile}
+                onCheckIn={handleCheckIn}
+                onCheckOut={handleCheckOut}
+                isCheckedIn={isCheckedIn}
+            />
         </div>
     );
 }

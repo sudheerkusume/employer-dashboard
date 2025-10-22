@@ -8,6 +8,7 @@ const employeeSchema = Joi.object({
     email: Joi.string().email().required(),
     role: Joi.string().valid("employee", "recruiter", "admin").required(),
     password: Joi.string().required(),
+    reportingId: Joi.string().trim().length(24).required(),
     attendance: Joi.object().default({}),
     experience: Joi.array().default([]),
     education: Joi.array().default([]),
@@ -73,9 +74,9 @@ export async function POST(req) {
 
         if (error) return Response.json({ error: error.details[0].message }, { status: 400 });
 
-        // Check if id or email already exists
-        const exists = await employeesCollection.findOne({ $or: [{ id: value.id }, { email: value.email }] });
-        if (exists) return Response.json({ error: "Employee with this ID or email already exists" }, { status: 400 });
+        // ✅ Only check email
+        const exists = await employeesCollection.findOne({ email: value.email });
+        if (exists) return Response.json({ error: "Employee with this email already exists" }, { status: 400 });
 
         const result = await employeesCollection.insertOne(value);
         return Response.json({ success: true, employee: value, insertedId: result.insertedId });

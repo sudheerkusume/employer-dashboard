@@ -1,5 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useSWRFetch } from "../config/useswrfetch";
+import ComboBox from "./form/combobox";
+import RootContext from "../config/rootcontext";
 
 export default function AddEmployeeForm({ currentUserRole }) {
     const [form, setForm] = useState({
@@ -7,10 +10,19 @@ export default function AddEmployeeForm({ currentUserRole }) {
         email: "",
         role: "employee",
         password: "",
+        manager: {},
     });
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const { setRootContext } = useContext(RootContext);
+
+    const { data, error, isLoading } = useSWRFetch(`/api/employees`);
+    const managerData = data && data
+        ?.filter(item => item.role === "manager")
+        ?.map(item => ({
+            _id: item._id,
+            name: item.name
+        }));
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -18,37 +30,62 @@ export default function AddEmployeeForm({ currentUserRole }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
         setSuccess("");
-
-        // Only admin can submit
-        if (currentUserRole !== "admin") {
-            setError("You do not have access to add employees.");
-            return;
-        }
 
         setLoading(true);
         try {
+            const payload = {
+                name: form.name,
+                email: form.email,
+                role: form.role,
+                password: form.password,
+                reportingId: form.manager?._id || null, // only send _id
+                currentUserRole,
+            };
+
             const res = await fetch("/api/employees", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, currentUserRole }),
+                body: JSON.stringify(payload),
             });
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Failed to add employee.");
-            } else {
+            if (res.ok) {
                 setSuccess("Employee added successfully!");
-                setForm({ name: "", email: "", role: "employee", password: "" });
+                setForm({ name: "", email: "", role: "employee", password: "", reportingId: "" });
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "success",
+                        message: "Employee added successfully!",
+                    },
+                }));
             }
         } catch (err) {
             console.error(err);
-            setError("Something went wrong while adding employee.");
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: `${err.message}`,
+                },
+            }));
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleManagerChange = (selectedManager) => {
+        setForm({ ...form, manager: selectedManager });
+    };
+
+    const handleRoleChange = (selectedRole) => {
+        setForm({ ...form, role: selectedRole });
     };
 
     return (
@@ -61,9 +98,7 @@ export default function AddEmployeeForm({ currentUserRole }) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name */}
                 <div>
-                    <label htmlFor="name" className="block text-gray-700 font-medium mb-1">
-                        Name
-                    </label>
+                    <label htmlFor="name" className="block text-gray-700 font-medium mb-1">Name</label>
                     <input
                         id="name"
                         name="name"
@@ -78,9 +113,7 @@ export default function AddEmployeeForm({ currentUserRole }) {
 
                 {/* Email */}
                 <div>
-                    <label htmlFor="email" className="block text-gray-700 font-medium mb-1">
-                        Email
-                    </label>
+                    <label htmlFor="email" className="block text-gray-700 font-medium mb-1">Email</label>
                     <input
                         id="email"
                         name="email"
@@ -94,29 +127,14 @@ export default function AddEmployeeForm({ currentUserRole }) {
                 </div>
 
                 {/* Role */}
-                <div>
-                    <label htmlFor="role" className="block text-gray-700 font-medium mb-1">
-                        Role
-                    </label>
-                    <select
-                        id="role"
-                        name="role"
-                        value={form.role}
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        required
-                    >
-                        <option value="employee">Employee</option>
-                        <option value="recruiter">Recruiter</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
+                <ComboBox title={"Role"} data={["employee", "manager"]} required={true} value={form.role} onChange={handleRoleChange} />
+
+                {/* Reporting Manager */}
+                <ComboBox title={"Reporting Manager"} textField={"name"} data={managerData} required={true} value={form.manager} onChange={handleManagerChange} />
 
                 {/* Password */}
                 <div>
-                    <label htmlFor="password" className="block text-gray-700 font-medium mb-1">
-                        Password
-                    </label>
+                    <label htmlFor="password" className="block text-gray-700 font-medium mb-1">Password</label>
                     <input
                         id="password"
                         name="password"
@@ -132,8 +150,7 @@ export default function AddEmployeeForm({ currentUserRole }) {
                 <button
                     type="submit"
                     disabled={loading}
-                    className={`w-full py-2 px-4 rounded-md font-semibold text-white ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                        }`}
+                    className={`w-full py-2 px-4 rounded-md font-semibold text-white ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
                 >
                     {loading ? "Adding..." : "Add Employee"}
                 </button>
