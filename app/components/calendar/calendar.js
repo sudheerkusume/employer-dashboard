@@ -474,10 +474,28 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isTodayDate = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
                     const isCurrentMonth = getMonth(day) === getMonth(currentDate);
 
-                    // Only mark Sundays of active month
+                    // Determine status
                     let status = att?.status || null;
                     if (isSunday(day) && isCurrentMonth) status = 'sunday';
                     else if (isHoliday(day)) status = 'holiday';
+
+                    // Handle leave text/bg color
+                    const isLeaveApplied = att?.status === 'leaveApplied';
+                    const isLeaveApproved = att?.status === 'leaveApproved';
+
+                    // Text color for the day number
+                    const dayTextColor = isLeaveApplied
+                        ? 'text-gray-600'             // leave applied → default/dimmed text
+                        : isLeaveApproved
+                            ? 'text-white'            // leave approved → text visible on colored bg
+                            : isCurrentMonth
+                                ? 'text-gray-900'     // normal current month
+                                : 'text-gray-400';    // other month dates
+
+                    // Optional: background for approved leave
+                    const dayBgColor = isLeaveApproved
+                        ? 'bg-purple-200 rounded-full'
+                        : '';
 
                     return (
                         <div
@@ -493,19 +511,15 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     workingHours: att?.workingHours || 0
                                 });
                             }}
-                            className="relative w-10 h-10 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-gray-300 rounded-full transition"
+                            className={`relative w-10 h-10 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-gray-300 transition ${dayBgColor}`}
                             title={isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave Applied' : 'Today') : status === 'sunday' ? 'Sunday' : status === 'holiday' ? 'Holiday' : att ? att.status : 'No data'}
                         >
                             {!isTodayDate && <SplitCircle status={status} isToday={false} size={40} />}
 
                             <span
                                 className={`absolute text-xs font-bold ${isTodayDate
-                                    ? 'text-[#48a84dff] font-bold'        // Today: green & bold
-                                    : (status === 'holiday' || status === 'sunday')
-                                        ? 'text-gray-400'               // Holiday/Sunday: light gray
-                                        : isCurrentMonth
-                                            ? 'text-gray-900'           // Current month normal date
-                                            : 'text-gray-400'           // Other month dates
+                                    ? 'text-[#48a84dff] font-bold'
+                                    : dayTextColor
                                     }`}
                             >
                                 {format(day, 'd')}
