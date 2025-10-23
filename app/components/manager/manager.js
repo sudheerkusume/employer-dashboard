@@ -53,7 +53,7 @@ function ManagerProfile({ employeesData }) {
     const role = user_details?.role || "";
     const employeeID = user_details.userId;
     const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null)
-
+    const { setRootContext } = useContext(RootContext);
     const handleSaveHeader = async () => {
         try {
             const res = await fetch(`/api/employees`, {
@@ -75,11 +75,29 @@ function ManagerProfile({ employeesData }) {
                 setEditingHeader(false);
                 mutated();
             } else {
-                alert(data.error || 'Failed to update profile');
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: `${data.error}` || 'Failed to update profile',
+                    },
+                }));
             }
         } catch (err) {
             console.error('Update Error:', err);
-            alert('Something went wrong while updating profile');
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: `Something went wrong while updating profile`,
+                },
+            }));
         }
     };
 

@@ -22,7 +22,7 @@ const leaveApplySchema = Joi.object({
     employeeId: Joi.string().required(),
     startDate: Joi.alternatives().try(Joi.string().isoDate(), Joi.date()).required(),
     endDate: Joi.alternatives().try(Joi.string().isoDate(), Joi.date()).required(),
-    leaveType: Joi.string().valid("sick", "casual", "earned", "emergency", "other").default("casual"),
+    leaveType: Joi.string().valid("casual", "earned", "sick", "emergency", "first half", "second half").default("casual"),
     reason: Joi.string().min(3).required(),
 });
 
@@ -75,21 +75,46 @@ export async function POST(request) {
         });
 
         // Add leave to employee attendance
+        // Add leave to employee attendance
         for (const [monthName, dates] of Object.entries(groupedByMonth)) {
-            for (const date of dates) {
-                const leaveEntry = {
-                    date,
-                    status: "pending",
-                    leaveType,
-                    reason,
-                    markedOn: new Date().toISOString(),
-                };
+            for (const [index, date] of dates.entries()) {
+                let leaveEntry;
+
+                // For single-day half-day leave
+                if (leaveType === "first half") {
+                    leaveEntry = {
+                        date,
+                        status: "first half",
+                        leaveType,
+                        reason,
+                        markedOn: new Date().toISOString(),
+                    };
+                } else if (leaveType === "second half") {
+                    leaveEntry = {
+                        date,
+                        status: "second half",
+                        leaveType,
+                        reason,
+                        markedOn: new Date().toISOString(),
+                    };
+                } else {
+                    // Full-day leave
+                    leaveEntry = {
+                        date,
+                        status: "pending",
+                        leaveType,
+                        reason,
+                        markedOn: new Date().toISOString(),
+                    };
+                }
+
                 await employees.updateOne(
                     { _id: new ObjectId(employeeId) },
                     { $push: { [`attendance.${monthName}`]: leaveEntry } }
                 );
             }
         }
+
 
         // Assign to reporting manager
         if (["employee", "hr"].includes(employee.role) && employee.reportingId) {

@@ -1,12 +1,12 @@
 'use client';
 import React, { useState, useMemo, useContext } from 'react';
-import { addMonths } from 'date-fns';
 import MonthView from '../calendar/monthview';
 import CalendarHeader from '../calendar/calendarheader';
 import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
 import { Mutated } from '../config/useswrfetch';
+import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, format } from 'date-fns';
 
 const categoryColors = {
     present: "#22c55e",
@@ -48,22 +48,22 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         return allEvents;
     }, [profile]);
 
-    // ✅ Filter leaves dynamically from attendance
-    const leaves = useMemo(() => {
-        if (!profile || !profile.attendance) return [];
-        const allLeaves = [];
-        Object.values(profile.attendance).forEach(monthArr => {
-            monthArr.forEach(item => {
-                if (item.status && item.leaveType) {
-                    allLeaves.push({
-                        id: item.date, // you can make this unique if needed
-                        ...item
-                    });
-                }
-            });
-        });
-        return allLeaves;
-    }, [profile]);
+    // // ✅ Filter leaves dynamically from attendance
+    // const leaves = useMemo(() => {
+    //     if (!profile || !profile.attendance) return [];
+    //     const allLeaves = [];
+    //     Object.values(profile.attendance).forEach(monthArr => {
+    //         monthArr.forEach(item => {
+    //             if (item.status && item.leaveType) {
+    //                 allLeaves.push({
+    //                     id: item.date, // you can make this unique if needed
+    //                     ...item
+    //                 });
+    //             }
+    //         });
+    //     });
+    //     return allLeaves;
+    // }, [profile]);
 
     // Withdraw leave service
     const withdrawLeaveService = async (leaveDate) => {
@@ -100,8 +100,15 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             mutated()
         }
     };
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
 
-
+    // Get current month name from currentDate
+    const monthIndex = currentDate.getMonth();
+    const [monthName, setMonthName] = useState(monthNames[monthIndex] || 1);
+    console.log("monthName", monthName)
     const handleWithdraw = async (leaveDate) => {
         try {
             setLoadingLeave(leaveDate);
@@ -129,6 +136,76 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         }
     };
 
+
+    const holidays = [
+        '2025-10-02',
+        '2025-10-15',
+    ];
+
+    const FULL_DAY_HOURS = 8.75; // 8h 45m
+    const HALF_DAY_HOURS = 4.25; // 4h 15m
+
+    const calculateAttendanceByMonthIndex = (profile, monthIndex, year = 2025) => {
+        const monthName = monthNames[monthIndex];
+        if (!profile || !profile.attendance || !profile.attendance[monthName]) {
+            return { totalWorked: 0, totalWorkingDays: 0 };
+        }
+
+        // Total working days in month excluding Sundays & holidays
+        const start = startOfMonth(new Date(year, monthIndex, 1));
+        const end = endOfMonth(start);
+        const monthDates = eachDayOfInterval({ start, end });
+
+        const totalWorkingDays = monthDates.reduce((acc, date) => {
+            const formatted = date.toISOString().split('T')[0];
+            if (!isSunday(date) && !holidays.includes(formatted)) acc += 1;
+            return acc;
+        }, 0);
+
+        // Calculate total worked hours
+        let totalWorkedHours = 0;
+
+        profile.attendance[monthName].forEach(item => {
+            switch (item.status) {
+                case 'present':
+                    totalWorkedHours += FULL_DAY_HOURS;
+                    break;
+                case 'firstHalfApproved':
+                case 'secondHalfApproved':
+                case 'halfDay':
+                    totalWorkedHours += HALF_DAY_HOURS;
+                    break;
+                case 'Checked In':
+                case 'rejected':
+                case 'approved':
+                    // Skip leaves and Checked In without checkOut
+                    break;
+                default:
+                    // If no status, calculate from checkIn/checkOut
+                    if (item.checkIn && item.checkOut) {
+                        const checkInTime = parse(item.checkIn, 'HH:mm', new Date());
+                        const checkOutTime = parse(item.checkOut, 'HH:mm', new Date());
+                        const workedMinutes = differenceInMinutes(checkOutTime, checkInTime);
+                        const workedHours = workedMinutes / 60;
+                        totalWorkedHours += Math.min(workedHours, FULL_DAY_HOURS);
+                    }
+            }
+        });
+
+        const totalWorked = parseFloat((totalWorkedHours / FULL_DAY_HOURS).toFixed(2));
+
+        return { totalWorked, totalWorkingDays };
+    };
+    const { totalWorked, totalWorkingDays } = calculateAttendanceByMonthIndex(profile, monthName);
+
+
+    // Filter leaves dynamically for the month
+    const monthLeaves = useMemo(() => {
+        if (!profile || !profile.attendance) return [];
+        const monthArr = profile.attendance[monthName] || [];
+        return monthArr.filter(item => item.status && item.leaveType);
+    }, [profile, monthName]);
+
     return (
         <div className="flex flex-col md:flex-row max-w-full text-gray-700 gap-4">
             {/* Left Calendar Section */}
@@ -140,32 +217,33 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     onCheckOut={onCheckOut}
                     isCheckedIn={isCheckedIn}
                     onGoToCalendar={() => setShowCalendar(true)}
+                    setMonthName={setMonthName}
                 />
             </div>
-
             {/* Right Side: Leaves Section */}
-            <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl p-4 flex flex-col">
+            <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
+
+                {/* Display working days */}
+                <div className='bg-yellow-100 py-2 text-center rounded-xl mb-2'>
+                    <p className="text-sm text-gray-500">
+                        Working Days: <span className="text-sm font-bold text-gray-700">{totalWorked}</span> / {totalWorkingDays}
+                    </p>
+                </div>
+
                 <h3 className="text-lg font-semibold mb-3">Your Leaves</h3>
 
-                {leaves.length === 0 ? (
+                {monthLeaves.length === 0 ? (
                     <p className="text-gray-400 italic">No leave applied.</p>
                 ) : (
                     <ul className="space-y-2 overflow-y-auto max-h-[500px]">
-                        {leaves.map(leave => (
-                            <li
-                                key={leave.id}
-                                className="flex justify-between items-center p-2 border border-gray-200 rounded-md"
-                            >
+                        {monthLeaves.map((leave, index) => (
+                            <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
                                 <div className="flex flex-col">
                                     <span className="font-medium">{leave.leaveType}</span>
-                                    <span className="text-sm text-gray-500">
-                                        {new Date(leave.date).toLocaleDateString()}
-                                    </span>
-                                    <span className={`text-sm font-semibold ${leave.status === 'approved' ? 'text-green-600' : 'text-yellow-500'}`}>
-                                        {leave.status}
-                                    </span>
+                                    <span className="text-sm text-gray-500">{new Date(leave.date).toLocaleDateString()}</span>
+                                    <span className={`text-sm font-semibold ${leave.status === 'approved' ? 'text-green-600' : 'text-yellow-500'}`}>{leave.status}</span>
                                 </div>
-                                {leave.status !== 'approved' && (
+                                {(leave.status !== 'approved' && leave.status !== 'rejected' && leave.status !== "firstHalfApproved" && leave.status !== "secondHalfApproved") && (
                                     <button
                                         onClick={() => handleWithdraw(leave.date)}
                                         disabled={loadingLeave === leave.date}

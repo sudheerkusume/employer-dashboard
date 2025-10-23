@@ -1,25 +1,52 @@
 'use client';
-import React, { useState, useMemo, Fragment } from 'react';
+import React, { useState, useMemo, Fragment, useContext } from 'react';
 import {
     format, addMonths, subMonths, startOfMonth, endOfMonth,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    getMonth, setMonth, getYear, setYear
+    getMonth, setMonth, getYear, setYear, isSunday
 } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { Mutated } from '../config/useswrfetch';
+import Loading from '../common/loading';
+import RootContext from '../config/rootcontext';
 
 const categoryColors = {
-    present: "#22c55e",
-    firstHalf: "#fbbf24",
-    secondHalf: "#f59e0b",
-    halfDay: "#f97316",
-    absent: "#ef4444",
-    "Checked In": "#3b82f6",
-    leave: "#8b5cf6", // Purple for leave
+    present: "#A8DCAB",        // emerald-600, strong green for full presence
+    firstHalf: "#A8DCAB",      // lime-400, lighter green for first-half present
+    secondHalf: "#A8DCAB",     // lime-500, slightly darker green for second-half present
+    halfDay: "#A8DCAB",        // yellow-400, amber for half-day
+    absent: "#ff6a6a",         // red-600, clear red for absent
+    "Checked In": "#2563eb",   // blue-600, bold blue for checked in
+    leaveApplied: "#ffef9dff",   // violet-400, soft but noticeable
+    leaveApproved: "#ffec8b",  // violet-700, darker violet for approval
+    leaveRejected: "#ff6a6a",  // rose-600, deep pink/red for rejection
+    holiday: "#d5d7d9ff",        // gray-400 for holidays
+    sunday: "#d5d7d9ff",         // gray-400 for Sundays
+    today: "#71cf76ff"
 };
 
+// Helper: Check if current time is before 9 AM
+const isBefore9AM = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    return currentHour < 9;
+};
+
+// Helper: Check if date is holiday (you can customize this with your holiday list)
+const isHoliday = (date) => {
+    const holidayList = [
+        '2025-01-01', // New Year
+        '2025-01-26', // Republic Day
+        '2025-03-25', // Holi
+        '2025-08-15', // Independence Day
+        '2025-10-02', // Gandhi Jayanti
+        '2025-12-25', // Christmas
+        // Add more holidays as needed
+    ];
+    return holidayList.includes(format(date, 'yyyy-MM-dd'));
+};
 
 // Helper: Calculate working hours in decimal
 const calculateWorkingHours = (checkIn, checkOut) => {
@@ -46,40 +73,100 @@ const determineStatus = (checkIn, checkOut) => {
 
     const workingHours = calculateWorkingHours(checkIn, checkOut);
     const checkInDec = timeToDecimal(checkIn);
-    const checkOutDec = timeToDecimal(checkOut);
-
-    // Full day
-    if (workingHours >= fullDayHrs) return 'present';
 
     // No check-in and no check-out → absent
     if (!checkIn && !checkOut) return 'absent';
 
+    // Full day
+    if (workingHours >= fullDayHrs) return 'present';
+
+    // First half: morning (before 13:30) with enough working hours
+    if (checkInDec && checkInDec < 13.5) {
+        if (workingHours >= halfDayHrs) return 'firstHalf';
+        return 'firstHalf'; // even if less than halfDayHrs, we treat as firstHalf
+    }
+
+    // Second half: afternoon (13:30 or later)
+    if (checkInDec && checkInDec >= 13.5) {
+        if (workingHours >= halfDayHrs) return 'secondHalf';
+        return 'secondHalf'; // less than half-day, still secondHalf
+    }
+
     // Check-in only → first half
     if (checkIn && !checkOut) return 'firstHalf';
 
-    // Check-out only → if checkout in afternoon and no check-in → absent
+    // Check-out only → absent
     if (!checkIn && checkOut) return 'absent';
-
-    // Working hours >= half day → determine first or second half
-    if (workingHours >= halfDayHrs) {
-        // If check-in in morning → first half
-        if (checkInDec && checkInDec < 12) return 'firstHalf';
-        // If check-in in afternoon → second half
-        if (checkInDec && checkInDec >= 12) return 'secondHalf';
-    }
-
-    // Working hours < half day → determine based on check-in/out
-    if (workingHours < halfDayHrs) {
-        if (checkInDec && checkInDec < 12) return 'firstHalf';
-        if (checkInDec && checkInDec >= 12) return 'secondHalf';
-    }
 
     // Fallback
     return 'absent';
 };
 
+// Split Circle Component for visual indicators
+const SplitCircle = ({ status, isToday, size = 40 }) => {
+    const radius = size / 2;
+    const center = radius;
 
-export default function Sidebar({ profile, onGoToCalendar }) {
+    const getColors = () => {
+        switch (status) {
+            case 'present':
+                return { left: categoryColors.present, right: categoryColors.present };
+            case 'firstHalf':
+                return { left: categoryColors.firstHalf, right: categoryColors.absent };
+            case 'secondHalf':
+                return { left: categoryColors.absent, right: categoryColors.secondHalf };
+            case 'absent':
+                return { left: categoryColors.absent, right: categoryColors.absent };
+            case 'leaveApplied':
+            case 'leaveApproved':
+            case 'leaveRejected':
+                return { left: categoryColors[status], right: categoryColors[status] };
+            case 'holiday':
+                return { left: categoryColors.holiday, right: categoryColors.holiday };
+            case 'sunday':
+                return { left: categoryColors.sunday, right: categoryColors.sunday };
+            case 'today':
+                return { left: categoryColors.today, right: categoryColors.today };
+            default:
+                return isToday
+                    ? { left: '#d1d5db', right: '#d1d5db' }
+                    : { left: 'transparent', right: 'transparent' };
+        }
+    };
+
+    const colors = getColors();
+    const stroke = isToday && !status ? '#374151' : 'none';
+
+    return (
+        <svg width={size} height={size} className="cursor-pointer">
+            {/* Background circle for today */}
+            {isToday && (
+                <circle
+                    cx={center}
+                    cy={center}
+                    r={radius - 1}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth="1"
+                />
+            )}
+
+            {/* Left semicircle */}
+            <path
+                d={`M ${center} ${center} L ${center} 0 A ${radius} ${radius} 0 0 0 ${center} ${size} Z`}
+                fill={colors.left}
+            />
+
+            {/* Right semicircle */}
+            <path
+                d={`M ${center} ${center} L ${center} ${size} A ${radius} ${radius} 0 0 0 ${center} 0 Z`}
+                fill={colors.right}
+            />
+        </svg>
+    );
+};
+
+export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn }) {
     const today = new Date();
 
     const [currentDate, setCurrentDate] = useState(today);
@@ -87,17 +174,18 @@ export default function Sidebar({ profile, onGoToCalendar }) {
     const [selectedYear, setSelectedYear] = useState(getYear(today));
     const [selectedDate, setSelectedDate] = useState(null);
     const [popupData, setPopupData] = useState(null);
-
+    const { setRootContext } = useContext(RootContext)
     // Leave modal states
     const [leaveModalOpen, setLeaveModalOpen] = useState(false);
     const [isSelectingLeave, setIsSelectingLeave] = useState(false);
-    // Close leave modal and reset selection state
     const [leaveRange, setLeaveRange] = useState({
         start: null,
         end: null,
         leaveType: '',
         reason: ''
     });
+
+
     const updateCalendarDate = (month, year) => {
         const effectiveYear = isNaN(year) ? getYear(today) : year;
         const newDate = setMonth(setYear(new Date(), effectiveYear), month);
@@ -129,7 +217,7 @@ export default function Sidebar({ profile, onGoToCalendar }) {
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
     const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
+    const [serviceCall, setServiceCall] = useState(false);
     const attendanceMap = useMemo(() => {
         const map = {};
         if (!profile?.attendance) return map;
@@ -139,15 +227,18 @@ export default function Sidebar({ profile, onGoToCalendar }) {
                 let workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
                 let status = determineStatus(att.checkIn, att.checkOut);
 
-                // If leave exists, override status
+                // 🎯 Handle leave states
                 if (att.leaveType) {
-                    status = 'leave';
+                    if (att.status === "pending") status = "leaveApplied";
+                    else if (att.status === "approved") status = "leaveApproved";
+                    else if (att.status === "rejected") status = "leaveRejected";
+                    else status = "leaveApplied"; // default pending color
                 }
 
                 map[att.date] = {
                     ...att,
                     workingHours: Number(workingHours) || 0,
-                    status
+                    status,
                 };
             });
         });
@@ -155,7 +246,7 @@ export default function Sidebar({ profile, onGoToCalendar }) {
         return map;
     }, [profile]);
 
-    // Open leave modal and start leave selection
+
     const handleOpenLeaveModal = () => {
         setLeaveModalOpen(true);
         setIsSelectingLeave(true);
@@ -167,8 +258,6 @@ export default function Sidebar({ profile, onGoToCalendar }) {
         });
     };
 
-
-    // Update handleCloseLeaveModal to reset all fields
     const handleCloseLeaveModal = () => {
         setLeaveModalOpen(false);
         setIsSelectingLeave(false);
@@ -179,20 +268,34 @@ export default function Sidebar({ profile, onGoToCalendar }) {
             reason: ''
         });
     };
+
     const user_details =
         typeof window !== "undefined" &&
         JSON.parse(localStorage.getItem("user_details"));
     const employeeId = user_details?.userId;
-    // Update applyLeave to use the leaveRange state
 
     const mutated = Mutated(employeeId ? `/api/employees?id=${employeeId}` : null)
+
+
+    const isTodaySunday = isSunday(today);
+    const isTodayHoliday = isHoliday(today);
+
     const applyLeave = async () => {
         if (!leaveRange.start || !leaveRange.end || !leaveRange.leaveType) {
-            return alert('Please fill all required fields');
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "warning",
+                    title: "warning",
+                    message: 'Please fill all required fields',
+                },
+            }));
         }
-
+        setServiceCall(true)
         try {
-            const res = await fetch('/api/leave', {
+            const res = await fetch('/api/leave/apply', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -203,41 +306,101 @@ export default function Sidebar({ profile, onGoToCalendar }) {
                     reason: leaveRange.reason || ''
                 })
             });
-
+            if (res.status) {
+                setServiceCall(false)
+            }
             const data = await res.json();
 
             if (res.ok) {
-                alert('Leave applied successfully');
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "success",
+                        message: "Employee added successfully!",
+                    },
+                }));
                 handleCloseLeaveModal();
                 mutated();
-                // Optionally refresh your data here
             } else {
-                alert(data.error || 'Failed to apply leave');
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: `${data.error}` || 'Failed to apply leave',
+                    },
+                }));
             }
         } catch (err) {
             console.error(err);
-            alert('Error applying leave');
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: 'Error applying leave',
+                },
+            }));
         }
     };
+
+    // Determine if today has leave applied
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const todayAttendance = attendanceMap[todayStr];
+    const isLeaveAppliedToday = todayAttendance && (
+        todayAttendance.status === 'leaveApplied' ||
+        todayAttendance.status === 'leaveApproved'
+    );
+
+    // Update disabled states
+    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
+    const isCheckOutDisabled = !isCheckedIn || isTodaySunday || isTodayHoliday || isLeaveAppliedToday;
+
+
     return (
         <div className="p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
-            {/* Go to Calendar button */}
-            <div className="flex justify-between gap-4 mb-3">
+            {/* Check-in/Check-out Buttons */}
+            {serviceCall && <Loading />}
+            <div className="flex justify-between gap-2 mb-3">
+                <button
+                    onClick={onCheckIn}
+                    disabled={isCheckInDisabled}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                >
+                    {isCheckedIn ? 'Already Checked In' : isBefore9AM() ? 'Check In (After 6 AM)' : 'Check In'}
+                </button>
+
+                <button
+                    onClick={onCheckOut}
+                    disabled={isCheckOutDisabled}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckOutDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                >
+                    Check Out
+                </button>
+            </div>
+            {/* Go to Calendar and Leave buttons */}
+            <div className="flex justify-between gap-2 mb-3">
                 <button
                     onClick={handleOpenLeaveModal}
-                    className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                    className="px-2 py-1 cursor-pointer text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                 >
                     Apply for Leave
                 </button>
                 <button
                     onClick={onGoToCalendar}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    className="px-2 py-1 cursor-pointer text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
                     Go to Calendar
                 </button>
             </div>
 
-            {/* Month Navigation */}
             <div className="flex justify-between items-center mt-2">
                 <button
                     onClick={() => {
@@ -288,39 +451,89 @@ export default function Sidebar({ profile, onGoToCalendar }) {
             {/* Weekday Headers */}
             <div className="grid grid-cols-7 gap-1 text-xs text-gray-600 mt-5">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day}>{day}</div>
+                    <div key={day} className="text-center">{day}</div>
                 ))}
             </div>
 
-            {/* Calendar Grid */}
+            {/* Month navigation and grid */}
+
             <div className="grid grid-cols-7 gap-2 text-sm mt-2">
                 {allDays.map((day, i) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const att = attendanceMap[dayStr];
-                    const status = att?.status || null;
                     const isTodayDate = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+                    const isCurrentMonth = getMonth(day) === getMonth(currentDate);
 
-                    let bgColor = '#ffffff';
-                    if (isTodayDate) bgColor = '#d1d5db';
-                    else if (status) bgColor = categoryColors[status] || '#9ca3af';
-
-                    const textColor = (isTodayDate || status) ? '#ffffff' : '#374151';
+                    // Only mark Sundays of active month
+                    let status = att?.status || null;
+                    if (isSunday(day) && isCurrentMonth) status = 'sunday';
+                    else if (isHoliday(day)) status = 'holiday';
 
                     return (
                         <div
                             key={i}
                             onClick={() => {
                                 setSelectedDate(day);
-                                setPopupData(att || { status: 'No data', checkIn: '-', checkOut: '-', workingHours: 0 });
+                                setPopupData(att || {
+                                    status: isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today') :
+                                        status === 'sunday' ? 'Sunday' :
+                                            status === 'holiday' ? 'Holiday' : 'No data',
+                                    checkIn: att?.checkIn || '-',
+                                    checkOut: att?.checkOut || '-',
+                                    workingHours: att?.workingHours || 0
+                                });
                             }}
-                            className="w-10 h-10 flex flex-col items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-gray-500 transition"
-                            style={{ backgroundColor: bgColor, color: textColor }}
-                            title={att && `${att?.status === "secondHalf" ? "Second Half" : att?.status === "firstHalf" ? "First Half" : att?.status}`}
+                            className="relative w-10 h-10 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-gray-300 rounded-full transition"
+                            title={isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave Applied' : 'Today') : status === 'sunday' ? 'Sunday' : status === 'holiday' ? 'Holiday' : att ? att.status : 'No data'}
                         >
-                            <span className="text-sm font-semibold">{format(day, 'd')}</span>
+                            {!isTodayDate && <SplitCircle status={status} isToday={false} size={40} />}
+
+                            <span
+                                className={`absolute text-xs font-bold ${isTodayDate
+                                    ? 'text-[#A8DCAB] font-bold'        // Today: green & bold
+                                    : (status === 'holiday' || status === 'sunday')
+                                        ? 'text-gray-400'               // Holiday/Sunday: light gray
+                                        : isCurrentMonth
+                                            ? 'text-gray-900'           // Current month normal date
+                                            : 'text-gray-400'           // Other month dates
+                                    }`}
+                            >
+                                {format(day, 'd')}
+                            </span>
                         </div>
                     );
                 })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Legend</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="today" size={16} />
+                        <span>Today</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="present" size={16} />
+                        <span>Present</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="absent" size={16} />
+                        <span>Absent</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="leaveApproved" size={16} />
+                        <span>Leave</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="holiday" size={16} />
+                        <span>Holiday</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="sunday" size={16} />
+                        <span>Sunday</span>
+                    </div>
+                </div>
             </div>
 
             {/* Headless UI Modal */}
@@ -364,7 +577,13 @@ export default function Sidebar({ profile, onGoToCalendar }) {
                                     </Dialog.Title>
 
                                     <div className="mt-4 space-y-1 text-gray-800 text-capitalize">
-                                        <p><strong>Status:</strong> {popupData?.status === "secondHalf" ? "Second Half" : popupData?.status === "firstHalf" ? "First Half" : popupData?.status}</p>
+                                        <p><strong>Status:</strong> {
+                                            popupData?.status === "secondHalf" ? "Second Half" :
+                                                popupData?.status === "firstHalf" ? "First Half" :
+                                                    popupData?.status === "sunday" ? "Sunday" :
+                                                        popupData?.status === "holiday" ? "Holiday" :
+                                                            popupData?.status
+                                        }</p>
                                         <p><strong>Check-in:</strong> {popupData?.checkIn}</p>
                                         <p><strong>Check-out:</strong> {popupData?.checkOut}</p>
                                         <p>
@@ -378,6 +597,7 @@ export default function Sidebar({ profile, onGoToCalendar }) {
                 </Dialog>
             </Transition>
 
+            {/* Leave Modal */}
             <Transition appear show={leaveModalOpen} as={Fragment}>
                 <Dialog as="div" className="relative z-50" onClose={handleCloseLeaveModal}>
                     <Transition.Child

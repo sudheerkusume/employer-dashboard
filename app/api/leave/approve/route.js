@@ -61,10 +61,23 @@ export async function PUT(request) {
 
         for (const [monthName, dates] of Object.entries(groupedByMonth)) {
             const attendanceKey = `attendance.${monthName}`;
+
             for (const date of dates) {
+                const dayEntry = employee.attendance?.[monthName]?.find(d => d.date === date);
+                if (!dayEntry) continue;
+
+                let newStatus = status; // default full day
+
+                // Check leaveType for half-day
+                if (dayEntry.leaveType === "first half") {
+                    newStatus = status === "approved" ? "firstHalfApproved" : "firstHalfRejected";
+                } else if (dayEntry.leaveType === "second half") {
+                    newStatus = status === "approved" ? "secondHalfApproved" : "secondHalfRejected";
+                }
+
                 await employees.updateOne(
                     { _id: new ObjectId(employeeId), [`${attendanceKey}.date`]: date },
-                    { $set: { [`${attendanceKey}.$.status`]: status } }
+                    { $set: { [`${attendanceKey}.$.status`]: newStatus } }
                 );
             }
         }

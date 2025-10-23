@@ -1,7 +1,8 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Mutated } from '../config/useswrfetch';
+import RootContext from '../config/rootcontext';
 
 const dummyLogos = [
     'https://placehold.co/48x48/F0F0F0/000000?text=Google',
@@ -26,7 +27,7 @@ export default function AboutMe({ profile }) {
     const [education, setEducation] = useState(profile.education || []);
     const [editingEducationIndex, setEditingEducationIndex] = useState(null);
     const [tempEducation, setTempEducation] = useState({ degree: '', board: '', years: '' });
-
+    const { setRootContext } = useContext(RootContext);
     // Global state to disable other actions when one is in progress
     const [isAddingOrEditing, setIsAddingOrEditing] = useState(false);
 
@@ -69,12 +70,30 @@ export default function AboutMe({ profile }) {
                 mutated();
                 return true;
             } else {
-                alert(data.error || 'Failed to update profile');
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || 'Failed to update profile',
+                    },
+                }));
                 return false;
             }
         } catch (err) {
             console.error('Update Error:', err);
-            alert('Something went wrong while updating profile');
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: 'Something went wrong while updating profile',
+                },
+            }));
             return false;
         }
     };

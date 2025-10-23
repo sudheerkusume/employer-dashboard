@@ -18,6 +18,7 @@ const employeePutSchema = Joi.object({
     id: Joi.string().trim().length(24).required(),
     name: Joi.string().optional().allow(''),
     email: Joi.string().email().optional().allow(''),
+    password: Joi.string().optional(),
     role: Joi.string().valid("employee", "recruiter", "admin").optional(),
     attendance: Joi.object().optional(),
     experience: Joi.array().optional(),
@@ -96,7 +97,7 @@ export async function PUT(request) {
             return new Response(JSON.stringify({ error: errorMessages }), { status: 403 });
         }
 
-        const { id, name, summary, email, role, attendance, experience, education } = value;
+        const { id, name, summary, email, password, role, attendance, experience, education } = value;
         const query = { _id: new ObjectId(id) };
 
         const client = await clientPromise;
@@ -107,6 +108,7 @@ export async function PUT(request) {
         const updateFields = {};
         if ("name" in value) updateFields.name = name;
         if ("email" in value) updateFields.email = email;
+        if ("password" in value) updateFields.password = password;
         if ("role" in value) updateFields.role = role;
         if ("attendance" in value) updateFields.attendance = attendance;
         if ("experience" in value) updateFields.experience = experience;
