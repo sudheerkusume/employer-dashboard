@@ -107,8 +107,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
     // Get current month name from currentDate
     const monthIndex = currentDate.getMonth();
-    const [monthName, setMonthName] = useState(monthNames[monthIndex] || 1);
-    console.log("monthName", monthName)
+    const [monthName, setMonthName] = useState(monthIndex || 1);
     const handleWithdraw = async (leaveDate) => {
         try {
             setLoadingLeave(leaveDate);
