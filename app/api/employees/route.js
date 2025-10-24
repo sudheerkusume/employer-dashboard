@@ -22,19 +22,15 @@ const employeeSchema = Joi.object({
     experience: Joi.array().default([]),
     education: Joi.array().default([]),
     profileImage: Joi.string().optional().allow(''),
-});
-
-const employeePutSchema = Joi.object({
-    id: Joi.string().length(24).required(),
-    name: Joi.string().optional().allow(''),
-    email: Joi.string().email().optional().allow(''),
-    password: Joi.string().optional().allow(''),
-    role: Joi.string().valid("employee", "manager", "admin").optional(),
-    summary: Joi.string().optional().allow(''),
-    experience: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
-    education: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
-    attendance: Joi.alternatives().try(Joi.object(), Joi.string()).optional(),
-    profileImage: Joi.string().optional().allow(''),
+    dateOfJoining: Joi.date().required(),
+    dateOfBirth: Joi.date().required(),
+    gender: Joi.string().valid("male", "female", "other").required(),
+    mobile: Joi.string()
+        .pattern(/^[0-9]{10,15}$/)
+        .required()
+        .messages({
+            "string.pattern.base": "Mobile number must be between 10 to 15 digits",
+        }),
 });
 
 export async function GET(req) {
@@ -84,11 +80,13 @@ export async function POST(req) {
         const body = await req.json();
         const { error, value } = employeeSchema.validate(body);
 
-        if (error) return Response.json({ error: error.details[0].message }, { status: 400 });
+        if (error)
+            return Response.json({ error: error.details[0].message }, { status: 400 });
 
         // ✅ Only check email
         const exists = await employeesCollection.findOne({ email: value.email });
-        if (exists) return Response.json({ error: "Employee with this email already exists" }, { status: 400 });
+        if (exists)
+            return Response.json({ error: "Employee with this email already exists" }, { status: 400 });
 
         const result = await employeesCollection.insertOne(value);
         return Response.json({ success: true, employee: value, insertedId: result.insertedId });

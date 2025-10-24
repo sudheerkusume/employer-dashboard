@@ -13,7 +13,7 @@ export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [serviceCall, setServiceCall] = useState(false);
-  const { setRootContext } = useContext(RootContext);
+  const { rootContext, setRootContext } = useContext(RootContext);
 
   // ✅ Read localStorage only on client once
   useEffect(() => {
@@ -91,11 +91,25 @@ export default function ManagerDashboard() {
 
   const pendingLeaves = data?.pendingLeaves || [];
 
+  const logOut = () => {
+    localStorage.clear();
+    let resp = rootContext;
+    resp.authenticated = false;
+    setRootContext({ ...resp });
+  };
 
   return (
-    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800">Manager Dashboard</h1>
+    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">      
       {serviceCall && <Loading />}
+      <div className="flex justify-between">
+        <h1 className="text-3xl font-bold text-gray-800">Manager Dashboard</h1>
+        <button
+          onClick={logOut}
+          className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Logout
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* --- Team Leaves --- */}

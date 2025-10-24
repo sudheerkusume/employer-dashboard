@@ -10,6 +10,7 @@ import ButtonTab from "../common/buttontab";
 import RootContext from "../config/rootcontext";
 import { Mutated } from "../config/useswrfetch";
 import Loading from "../common/loading";
+import { formatDateTime } from "../config/sitesettings";
 
 const tabs = [
     { name: "About Me", component: AboutMe },
@@ -37,7 +38,7 @@ export default function EmployeeProfile({ employeesData }) {
     const [previewImage, setPreviewImage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
-    const { rootContext } = useContext(RootContext);
+    const { rootContext, setRootContext } = useContext(RootContext);
 
     const user_details =
         typeof window !== "undefined"
@@ -105,10 +106,24 @@ export default function EmployeeProfile({ employeesData }) {
         }
     };
 
+    const logOut = () => {
+        localStorage.clear();
+        let resp = rootContext;
+        resp.authenticated = false;
+        setRootContext({ ...resp });
+    };
+
     return (
         <div className="mt-20 bg-white min-h-screen">
             {serviceCall && <Loading />}
-
+            <div className="absolute top-4 right-4">
+                <button
+                    onClick={logOut}
+                    className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                    Logout
+                </button>
+            </div>
             <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
                 <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
                     {/* Profile Image Upload */}
@@ -196,10 +211,14 @@ export default function EmployeeProfile({ employeesData }) {
                             </div>
                         ) : (
                             <div>
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                                    {profile.name}
-                                </h2>
-                                <p className="text-xs sm:text-sm text-gray-500">{profile.email}</p>
+                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{profile.name}</h2>
+                                <p className="text-xs sm:text-sm text-gray-500">Email: {profile.email}</p>
+                                <p className="text-xs sm:text-sm text-gray-500">
+                                    Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-500">
+                                    Date of Birth: {formatDateTime(profile.dateOfbirth, "DD-MM-YYYY")}
+                                </p>
                             </div>
                         )}
                         {!editingHeader && rootContext?.user?.role !== "recruiter" && (
