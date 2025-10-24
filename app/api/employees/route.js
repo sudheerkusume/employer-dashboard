@@ -15,7 +15,7 @@ cloudinary.config({
 const employeeSchema = Joi.object({
     name: Joi.string().required(),
     email: Joi.string().email().required(),
-    role: Joi.string().valid("employee", "recruiter", "admin").required(),
+    role: Joi.string().valid("employee", "manager", "admin").required(),
     password: Joi.string().required(),
     reportingId: Joi.string().trim().length(24).required(),
     attendance: Joi.object().default({}),
@@ -29,7 +29,7 @@ const employeePutSchema = Joi.object({
     name: Joi.string().optional().allow(''),
     email: Joi.string().email().optional().allow(''),
     password: Joi.string().optional().allow(''),
-    role: Joi.string().valid("employee", "recruiter", "admin").optional(),
+    role: Joi.string().valid("employee", "manager", "admin").optional(),
     summary: Joi.string().optional().allow(''),
     experience: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
     education: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
