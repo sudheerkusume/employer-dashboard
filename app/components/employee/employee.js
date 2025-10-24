@@ -27,6 +27,7 @@ export default function EmployeeProfile({ employeesData }) {
         summary: "",
         experience: [],
         education: [],
+        attendance: {},
     });
     const [tempProfile, setTempProfile] = useState(profile);
     const [editingHeader, setEditingHeader] = useState(false);
@@ -34,6 +35,7 @@ export default function EmployeeProfile({ employeesData }) {
     const [serviceCall, setServiceCall] = useState(false);
     const [previewImage, setPreviewImage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+
     const { rootContext } = useContext(RootContext);
 
     const user_details =
@@ -54,7 +56,7 @@ export default function EmployeeProfile({ employeesData }) {
 
     const ActiveComponent = tabs[activeTab].component;
 
-    // 🟢 Handle image select and preview
+    // Handle image preview
     const handleImageChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -63,7 +65,7 @@ export default function EmployeeProfile({ employeesData }) {
         }
     };
 
-    // 🟢 Save header with image upload + extra fields
+    // Save employee profile
     const handleSaveHeader = async () => {
         setServiceCall(true);
         try {
@@ -73,11 +75,11 @@ export default function EmployeeProfile({ employeesData }) {
             formData.append("email", tempProfile.email || "");
             formData.append("role", role);
             if (tempProfile.password) formData.append("password", tempProfile.password);
-            if (tempProfile.imageFile) formData.append("image", tempProfile.imageFile);
             if (tempProfile.summary) formData.append("summary", tempProfile.summary);
             if (tempProfile.experience) formData.append("experience", JSON.stringify(tempProfile.experience));
             if (tempProfile.education) formData.append("education", JSON.stringify(tempProfile.education));
             if (tempProfile.attendance) formData.append("attendance", JSON.stringify(tempProfile.attendance));
+            if (tempProfile.imageFile) formData.append("image", tempProfile.imageFile); // cloud upload
 
             const res = await fetch(`/api/employees`, {
                 method: "PUT",
@@ -88,14 +90,8 @@ export default function EmployeeProfile({ employeesData }) {
             setServiceCall(false);
 
             if (res.ok) {
-                setProfile((prev) => ({
-                    ...prev,
-                    ...data.updatedFields,
-                }));
-                setTempProfile((prev) => ({
-                    ...prev,
-                    ...data.updatedFields,
-                }));
+                setProfile((prev) => ({ ...prev, ...data.updatedFields }));
+                setTempProfile((prev) => ({ ...prev, ...data.updatedFields }));
                 setEditingHeader(false);
                 setPreviewImage("");
                 mutated();
@@ -114,18 +110,16 @@ export default function EmployeeProfile({ employeesData }) {
 
             <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
                 <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
-                    {/* 🟢 Profile Image Upload */}
+                    {/* Profile Image Upload */}
                     <div className="absolute -top-12 left-6 sm:left-6">
-                        <label htmlFor="profileImageInput" className="cursor-pointer group">
-                            {editingHeader && (
-                                <input
-                                    id="profileImageInput"
-                                    type="file"
-                                    accept="image/*"
-                                    className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                    onChange={handleImageChange}
-                                />
-                            )}
+                        <label htmlFor="profileImageInput" className="cursor-pointer group relative">
+                            <input
+                                id="profileImageInput"
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={handleImageChange}
+                            />
                             <img
                                 src={
                                     previewImage ||
@@ -136,8 +130,14 @@ export default function EmployeeProfile({ employeesData }) {
                                 alt="Avatar"
                                 className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-cover shadow-lg group-hover:opacity-80"
                             />
+                            {editingHeader && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-25 rounded-xl text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Change
+                                </div>
+                            )}
                         </label>
                     </div>
+
 
                     <div className="flex mt-10 sm:mt-1 justify-between sm:items-center gap-3 w-full ml-0 sm:ml-40">
                         {editingHeader ? (
@@ -157,7 +157,6 @@ export default function EmployeeProfile({ employeesData }) {
                                         setTempProfile({ ...tempProfile, email: e.target.value })
                                     }
                                 />
-
                                 <div className="relative">
                                     <input
                                         type={showPassword ? "text" : "password"}
@@ -179,7 +178,6 @@ export default function EmployeeProfile({ employeesData }) {
                                         )}
                                     </span>
                                 </div>
-
                                 <div className="flex gap-2 mt-2">
                                     <button
                                         className="px-3 py-1 bg-blue-600 text-white rounded"
@@ -200,7 +198,6 @@ export default function EmployeeProfile({ employeesData }) {
                                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                                     {profile.name}
                                 </h2>
-                                <p className="text-sm sm:text-base text-gray-600">{profile.title}</p>
                                 <p className="text-xs sm:text-sm text-gray-500">{profile.email}</p>
                             </div>
                         )}
@@ -220,18 +217,14 @@ export default function EmployeeProfile({ employeesData }) {
                 </div>
             </div>
 
-            {/* Tabs Section */}
+            {/* Tabs */}
             <div className="bg-white border-b border-gray-200 max-w-5xl mx-auto px-4 py-6 rounded-b-md shadow-sm">
                 {rootContext?.user?.role === "recruiter" ? (
                     <AboutMe profile={profile} />
                 ) : (
                     <>
                         <div className="hidden sm:block">
-                            <ButtonTab
-                                tabs={tabs}
-                                activeTab={activeTab}
-                                setActiveTab={setActiveTab}
-                            />
+                            <ButtonTab tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
                             <div className="py-3">
                                 <ActiveComponent profile={profile} />
                             </div>
@@ -247,9 +240,7 @@ export default function EmployeeProfile({ employeesData }) {
                                             onClick={() => setAccordionOpen(isOpen ? null : index)}
                                             className="w-full flex justify-between items-center py-2 px-2 bg-gray-50 text-left"
                                         >
-                                            <span className="font-medium text-gray-700 text-sm">
-                                                {tab.name}
-                                            </span>
+                                            <span className="font-medium text-gray-700 text-sm">{tab.name}</span>
                                             <ChevronDownIcon
                                                 className={`w-4 h-4 transform transition-transform ${isOpen ? "rotate-180" : ""
                                                     }`}

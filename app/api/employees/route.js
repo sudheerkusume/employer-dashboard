@@ -1,16 +1,15 @@
 import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import Joi from "joi";
 import { v2 as cloudinary } from "cloudinary";
 
-// Configure Cloudinary
+// Cloudinary config
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
     api_key: process.env.CLOUD_API_KEY,
     api_secret: process.env.CLOUD_API_SECRET,
 });
+
 
 
 const employeeSchema = Joi.object({
@@ -102,14 +101,10 @@ export async function POST(req) {
 export async function PUT(request) {
     try {
         const contentType = request.headers.get("content-type") || "";
+        const parseJSON = (val) => { try { return JSON.parse(val); } catch { return val; } };
 
-        const parseJSON = (val) => {
-            if (!val) return undefined;
-            try { return JSON.parse(val); } catch { return val; }
-        };
-
-        let updateFields = {};
         let id;
+        let updateFields = {};
 
         if (contentType.includes("multipart/form-data")) {
             const formData = await request.formData();
@@ -119,64 +114,38 @@ export async function PUT(request) {
             // Text fields
             for (const key of ["name", "email", "password", "role", "summary"]) {
                 const value = formData.get(key);
-                if (value !== null && value !== undefined) updateFields[key] = value;
+                if (value) updateFields[key] = value;
             }
 
-            // Structured fields
             updateFields.experience = parseJSON(formData.get("experience")) || [];
             updateFields.education = parseJSON(formData.get("education")) || [];
             updateFields.attendance = parseJSON(formData.get("attendance")) || {};
 
-            // Handle image
             const file = formData.get("image");
-            if (file && file.name) {
+            if (file && file.size > 0) {
                 const buffer = Buffer.from(await file.arrayBuffer());
 
-                if (process.env.NODE_ENV === "production") {
-                    // Upload to Cloudinary in production
-                    const result = await new Promise((resolve, reject) => {
-                        const uploadStream = cloudinary.uploader.upload_stream(
-                            { folder: "employees" },
-                            (error, result) => {
-                                if (error) reject(error);
-                                else resolve(result);
-                            }
-                        );
-                        uploadStream.end(buffer);
-                    });
-                    updateFields.profileImage = result.secure_url;
-                } else {
-                    // Save locally in development
-                    const uploadDir = path.join(process.cwd(), "public", "uploads");
-                    await mkdir(uploadDir, { recursive: true });
-                    const fileName = `${Date.now()}-${file.name}`;
-                    const filePath = path.join(uploadDir, fileName);
-                    await writeFile(filePath, buffer);
-                    updateFields.profileImage = `/uploads/${fileName}`;
-                }
-            } else {
-                // If no image uploaded, keep existing image in DB
-                updateFields.profileImage = updateFields.profileImage ?? null;
-            }
-        } else {
-            // JSON request
-            const body = await request.json();
-            const { error, value } = employeePutSchema.validate(body);
-            if (error) return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
+                // Upload to Cloudinary
+                const result = await new Promise((resolve, reject) => {
+                    const uploadStream = cloudinary.uploader.upload_stream(
+                        { folder: "employees" },
+                        (err, res) => err ? reject(err) : resolve(res)
+                    );
+                    uploadStream.end(buffer);
+                });
 
-            id = value.id;
-            updateFields = {
-                ...value,
-                experience: typeof value.experience === "string" ? parseJSON(value.experience) : value.experience || [],
-                education: typeof value.education === "string" ? parseJSON(value.education) : value.education || [],
-                attendance: typeof value.attendance === "string" ? parseJSON(value.attendance) : value.attendance || {},
-                profileImage: value.profileImage || null
-            };
+                updateFields.profileImage = result.secure_url; // Cloud URL
+            }
+
+        } else {
+            // JSON body
+            const body = await request.json();
+            id = body.id;
+            updateFields = body;
         }
 
         updateFields.modified_on = new Date();
 
-        // Update MongoDB
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const employeesCollection = db.collection("employees");
@@ -188,12 +157,7 @@ export async function PUT(request) {
 
         if (result.matchedCount === 0) return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
-        return new Response(JSON.stringify({
-            success: true,
-            message: "Employee updated successfully",
-            updatedFields: updateFields
-        }), { status: 200 });
-
+        return new Response(JSON.stringify({ success: true, updatedFields: updateFields }), { status: 200 });
     } catch (err) {
         console.error("PUT /api/employees error:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
