@@ -1,19 +1,15 @@
 'use client'
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
+  display: "swap",
 });
 
 export default function RootLayout({ children }) {
@@ -62,7 +58,7 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#D79A2F]`}>
+      <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
           {children}
           {rootContext?.toast?.show && <Toast />}

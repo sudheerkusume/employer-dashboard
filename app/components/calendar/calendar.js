@@ -38,13 +38,15 @@ const isBefore9AM = () => {
 // Helper: Check if date is holiday (you can customize this with your holiday list)
 const isHoliday = (date) => {
     const holidayList = [
-        '2025-01-01', // New Year
-        '2025-01-26', // Republic Day
-        '2025-03-25', // Holi
-        '2025-08-15', // Independence Day
-        '2025-10-02', // Gandhi Jayanti
-        '2025-12-25', // Christmas
-        // Add more holidays as needed
+        '2025-01-01',
+        '2025-01-26',
+        '2025-03-25',
+        '2025-08-15',
+        '2025-10-02',
+        '2025-10-18',
+        '2025-10-20',
+        '2025-10-02',
+        '2025-12-25',
     ];
     return holidayList.includes(format(date, 'yyyy-MM-dd'));
 };
@@ -61,45 +63,55 @@ const calculateWorkingHours = (checkIn, checkOut) => {
 };
 
 // Helper: Determine status
-const determineStatus = (checkIn, checkOut, leaveType) => {
-    const fullDayHrs = 8.75;
-    const halfDayHrs = 4.25;
+const determineStatus = (checkIn, checkOut, leaveType, leaveStatus) => {
+    const fullDayHrs = 8.75; // 8h 45m
+    const halfDayHrs = 4.25; // 4h 15m
 
-    const timeToDecimal = (time) => {
+    if (!checkIn && !checkOut && !leaveType) return 'absent'; // no checkin/out, no leave → absent
+
+    const toDecimal = (time) => {
         if (!time) return null;
         const [h, m] = time.split(':').map(Number);
         return h + m / 60;
     };
 
-    const workingHours = calculateWorkingHours(checkIn, checkOut);
-    const checkInDec = timeToDecimal(checkIn);
+    const calculateHours = (inTime, outTime) => {
+        if (!inTime || !outTime) return 0;
+        const [inH, inM] = inTime.split(':').map(Number);
+        const [outH, outM] = outTime.split(':').map(Number);
+        const minutes = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
+        return minutes / 60;
+    };
 
-    // Leave override
-    if (leaveType === 'firstHalfApproved') return 'firsthalfp';
-    if (leaveType === 'secondHalfApproved') return 'secondhalfp';
-    if (leaveType === 'full day') return 'leaveApproved';
+    const workingHours = calculateHours(checkIn, checkOut);
+    const checkInDec = toDecimal(checkIn);
 
-    // No check-in and no check-out → absent
-    if (!checkIn && !checkOut) return 'absent';
+    // FULL DAY LEAVE
+    if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
 
-    // Full day
+    // HALF DAY LEAVE
+    if (leaveType === 'firstHalf' && leaveStatus === 'approved') {
+        if (workingHours >= halfDayHrs) return 'secondhalfp'; // second half present
+        return 'firsthalfa'; // first half leave, second half absent
+    }
+
+    if (leaveType === 'secondHalf' && leaveStatus === 'approved') {
+        if (workingHours >= halfDayHrs) return 'firstHalfp'; // first half present
+        return 'secondhalfa'; // second half leave, first half absent
+    }
+
+    // NORMAL CHECK-IN / CHECK-OUT ATTENDANCE
+    if (!checkIn || !checkOut) {
+        return 'absent';
+    }
+
     if (workingHours >= fullDayHrs) return 'present';
-
-    // First half: morning
-    if (checkInDec && checkInDec < 13.5) {
+    if (checkInDec < 13.5) {
         return workingHours >= halfDayHrs ? 'firstHalfp' : 'firstHalf';
     }
-
-    // Second half: afternoon
-    if (checkInDec && checkInDec >= 13.5) {
+    if (checkInDec >= 13.5) {
         return workingHours >= halfDayHrs ? 'secondhalfp' : 'secondHalf';
     }
-
-    // Check-in only → first half
-    if (checkIn && !checkOut) return 'firstHalf';
-
-    // Check-out only → absent
-    if (!checkIn && checkOut) return 'absent';
 
     return 'absent';
 };
@@ -229,21 +241,23 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
     const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
     const [serviceCall, setServiceCall] = useState(false);
+
     const attendanceMap = useMemo(() => {
         const map = {};
         if (!profile?.attendance) return map;
 
+        // Map existing attendance
         Object.keys(profile.attendance).forEach(monthName => {
             profile.attendance[monthName].forEach(att => {
                 let workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
-                let status = determineStatus(att.checkIn, att.checkOut, att.leaveType);
+                let status = determineStatus(att.checkIn, att.checkOut, att.leaveType, att.status);
 
-                // 🎯 Handle leave states
+                // Handle leave states
                 if (att.leaveType) {
                     if (att.status === "pending") status = "leaveApplied";
                     else if (att.status === "approved") status = "leaveApproved";
                     else if (att.status === "rejected") status = "leaveRejected";
-                    else status = "leaveApplied"; // default pending color
+                    else status = "leaveApplied";
                 }
 
                 map[att.date] = {
@@ -254,8 +268,19 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             });
         });
 
+        // Only mark absent for past dates in the current month
+        const todayStr = format(today, 'yyyy-MM-dd');
+        allDays.forEach(day => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const isPastOrToday = day <= today;
+            const isCurrentMonth = getMonth(day) === getMonth(currentDate);
+            if (isPastOrToday && isCurrentMonth && !map[dayStr]) {
+                map[dayStr] = { status: 'absent', workingHours: 0 };
+            }
+        });
+
         return map;
-    }, [profile]);
+    }, [profile, currentDate, allDays]);
 
 
     const handleOpenLeaveModal = () => {
@@ -328,7 +353,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                         dismiss: true,
                         type: "success",
                         title: "success",
-                        message: "Employee added successfully!",
+                        message: "Leave Applied successfully!",
                     },
                 }));
                 handleCloseLeaveModal();
@@ -511,7 +536,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     workingHours: att?.workingHours || 0
                                 });
                             }}
-                            className={`relative w-10 h-10 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-gray-300 transition ${dayBgColor}`}
+                            className={`relative w-10 h-10 flex items-center justify-center cursor-pointer rounded-full hover:ring-2 hover:ring-gray-300 transition ${dayBgColor}`}
                             title={isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave Applied' : 'Today') : status === 'sunday' ? 'Sunday' : status === 'holiday' ? 'Holiday' : att ? att.status : 'No data'}
                         >
                             {!isTodayDate && <SplitCircle status={status} isToday={false} size={40} />}

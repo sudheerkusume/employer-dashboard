@@ -5,6 +5,9 @@ import Loading from "@/app/components/common/loading";
 import { Mutated, useSWRFetch } from "@/app/components/config/useswrfetch";
 import ManagerProfile from "@/app/components/manager/manager";
 import RootContext from "@/app/components/config/rootcontext";
+import { formatDateTime } from "@/app/components/config/sitesettings";
+import { parse, differenceInMinutes } from "date-fns";
+
 
 export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
@@ -88,129 +91,6 @@ export default function ManagerDashboard() {
 
   const pendingLeaves = data?.pendingLeaves || [];
 
-  // ✅ Helper to convert time to decimal hours
-  const timeToDecimal = (time) => {
-    if (!time) return 0;
-    const [h, m] = time.split(":").map(Number);
-    return h + m / 60;
-  };
-
-  // ✅ Calculate working hours difference
-  const calculateWorkingHours = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 0;
-    const hours = timeToDecimal(checkOut) - timeToDecimal(checkIn);
-    return hours > 0 ? hours : 0;
-  };
-
-  // ✅ Check if a date is Sunday (0 = Sunday)
-  const isSunday = (dateString) => {
-    const date = new Date(dateString);
-    return date.getDay() === 0;
-  };
-
-  // ✅ Check if a date is a holiday (you'll need to define your holidays)
-  const isHoliday = (dateString) => {
-    // Define your holidays here - format: "YYYY-MM-DD"
-    const holidays = [
-      "2024-01-01", // New Year
-      "2024-01-26", // Republic Day
-      "2024-08-15", // Independence Day
-      "2024-10-02", // Gandhi Jayanti
-      // Add more holidays as needed
-    ];
-    return holidays.includes(dateString);
-  };
-
-  // ✅ Determine attendance from working hours with half day support
-  const getAttendanceStatus = (entry) => {
-    const fullDayHrs = 8.75;
-    const halfDayHrs = 4.25;
-
-    // Handle leave statuses
-    if (entry.status === "approved") return "fullLeave";
-    if (entry.status === "firstHalfApproved") return "firstHalfLeave";
-    if (entry.status === "secondHalfApproved") return "secondHalfLeave";
-
-    const workingHrs = calculateWorkingHours(entry.checkIn, entry.checkOut);
-
-    if (workingHrs >= fullDayHrs) return "present";
-    if (workingHrs >= halfDayHrs) return "halfDay";
-    if (workingHrs > 0 && workingHrs < halfDayHrs) return "halfDay";
-    return "absent";
-  };
-
-  // ✅ Calculate total working days in month (excluding Sundays and holidays)
-  const getTotalWorkingDaysInMonth = (monthData) => {
-    let totalDays = 0;
-
-    monthData.forEach((day) => {
-      const dateStr = day.date; // Assuming your date field is called 'date'
-      if (!isSunday(dateStr) && !isHoliday(dateStr)) {
-        totalDays++;
-      }
-    });
-
-    return totalDays;
-  };
-
-  // ✅ Calculate Attendance Summary + Monthly Stats
-  function getAttendanceSummary(employees) {
-    return employees.map((emp) => {
-      const attendance = emp.attendance || {};
-      const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
-      const monthData = attendance[currentMonth] || [];
-
-      let present = 0,
-        halfDay = 0,
-        fullLeave = 0,
-        firstHalfLeave = 0,
-        secondHalfLeave = 0,
-        absent = 0;
-
-      monthData.forEach((day) => {
-        const status = getAttendanceStatus(day);
-        switch (status) {
-          case "present":
-            present++;
-            break;
-          case "halfDay":
-            halfDay++;
-            break;
-          case "fullLeave":
-            fullLeave++;
-            break;
-          case "firstHalfLeave":
-          case "secondHalfLeave":
-            // Count both half leaves as 0.5 in total leave days
-            firstHalfLeave += status === "firstHalfLeave" ? 1 : 0;
-            secondHalfLeave += status === "secondHalfLeave" ? 1 : 0;
-            break;
-          case "absent":
-            absent++;
-            break;
-        }
-      });
-
-      const totalWorkingDays = getTotalWorkingDaysInMonth(monthData);
-      const totalLeaveDays = fullLeave + (firstHalfLeave + secondHalfLeave) * 0.5;
-      const effectivePresent = present + halfDay * 0.5;
-
-      return {
-        employeeName: emp.name,
-        present,
-        halfDay,
-        fullLeave,
-        firstHalfLeave,
-        secondHalfLeave,
-        totalLeaveDays,
-        absent,
-        effectivePresent,
-        totalWorkingDays,
-      };
-    });
-  }
-
-  const attendanceSummary = getAttendanceSummary(employeesData);
 
   return (
     <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">
@@ -239,7 +119,7 @@ export default function ManagerDashboard() {
                     {leave.employeeName}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {leave.startDate} → {leave.endDate}
+                    {formatDateTime(leave.startDate, "DD-MM-YYYY")} → {formatDateTime(leave.endDate, "DD-MM-YYYY")}
                   </p>
                   <p className="text-sm text-gray-600">
                     Type: <span className="font-medium">{leave.leaveType}</span>
@@ -252,14 +132,14 @@ export default function ManagerDashboard() {
                   <button
                     disabled={actionLoading}
                     onClick={() => handleLeaveAction(leave, "approved")}
-                    className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                    className="bg-green-500 text-white px-4 py-1 rounded-lg hover:bg-green-600 transition"
                   >
                     Approve
                   </button>
                   <button
                     disabled={actionLoading}
                     onClick={() => handleLeaveAction(leave, "rejected")}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                    className="bg-red-500 text-white px-4 py-1 rounded-lg hover:bg-red-600 transition"
                   >
                     Reject
                   </button>
@@ -269,51 +149,91 @@ export default function ManagerDashboard() {
           </ul>
         </div>
 
-        {/* --- Team Attendance --- */}
+        {/* --- Team Attendance (Current Month Overview) --- */}
         <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">
-            Team Attendance (Monthly Summary)
+            Team Attendance - {new Date().toLocaleString("en-US", { month: "long" })}
           </h2>
           <p className="text-gray-500 mb-4">
-            Attendance overview for {new Date().toLocaleString("en-US", { month: "long" })}.
-            Sundays and holidays excluded from total working days.
+            Today's check-in & check-out and monthly presence summary.
           </p>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full border text-sm text-left text-gray-700">
+            <table className="min-w-full border text-sm text-left text-gray-700 rounded-xl">
               <thead className="bg-gray-100 text-gray-800 font-semibold">
                 <tr>
                   <th className="py-2 px-3 border">Employee</th>
-                  <th className="py-2 px-3 border text-center">Present</th>
-                  <th className="py-2 px-3 border text-center">Half Day</th>
-                  <th className="py-2 px-3 border text-center">Full Leave</th>
-                  <th className="py-2 px-3 border text-center">Half Leave</th>
-                  <th className="py-2 px-3 border text-center">Total Leave</th>
-                  <th className="py-2 px-3 border text-center">Absent</th>
-                  <th className="py-2 px-3 border text-center">Total Days</th>
+                  <th className="py-2 px-3 border text-center">Check-In (Today)</th>
+                  <th className="py-2 px-3 border text-center">Check-Out (Today)</th>
+                  <th className="py-2 px-3 border text-center">Present Days</th>
+                  <th className="py-2 px-3 border text-center">Working Days</th>
                 </tr>
               </thead>
               <tbody>
-                {attendanceSummary.map((emp, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="py-2 px-3 border font-medium">{emp.employeeName}</td>
-                    <td className="py-2 px-3 border text-center text-green-600">{emp.present}</td>
-                    <td className="py-2 px-3 border text-center text-yellow-600">{emp.halfDay}</td>
-                    <td className="py-2 px-3 border text-center text-blue-500">{emp.fullLeave}</td>
-                    <td className="py-2 px-3 border text-center text-blue-400">
-                      {emp.firstHalfLeave + emp.secondHalfLeave}
-                    </td>
-                    <td className="py-2 px-3 border text-center text-blue-600 font-medium">
-                      {emp.totalLeaveDays}
-                    </td>
-                    <td className="py-2 px-3 border text-center text-red-600">{emp.absent}</td>
-                    <td className="py-2 px-3 border text-center font-semibold">{emp.totalWorkingDays}</td>
-                  </tr>
-                ))}
+                {employeesData.map((emp, idx) => {
+                  const attendance = emp.attendance || {};
+                  const today = new Date();
+                  const currentMonthIndex = today.getMonth();
+                  const currentYear = today.getFullYear();
+                  const monthName = today.toLocaleString("en-US", { month: "long" });
+
+                  const monthData = attendance[monthName] || [];
+
+                  // Define holidays for this month
+                  const holidays = [`${currentYear}-10-02`, `${currentYear}-10-15`];
+
+                  const FULL_DAY_HOURS = 8.75;
+                  const HALF_DAY_HOURS = 4.25;
+
+                  // Total working days excluding Sundays & holidays
+                  const start = new Date(currentYear, currentMonthIndex, 1);
+                  const end = new Date(currentYear, currentMonthIndex + 1, 0);
+                  const totalWorkingDays = Array.from(
+                    { length: end.getDate() },
+                    (_, i) => new Date(currentYear, currentMonthIndex, i + 1)
+                  ).filter(
+                    (d) => d.getDay() !== 0 && !holidays.includes(d.toISOString().split("T")[0])
+                  ).length;
+
+                  // Calculate employee worked days
+                  let workedDays = 0;
+                  monthData.forEach((d) => {
+                    if (d.checkIn && d.checkOut) {
+                      const checkInTime = parse(d.checkIn, "HH:mm", new Date());
+                      const checkOutTime = parse(d.checkOut, "HH:mm", new Date());
+                      const minutesWorked = differenceInMinutes(checkOutTime, checkInTime);
+                      const hoursWorked = minutesWorked / 60;
+
+                      if (hoursWorked >= FULL_DAY_HOURS) workedDays += 1;
+                      else if (hoursWorked >= HALF_DAY_HOURS) workedDays += 0.5;
+                    } else if (d.status === "firstHalfApproved" || d.status === "secondHalfApproved") {
+                      workedDays += 0.5;
+                    } else if (d.status === "present") {
+                      workedDays += 1;
+                    }
+                  });
+
+                  // Today's attendance
+                  const todayStr = today.toISOString().split("T")[0];
+                  const todayEntry = monthData.find((d) => d.date === todayStr);
+                  const checkIn = todayEntry?.checkIn || "-";
+                  const checkOut = todayEntry?.checkOut || "-";
+
+                  return (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="py-2 px-3 border font-medium">{emp.name}</td>
+                      <td className="py-2 px-3 border text-center text-green-700">{checkIn}</td>
+                      <td className="py-2 px-3 border text-center text-blue-700">{checkOut}</td>
+                      <td className="py-2 px-3 border text-center text-green-600 font-semibold">{workedDays}</td>
+                      <td className="py-2 px-3 border text-center font-semibold text-gray-800">{totalWorkingDays}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
+
       </div>
 
       <ManagerProfile employeesData={data} />
