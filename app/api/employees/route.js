@@ -3,6 +3,14 @@ import { ObjectId } from "mongodb";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import Joi from "joi";
+import { v2 as cloudinary } from "cloudinary";
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.CLOUD_API_KEY,
+    api_secret: process.env.CLOUD_API_SECRET,
+});
 
 
 const employeeSchema = Joi.object({
@@ -103,7 +111,6 @@ export async function PUT(request) {
         let updateFields = {};
         let id;
 
-        // Multipart form-data (with optional image)
         if (contentType.includes("multipart/form-data")) {
             const formData = await request.formData();
             id = formData.get("id");
@@ -120,21 +127,37 @@ export async function PUT(request) {
             updateFields.education = parseJSON(formData.get("education")) || [];
             updateFields.attendance = parseJSON(formData.get("attendance")) || {};
 
-            // Image upload (optional)
+            // Handle image
             const file = formData.get("image");
             if (file && file.name) {
                 const buffer = Buffer.from(await file.arrayBuffer());
-                const uploadDir = path.join(process.cwd(), "public", "uploads");
-                await mkdir(uploadDir, { recursive: true });
-                const fileName = `${Date.now()}-${file.name}`;
-                const filePath = path.join(uploadDir, fileName);
-                await writeFile(filePath, buffer);
-                updateFields.profileImage = `/uploads/${fileName}`;
+
+                if (process.env.NODE_ENV === "production") {
+                    // Upload to Cloudinary in production
+                    const result = await new Promise((resolve, reject) => {
+                        const uploadStream = cloudinary.uploader.upload_stream(
+                            { folder: "employees" },
+                            (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            }
+                        );
+                        uploadStream.end(buffer);
+                    });
+                    updateFields.profileImage = result.secure_url;
+                } else {
+                    // Save locally in development
+                    const uploadDir = path.join(process.cwd(), "public", "uploads");
+                    await mkdir(uploadDir, { recursive: true });
+                    const fileName = `${Date.now()}-${file.name}`;
+                    const filePath = path.join(uploadDir, fileName);
+                    await writeFile(filePath, buffer);
+                    updateFields.profileImage = `/uploads/${fileName}`;
+                }
             } else {
-                // No image uploaded, keep existing image in DB
+                // If no image uploaded, keep existing image in DB
                 updateFields.profileImage = updateFields.profileImage ?? null;
             }
-
         } else {
             // JSON request
             const body = await request.json();
@@ -153,7 +176,7 @@ export async function PUT(request) {
 
         updateFields.modified_on = new Date();
 
-        // Update DB
+        // Update MongoDB
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const employeesCollection = db.collection("employees");
