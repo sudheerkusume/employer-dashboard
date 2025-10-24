@@ -1,40 +1,49 @@
 "use client";
-import React, { useState, useEffect, useContext } from 'react';
-import { EyeSlashIcon, PencilIcon } from '@heroicons/react/24/solid';
-import { ChevronDownIcon, EyeIcon } from '@heroicons/react/20/solid';
-import AboutMe from './about';
-import Attendance from './attendance';
-import HRPolicy from './hrpolicy';
-import Payslip from './payslip';
-import ButtonTab from '../common/buttontab';
-import RootContext from '../config/rootcontext';
-import { Mutated } from '../config/useswrfetch';
-import Loading from '../common/loading';
+import React, { useState, useEffect, useContext } from "react";
+import { EyeSlashIcon, PencilIcon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, EyeIcon } from "@heroicons/react/20/solid";
+import AboutMe from "./about";
+import Attendance from "./attendance";
+import HRPolicy from "./hrpolicy";
+import Payslip from "./payslip";
+import ButtonTab from "../common/buttontab";
+import RootContext from "../config/rootcontext";
+import { Mutated } from "../config/useswrfetch";
+import Loading from "../common/loading";
 
 const tabs = [
-    { name: 'About Me', component: AboutMe },
-    { name: 'Attendance', component: Attendance },
-    { name: 'HR Policy', component: HRPolicy },
-    { name: 'Payslips', component: Payslip },
+    { name: "About Me", component: AboutMe },
+    { name: "Attendance", component: Attendance },
+    { name: "HR Policy", component: HRPolicy },
+    { name: "Payslips", component: Payslip },
 ];
 
-function EmployeeProfile({ employeesData }) {
+export default function EmployeeProfile({ employeesData }) {
     const [activeTab, setActiveTab] = useState(0);
     const [profile, setProfile] = useState({
-        name: '',
-        email: '',
-        image: '',
-        summary: '',
+        name: "",
+        email: "",
+        profileImage: "",
+        summary: "",
         experience: [],
         education: [],
     });
-    const [editingHeader, setEditingHeader] = useState(false);
     const [tempProfile, setTempProfile] = useState(profile);
+    const [editingHeader, setEditingHeader] = useState(false);
     const [accordionOpen, setAccordionOpen] = useState(null);
     const [serviceCall, setServiceCall] = useState(false);
-    const { rootContext } = useContext(RootContext);
+    const [previewImage, setPreviewImage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    // Get userId from localStorage
+    const { rootContext } = useContext(RootContext);
+
+    const user_details =
+        typeof window !== "undefined"
+            ? JSON.parse(localStorage.getItem("user_details") || "{}")
+            : {};
+
+    const role = user_details?.role || "";
+    const employeeID = user_details.userId;
+    const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null);
 
     useEffect(() => {
         if (employeesData) {
@@ -45,61 +54,89 @@ function EmployeeProfile({ employeesData }) {
 
     const ActiveComponent = tabs[activeTab].component;
 
-    const user_details =
-        typeof window !== 'undefined'
-            ? JSON.parse(localStorage.getItem('user_details') || '{}')
-            : {};
+    // 🟢 Handle image select and preview
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setTempProfile((prev) => ({ ...prev, imageFile: file }));
+            setPreviewImage(URL.createObjectURL(file));
+        }
+    };
 
-
-    const role = user_details?.role || "";
-    const employeeID = user_details.userId;
-    const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null)
-
+    // 🟢 Save header with image upload + extra fields
     const handleSaveHeader = async () => {
-        setServiceCall(true)
+        setServiceCall(true);
         try {
+            const formData = new FormData();
+            formData.append("id", employeeID);
+            formData.append("name", tempProfile.name || "");
+            formData.append("email", tempProfile.email || "");
+            formData.append("role", role);
+            if (tempProfile.password) formData.append("password", tempProfile.password);
+            if (tempProfile.imageFile) formData.append("image", tempProfile.imageFile);
+            if (tempProfile.summary) formData.append("summary", tempProfile.summary);
+            if (tempProfile.experience) formData.append("experience", JSON.stringify(tempProfile.experience));
+            if (tempProfile.education) formData.append("education", JSON.stringify(tempProfile.education));
+            if (tempProfile.attendance) formData.append("attendance", JSON.stringify(tempProfile.attendance));
+
             const res = await fetch(`/api/employees`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: employeeID,
-                    name: `${tempProfile.name}`,
-                    email: tempProfile.email,
-                    password: tempProfile.password,
-                    role: role
-                }),
+                method: "PUT",
+                body: formData,
             });
-            if (res.status) {
-                setServiceCall(false)
-            }
+
             const data = await res.json();
+            setServiceCall(false);
 
             if (res.ok) {
-                setProfile(data);
-                setTempProfile(data);
+                setProfile((prev) => ({
+                    ...prev,
+                    ...data.updatedFields,
+                }));
+                setTempProfile((prev) => ({
+                    ...prev,
+                    ...data.updatedFields,
+                }));
                 setEditingHeader(false);
+                setPreviewImage("");
                 mutated();
             } else {
-                console.log(data.error || 'Failed to update profile');
+                console.log(data.error || "Failed to update profile");
             }
         } catch (err) {
-            console.error('Update Error:', err);
+            console.error("Update Error:", err);
+            setServiceCall(false);
         }
     };
 
     return (
         <div className="mt-20 bg-white min-h-screen">
-            {/* Header Section */}
             {serviceCall && <Loading />}
-            <div className="fixed inset-0 bg-white z-[-1]" />
+
             <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
                 <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
+                    {/* 🟢 Profile Image Upload */}
                     <div className="absolute -top-12 left-6 sm:left-6">
-                        <img
-                            src={tempProfile.image || 'https://placehold.co/80x80/F0F0F0/000000?text=Logo'}
-                            alt="Avatar"
-                            className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-cover shadow-lg"
-                        />
+                        <label htmlFor="profileImageInput" className="cursor-pointer group">
+                            {editingHeader && (
+                                <input
+                                    id="profileImageInput"
+                                    type="file"
+                                    accept="image/*"
+                                    className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
+                                    onChange={handleImageChange}
+                                />
+                            )}
+                            <img
+                                src={
+                                    previewImage ||
+                                    tempProfile.profileImage ||
+                                    profile.profileImage ||
+                                    "https://placehold.co/80x80/F0F0F0/000000?text=Logo"
+                                }
+                                alt="Avatar"
+                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-cover shadow-lg group-hover:opacity-80"
+                            />
+                        </label>
                     </div>
 
                     <div className="flex mt-10 sm:mt-1 justify-between sm:items-center gap-3 w-full ml-0 sm:ml-40">
@@ -108,13 +145,17 @@ function EmployeeProfile({ employeesData }) {
                                 <input
                                     className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
                                     value={tempProfile.name || ""}
-                                    placeholder='Enter First Name'
-                                    onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
+                                    placeholder="Enter Full Name"
+                                    onChange={(e) =>
+                                        setTempProfile({ ...tempProfile, name: e.target.value })
+                                    }
                                 />
                                 <input
                                     className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
                                     value={tempProfile.email || ""}
-                                    onChange={(e) => setTempProfile({ ...tempProfile, email: e.target.value })}
+                                    onChange={(e) =>
+                                        setTempProfile({ ...tempProfile, email: e.target.value })
+                                    }
                                 />
 
                                 <div className="relative">
@@ -122,9 +163,10 @@ function EmployeeProfile({ employeesData }) {
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Password"
                                         className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                        value={tempProfile.password}
-                                        onChange={(e) => setTempProfile({ ...tempProfile, password: e.target.value })}
-                                        required
+                                        value={tempProfile.password || ""}
+                                        onChange={(e) =>
+                                            setTempProfile({ ...tempProfile, password: e.target.value })
+                                        }
                                     />
                                     <span
                                         onClick={() => setShowPassword(!showPassword)}
@@ -137,6 +179,7 @@ function EmployeeProfile({ employeesData }) {
                                         )}
                                     </span>
                                 </div>
+
                                 <div className="flex gap-2 mt-2">
                                     <button
                                         className="px-3 py-1 bg-blue-600 text-white rounded"
@@ -154,17 +197,19 @@ function EmployeeProfile({ employeesData }) {
                             </div>
                         ) : (
                             <div>
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{profile.name}</h2>
+                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                                    {profile.name}
+                                </h2>
                                 <p className="text-sm sm:text-base text-gray-600">{profile.title}</p>
                                 <p className="text-xs sm:text-sm text-gray-500">{profile.email}</p>
                             </div>
                         )}
-                        {!editingHeader && rootContext?.user?.role !== 'recruiter' && (
+                        {!editingHeader && rootContext?.user?.role !== "recruiter" && (
                             <button
                                 onClick={() => {
                                     setEditingHeader(true);
                                     setTempProfile(profile);
-                                    setShowPassword(false)
+                                    setShowPassword(false);
                                 }}
                                 className="text-gray-600 hover:text-gray-900 mt-2 sm:mt-0"
                             >
@@ -177,19 +222,21 @@ function EmployeeProfile({ employeesData }) {
 
             {/* Tabs Section */}
             <div className="bg-white border-b border-gray-200 max-w-5xl mx-auto px-4 py-6 rounded-b-md shadow-sm">
-                {rootContext?.user?.role === 'recruiter' ? (
+                {rootContext?.user?.role === "recruiter" ? (
                     <AboutMe profile={profile} />
                 ) : (
                     <>
-                        {/* Desktop Tabs */}
                         <div className="hidden sm:block">
-                            <ButtonTab tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <ButtonTab
+                                tabs={tabs}
+                                activeTab={activeTab}
+                                setActiveTab={setActiveTab}
+                            />
                             <div className="py-3">
                                 <ActiveComponent profile={profile} />
                             </div>
                         </div>
 
-                        {/* Mobile Accordion */}
                         <div className="sm:hidden">
                             {tabs.map((tab, index) => {
                                 const Component = tab.component;
@@ -200,9 +247,12 @@ function EmployeeProfile({ employeesData }) {
                                             onClick={() => setAccordionOpen(isOpen ? null : index)}
                                             className="w-full flex justify-between items-center py-2 px-2 bg-gray-50 text-left"
                                         >
-                                            <span className="font-medium text-gray-700 text-sm">{tab.name}</span>
+                                            <span className="font-medium text-gray-700 text-sm">
+                                                {tab.name}
+                                            </span>
                                             <ChevronDownIcon
-                                                className={`w-4 h-4 transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                                                className={`w-4 h-4 transform transition-transform ${isOpen ? "rotate-180" : ""
+                                                    }`}
                                             />
                                         </button>
                                         {isOpen && (
@@ -220,5 +270,3 @@ function EmployeeProfile({ employeesData }) {
         </div>
     );
 }
-
-export default EmployeeProfile;

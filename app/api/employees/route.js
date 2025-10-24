@@ -1,5 +1,7 @@
 import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 import Joi from "joi";
 
 
@@ -12,18 +14,20 @@ const employeeSchema = Joi.object({
     attendance: Joi.object().default({}),
     experience: Joi.array().default([]),
     education: Joi.array().default([]),
+    profileImage: Joi.string().optional().allow(''),
 });
 
 const employeePutSchema = Joi.object({
-    id: Joi.string().trim().length(24).required(),
+    id: Joi.string().length(24).required(),
     name: Joi.string().optional().allow(''),
     email: Joi.string().email().optional().allow(''),
-    password: Joi.string().optional(),
+    password: Joi.string().optional().allow(''),
     role: Joi.string().valid("employee", "recruiter", "admin").optional(),
-    attendance: Joi.object().optional(),
-    experience: Joi.array().optional(),
-    education: Joi.array().optional(),
     summary: Joi.string().optional().allow(''),
+    experience: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
+    education: Joi.alternatives().try(Joi.array(), Joi.string()).optional(),
+    attendance: Joi.alternatives().try(Joi.object(), Joi.string()).optional(),
+    profileImage: Joi.string().optional().allow(''),
 });
 
 export async function GET(req) {
@@ -89,50 +93,90 @@ export async function POST(req) {
 
 export async function PUT(request) {
     try {
-        const body = await request.json();
+        const contentType = request.headers.get("content-type") || "";
 
-        const { error, value } = employeePutSchema.validate(body);
-        if (error) {
-            const errorMessages = error.details.map((d) => d.message).join(", ");
-            return new Response(JSON.stringify({ error: errorMessages }), { status: 403 });
+        const parseJSON = (val) => {
+            if (!val) return undefined;
+            try { return JSON.parse(val); } catch { return val; }
+        };
+
+        let updateFields = {};
+        let id;
+
+        // Multipart form-data (with optional image)
+        if (contentType.includes("multipart/form-data")) {
+            const formData = await request.formData();
+            id = formData.get("id");
+            if (!id) return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
+
+            // Text fields
+            for (const key of ["name", "email", "password", "role", "summary"]) {
+                const value = formData.get(key);
+                if (value !== null && value !== undefined) updateFields[key] = value;
+            }
+
+            // Structured fields
+            updateFields.experience = parseJSON(formData.get("experience")) || [];
+            updateFields.education = parseJSON(formData.get("education")) || [];
+            updateFields.attendance = parseJSON(formData.get("attendance")) || {};
+
+            // Image upload (optional)
+            const file = formData.get("image");
+            if (file && file.name) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const uploadDir = path.join(process.cwd(), "public", "uploads");
+                await mkdir(uploadDir, { recursive: true });
+                const fileName = `${Date.now()}-${file.name}`;
+                const filePath = path.join(uploadDir, fileName);
+                await writeFile(filePath, buffer);
+                updateFields.profileImage = `/uploads/${fileName}`;
+            } else {
+                // No image uploaded, keep existing image in DB
+                updateFields.profileImage = updateFields.profileImage ?? null;
+            }
+
+        } else {
+            // JSON request
+            const body = await request.json();
+            const { error, value } = employeePutSchema.validate(body);
+            if (error) return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
+
+            id = value.id;
+            updateFields = {
+                ...value,
+                experience: typeof value.experience === "string" ? parseJSON(value.experience) : value.experience || [],
+                education: typeof value.education === "string" ? parseJSON(value.education) : value.education || [],
+                attendance: typeof value.attendance === "string" ? parseJSON(value.attendance) : value.attendance || {},
+                profileImage: value.profileImage || null
+            };
         }
 
-        const { id, name, summary, email, password, role, attendance, experience, education } = value;
-        const query = { _id: new ObjectId(id) };
+        updateFields.modified_on = new Date();
 
+        // Update DB
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const employeesCollection = db.collection("employees");
 
-        // Only include keys that are explicitly provided (even if null or empty string)
-        const updateFields = {};
-        if ("name" in value) updateFields.name = name;
-        if ("email" in value) updateFields.email = email;
-        if ("password" in value) updateFields.password = password;
-        if ("role" in value) updateFields.role = role;
-        if ("attendance" in value) updateFields.attendance = attendance;
-        if ("experience" in value) updateFields.experience = experience;
-        if ("education" in value) updateFields.education = education;
-        if ("summary" in value) updateFields.summary = summary;
-
-        updateFields.modified_on = new Date();
-
-        // Perform update
-        const result = await employeesCollection.updateOne(query, { $set: updateFields });
-
-        if (result.matchedCount === 0) {
-            return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
-        }
-
-        return new Response(
-            JSON.stringify({ success: true, message: `Updated Employee with id: ${id}` }),
-            { status: 200 }
+        const result = await employeesCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateFields }
         );
-    } catch (error) {
-        console.error("PUT /api/employees error:", error);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+
+        if (result.matchedCount === 0) return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
+
+        return new Response(JSON.stringify({
+            success: true,
+            message: "Employee updated successfully",
+            updatedFields: updateFields
+        }), { status: 200 });
+
+    } catch (err) {
+        console.error("PUT /api/employees error:", err);
+        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
+
 
 export async function DELETE(req) {
     try {
