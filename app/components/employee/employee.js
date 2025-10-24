@@ -128,10 +128,10 @@ export default function EmployeeProfile({ employeesData }) {
                                     "https://placehold.co/80x80/F0F0F0/000000?text=Logo"
                                 }
                                 alt="Avatar"
-                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-cover shadow-lg group-hover:opacity-80"
+                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-fit shadow-lg group-hover:opacity-80"
                             />
                             {editingHeader && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-25 rounded-xl text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-xs bg-opacity-25 rounded-xl text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                                     Change
                                 </div>
                             )}
