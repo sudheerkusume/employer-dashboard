@@ -12,7 +12,7 @@ export default function AdminDashboard({ currentUserRole }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-
+  const router = useRouter();
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -63,7 +63,6 @@ export default function AdminDashboard({ currentUserRole }) {
     return { totalWorkingDays, totalPresent };
   };
 
-  const router = useRouter();
   const logOut = () => {
     localStorage.clear();
     let resp = rootContext;

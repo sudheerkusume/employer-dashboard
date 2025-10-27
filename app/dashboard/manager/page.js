@@ -15,7 +15,7 @@ export default function ManagerDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [serviceCall, setServiceCall] = useState(false);
   const { rootContext, setRootContext } = useContext(RootContext);
-
+  const router = useRouter();
   // ✅ Read localStorage only on client once
   useEffect(() => {
     const details = JSON.parse(localStorage.getItem("user_details") || "{}");
@@ -92,7 +92,6 @@ export default function ManagerDashboard() {
 
   const pendingLeaves = data?.pendingLeaves || [];
 
-  const router = useRouter();
   const logOut = () => {
     localStorage.clear();
     let resp = rootContext;

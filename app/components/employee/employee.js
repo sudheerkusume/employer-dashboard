@@ -38,7 +38,7 @@ export default function EmployeeProfile({ employeesData }) {
     const [serviceCall, setServiceCall] = useState(false);
     const [previewImage, setPreviewImage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-
+    const router = useRouter();
     const { rootContext, setRootContext } = useContext(RootContext);
 
     const user_details =
@@ -106,7 +106,7 @@ export default function EmployeeProfile({ employeesData }) {
             setServiceCall(false);
         }
     };
-    const router = useRouter();
+
     const logOut = () => {
         localStorage.clear();
         let resp = rootContext;
