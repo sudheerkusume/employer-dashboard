@@ -6,7 +6,7 @@ import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
 import { Mutated } from '../config/useswrfetch';
-import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, format } from 'date-fns';
+import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays } from 'date-fns';
 import { formatDateTime } from '../config/sitesettings';
 
 const categoryColors = {
@@ -49,26 +49,10 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         return allEvents;
     }, [profile]);
 
-    // // ✅ Filter leaves dynamically from attendance
-    // const leaves = useMemo(() => {
-    //     if (!profile || !profile.attendance) return [];
-    //     const allLeaves = [];
-    //     Object.values(profile.attendance).forEach(monthArr => {
-    //         monthArr.forEach(item => {
-    //             if (item.status && item.leaveType) {
-    //                 allLeaves.push({
-    //                     id: item.date, // you can make this unique if needed
-    //                     ...item
-    //                 });
-    //             }
-    //         });
-    //     });
-    //     return allLeaves;
-    // }, [profile]);
 
     // Withdraw leave service
-    const withdrawLeaveService = async (leaveDate) => {
-        const res = await fetch(`/api/leave/delete?employeeId=${profile._id}&leaveDate=${leaveDate}`, {
+    const withdrawLeaveService = async (employeeId, startDate, endDate) => {
+        const res = await fetch(`/api/leave/delete?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, {
             method: 'DELETE',
         });
         setServiceCall(true)
@@ -109,15 +93,18 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     // Get current month name from currentDate
     const monthIndex = currentDate.getMonth();
     const [monthName, setMonthName] = useState(monthIndex || 1);
-    const handleWithdraw = async (leaveDate) => {
+    const handleWithdraw = async (employeeId, startDate, endDate, leaveDates) => {
         try {
-            setLoadingLeave(leaveDate);
-            await withdrawLeaveService(leaveDate);
-            // Since leaves are derived from attendance, we need to refetch profile or remove locally
-            // Here we remove locally for instant UI update
+            setLoadingLeave(startDate);
+
+            await withdrawLeaveService(employeeId, startDate, endDate);
+
+            // Local UI update
             const monthKeys = Object.keys(profile.attendance);
-            monthKeys.forEach(month => {
-                profile.attendance[month] = profile.attendance[month].filter(l => l.date !== leaveDate);
+            monthKeys.forEach((month) => {
+                profile.attendance[month] = profile.attendance[month].filter(
+                    (l) => !leaveDates.includes(l.date)
+                );
             });
         } catch (err) {
             console.error("Withdraw failed:", err);
@@ -128,7 +115,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     dismiss: true,
                     type: "error",
                     title: `Failed`,
-                    message: `${err.message}` || "Failed to withdraw leave. Try again.",
+                    message: err.message || "Failed to withdraw leave. Try again.",
                 },
             }));
         } finally {
@@ -136,89 +123,231 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         }
     };
 
-
     const holidays = [
+        '2025-01-01',
+        '2025-01-26',
+        '2025-03-25',
+        '2025-08-15',
         '2025-10-02',
-        '2025-10-15',
+        '2025-10-18',
+        '2025-10-20',
+        '2025-12-25',
     ];
 
     const FULL_DAY_HOURS = 8.75; // 8h 45m
     const HALF_DAY_HOURS = 4.25; // 4h 15m
 
     const calculateAttendanceByMonthIndex = (profile, monthIndex, year = 2025) => {
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
         const monthName = monthNames[monthIndex];
+
         if (!profile || !profile.attendance || !profile.attendance[monthName]) {
-            return { totalWorked: 0, totalWorkingDays: 0 };
+            return {
+                totalWorked: 0,
+                totalWorkingDays: 0,
+                totalCalendarDays: 0,
+                holidaysCount: 0,
+                sundaysCount: 0,
+                presentLate: 0,
+                earlyOut: 0,
+                firstHalf: 0,
+                secondHalf: 0,
+                lossOfPay: 0,
+                totalHoursWorked: 0,
+                paidLeaves: 0
+            };
         }
 
-        // ✅ Step 1: Calculate total working days (excluding Sundays & holidays)
         const start = startOfMonth(new Date(year, monthIndex, 1));
         const end = endOfMonth(start);
         const monthDates = eachDayOfInterval({ start, end });
 
-        let totalWorkingDays = monthDates.reduce((acc, date) => {
-            const formatted = date.toISOString().split('T')[0];
-            if (!isSunday(date) && !holidays.includes(formatted)) acc += 1;
-            return acc;
-        }, 0);
+        const holidays = [
+            '2025-01-01', '2025-01-26', '2025-03-25', '2025-08-15',
+            '2025-10-02', '2025-10-18', '2025-10-20', '2025-12-25'
+        ];
 
-        // ✅ Step 2: Calculate total worked days
-        let totalWorkedDays = 0;
+        // Calculate total calendar days in month
+        const totalCalendarDays = monthDates.length;
 
+        // Calculate Sundays and holidays
+        let sundaysCount = 0;
+        let holidaysCount = 0;
+        let totalWorkingDays = 0;
+
+        monthDates.forEach(date => {
+            const formatted = format(date, 'yyyy-MM-dd');
+            const isSundayFlag = isSunday(date);
+            const isHoliday = holidays.includes(formatted);
+
+            if (isSundayFlag) sundaysCount++;
+            if (isHoliday) holidaysCount++;
+
+            // Working days exclude Sundays and holidays
+            if (!isSundayFlag && !isHoliday) {
+                totalWorkingDays++;
+            }
+        });
+
+        let totalWorked = 0;
+        let totalHoursWorked = 0;
+        let presentLate = 0;
+        let earlyOut = 0;
+        let firstHalf = 0;
+        let secondHalf = 0;
+        let cumulativeLateEarly = 0;
+        let lossOfPay = 0;
+        let paidLeaves = 0;
+
+        // Count approved leaves (paid leaves)
         profile.attendance[monthName].forEach(item => {
-            const status = item.status;
-
-            if (status === 'present') {
-                totalWorkedDays += 1;
-            }
-            else if (
-                status === 'firstHalfApproved' ||
-                status === 'secondHalfApproved' ||
-                status === 'halfDay'
-            ) {
-                totalWorkedDays += 0.5;
-            }
-            else if (status === 'approved') {
-                // ✅ Paid leave — count as working day (but not worked day)
-                // So do nothing here (don’t reduce total working days)
-            }
-            else if (status === 'Checked In' || status === 'rejected') {
-                // Skip incomplete or rejected leaves
-            }
-            else if (item.checkIn && item.checkOut) {
-                const checkInTime = parse(item.checkIn, 'HH:mm', new Date());
-                const checkOutTime = parse(item.checkOut, 'HH:mm', new Date());
-                const workedMinutes = differenceInMinutes(checkOutTime, checkInTime);
-                const workedHours = workedMinutes / 60;
-
-                // ✅ Normalize to 1 or 0.5 day based on hours
-                if (workedHours >= FULL_DAY_HOURS) {
-                    totalWorkedDays += 1;
-                } else if (workedHours >= HALF_DAY_HOURS) {
-                    totalWorkedDays += 0.5;
+            if (item.status === 'approved' || item.status === 'firstHalfApproved' || item.status === 'secondHalfApproved') {
+                if (item.status === 'approved') {
+                    paidLeaves += 1;
+                } else if (item.status === 'firstHalfApproved' || item.status === 'secondHalfApproved') {
+                    paidLeaves += 0.5;
                 }
             }
         });
 
-        const totalWorked = parseFloat(totalWorkedDays.toFixed(2));
+        // Calculate actual worked days
+        profile.attendance[monthName].forEach(item => {
+            // Count paid leaves as worked days
+            if (item.status === 'approved') {
+                totalWorked += 1;
+                return;
+            } else if (item.status === 'firstHalfApproved' || item.status === 'secondHalfApproved') {
+                totalWorked += 0.5;
+                return;
+            }
 
-        return { totalWorked, totalWorkingDays };
+            if (!item.checkIn || !item.checkOut) return; // skip incomplete records
+
+            const checkIn = parse(item.checkIn, 'HH:mm', new Date());
+            const checkOut = parse(item.checkOut, 'HH:mm', new Date());
+
+            // Calculate worked hours in decimal
+            const workedMinutes = differenceInMinutes(checkOut, checkIn);
+            const workedHours = workedMinutes / 60;
+            totalHoursWorked += workedHours;
+
+            // Time thresholds
+            const lateThreshold = parse('09:45', 'HH:mm', new Date()); // After 9:45 AM is late
+            const earlyOutThreshold = parse('18:30', 'HH:mm', new Date()); // Before 6:30 PM is early out
+            const secondHalfStart = parse('13:30', 'HH:mm', new Date()); // Second half starts at 1:30 PM
+
+            // Check for late arrival (9:46 AM to 12:00 PM)
+            if (checkIn > lateThreshold && checkIn <= parse('12:00', 'HH:mm', new Date())) {
+                presentLate += 1;
+                cumulativeLateEarly += 1;
+            }
+
+            // Check for early out (5:45 PM to 6:29 PM)
+            if (checkOut >= parse('17:45', 'HH:mm', new Date()) && checkOut < earlyOutThreshold) {
+                earlyOut += 1;
+                cumulativeLateEarly += 1;
+            }
+
+            // Determine attendance type based on hours worked
+            if (workedHours >= FULL_DAY_HOURS) {
+                // Full day - 8.75 hours and above
+                totalWorked += 1;
+            } else if (workedHours >= HALF_DAY_HOURS && workedHours < FULL_DAY_HOURS) {
+                // Half day - 4.25 to 8.74 hours
+                totalWorked += 0.5;
+
+                // Determine which half day
+                if (checkIn < secondHalfStart) {
+                    // First half (check-in before 1:30 PM)
+                    firstHalf += 1;
+                } else {
+                    // Second half (check-in at/after 1:30 PM)
+                    secondHalf += 1;
+                }
+            }
+
+            // Calculate loss of pay (every 3 cumulative late/early = 1 loss of pay)
+            if (cumulativeLateEarly >= 3) {
+                const additionalLoss = Math.floor(cumulativeLateEarly / 3);
+                lossOfPay += additionalLoss;
+                cumulativeLateEarly = cumulativeLateEarly % 3;
+            }
+        });
+
+        return {
+            totalWorked: parseFloat(totalWorked.toFixed(2)),
+            totalWorkingDays,
+            totalCalendarDays,
+            holidaysCount,
+            sundaysCount,
+            presentLate,
+            earlyOut,
+            firstHalf,
+            secondHalf,
+            lossOfPay,
+            totalHoursWorked: parseFloat(totalHoursWorked.toFixed(2)),
+            paidLeaves: parseFloat(paidLeaves.toFixed(2))
+        };
     };
 
-    const { totalWorked, totalWorkingDays } = calculateAttendanceByMonthIndex(profile, monthName);
-
+    const {
+        totalWorked,
+        totalWorkingDays,
+        presentLate,
+        earlyOut,
+        firstHalf,
+        secondHalf,
+        lossOfPay,
+        totalHoursWorked,
+        paidLeaves
+    } = calculateAttendanceByMonthIndex(profile, monthName);
 
     // Filter leaves dynamically for the month
-    // ✅ Show only pending leaves for the current month
     const monthLeaves = useMemo(() => {
         if (!profile || !profile.attendance) return [];
         const monthNamee = monthNames[monthIndex];
         const monthArr = profile.attendance[monthNamee] || [];
 
-        return monthArr.filter(item =>
-            item.status === "pending" && item.leaveType
+        // Filter pending leaves with leaveType
+        const pendingLeaves = monthArr.filter(
+            (item) => item.status === "pending" && item.leaveType
         );
-    }, [profile, monthName]);
+
+        // Sort by date ascending
+        pendingLeaves.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const grouped = [];
+        let currentGroup = null;
+
+        for (const leave of pendingLeaves) {
+            const leaveDate = parseISO(leave.date);
+
+            if (
+                !currentGroup ||
+                leave.leaveType !== currentGroup.leaveType ||
+                differenceInCalendarDays(leaveDate, parseISO(currentGroup.endDate)) > 1
+            ) {
+                // start new range
+                currentGroup = {
+                    leaveType: leave.leaveType,
+                    startDate: leave.date,
+                    endDate: leave.date,
+                    reason: leave.reason || "",
+                    status: leave.status
+                };
+                grouped.push(currentGroup);
+            } else {
+                // extend range
+                currentGroup.endDate = leave.date;
+            }
+        }
+
+        return grouped;
+    }, [profile, monthIndex]);
+
 
     return (
         <div className="flex flex-col md:flex-row max-w-full text-gray-700 gap-4">
@@ -239,15 +368,55 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             {/* Right Side: Leaves Section */}
             <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
                 {/* ✅ Working Days */}
-                <div className="bg-yellow-100 py-2 text-center rounded-sm mb-2">
+                <div className="bg-green-100 py-2 text-center rounded-sm mb-2">
                     <p className="text-sm text-gray-500">
                         Working Days:{" "}
                         <span className="text-sm font-bold text-gray-700">{totalWorked}</span>{" "}
                         / {totalWorkingDays}
                     </p>
+                    {paidLeaves > 0 && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            (Includes {paidLeaves} paid leave(s))
+                        </p>
+                    )}
                 </div>
 
-                {/* ✅ Yesterday’s Attendance Summary */}
+                {/* Combined Present Late & Early Out - Only show if greater than 0 */}
+                {(presentLate > 0 || earlyOut > 0) && (
+                    <div className="bg-yellow-100 p-2 text-center rounded-sm mb-2">
+                        <p className="text-sm text-gray-500">
+                            Present Late:{" "}
+                            <span className="text-sm font-bold text-gray-700">{presentLate}</span>
+                        </p>
+                    </div>
+                )}
+
+                {/* First Half & Second Half - Only show if greater than 0 */}
+                {(firstHalf > 0 || secondHalf > 0) && (
+                    <div className="bg-red-100 p-2 text-center rounded-sm mb-2">
+                        <p className="text-sm text-gray-500">
+                            Half Days:{" "}
+                            <span className="text-sm font-bold text-gray-700">
+                                {firstHalf + secondHalf}
+                            </span>
+                            {(firstHalf > 0 || secondHalf > 0) && (
+                                <span className="text-xs ml-2">
+                                    ({firstHalf} first half, {secondHalf} second half)
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                )}
+
+                {lossOfPay > 0 && (
+                    <div className="bg-red-100 p-2 text-center rounded-sm mb-2">
+                        <p className="text-sm text-red-600 font-bold">
+                            Loss of Pay Days: {lossOfPay}
+                        </p>
+                    </div>
+                )}
+
+                {/* ✅ Yesterday's Attendance Summary */}
                 {(() => {
                     const today = new Date();
                     const yesterday = new Date(today);
@@ -286,17 +455,16 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     }
 
                     return (
-                        <div className="bg-green-50 p-3 rounded-sm mb-3 border border-green-200">
+                        <div className="bg-blue-50 p-3 rounded-sm mb-3 border border-blue-200">
                             <p className="text-md text-center font-bold text-gray-700 mb-1">
                                 Yesterday's Attendance
                             </p>
                             <p className='text-sm'>Check-in: <strong>{checkIn}</strong></p>
                             <p className='text-sm'>Check-out: <strong>{checkOut}</strong></p>
                             <p className="text-sm mt-1 text-gray-700">
-                                Total Worked: <span className="font-bold text-green-700">{totalHours}</span>
+                                Total Worked: <span className="font-bold text-blue-700">{totalHours}</span>
                             </p>
                         </div>
-
                     );
                 })()}
 
@@ -320,9 +488,12 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                                         </span>
                                     </p>
                                     <p className="font-medium text-gray-500">
-                                        Applied Date:{" "}
+                                        Leave Period:{" "}
                                         <span className="font-bold text-gray-800">
-                                            {formatDateTime(leave.date, "DD-MM-YYYY")}
+                                            {formatDateTime(leave.startDate, "DD-MM-YYYY")}
+                                            {leave.startDate !== leave.endDate && (
+                                                <> to {formatDateTime(leave.endDate, "DD-MM-YYYY")}</>
+                                            )}
                                         </span>
                                     </p>
                                     <p className="font-medium text-gray-500">
@@ -342,14 +513,20 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                                     leave.status !== "firstHalfApproved" &&
                                     leave.status !== "secondHalfApproved" && (
                                         <button
-                                            onClick={() => handleWithdraw(leave.date)}
-                                            disabled={loadingLeave === leave.date}
-                                            className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.id
-                                                ? "bg-gray-400 cursor-not-allowed"
-                                                : "bg-red-600 hover:bg-red-700"
+                                            onClick={() =>
+                                                handleWithdraw(
+                                                    profile._id,
+                                                    leave.startDate,
+                                                    leave.endDate,
+                                                    eachDayOfInterval({ start: parseISO(leave.startDate), end: parseISO(leave.endDate) })
+                                                        .map(d => format(d, 'yyyy-MM-dd'))
+                                                )
+                                            }
+                                            disabled={loadingLeave === leave.startDate}
+                                            className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"
                                                 }`}
                                         >
-                                            {loadingLeave === leave.id ? "Withdrawing..." : "Withdraw"}
+                                            {loadingLeave === leave.startDate ? "Withdrawing..." : "Withdraw"}
                                         </button>
                                     )}
                             </li>

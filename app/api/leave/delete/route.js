@@ -5,55 +5,77 @@ import { ObjectId } from 'mongodb';
 export async function DELETE(req) {
     try {
         const { searchParams } = new URL(req.url);
-        const leaveDate = searchParams.get('leaveDate');
-        const employeeId = searchParams.get('employeeId'); // send employeeId from frontend if needed
+        const employeeId = searchParams.get('employeeId');
+        const leaveStartDate = searchParams.get('startDate');
+        const leaveEndDate = searchParams.get('endDate');
 
-        if (!leaveDate || !employeeId) {
-            return NextResponse.json({ error: "employeeId and leaveDate are required" }, { status: 400 });
+        if (!employeeId || !leaveStartDate || !leaveEndDate) {
+            return NextResponse.json(
+                { error: 'employeeId, startDate, and endDate are required' },
+                { status: 400 }
+            );
         }
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const employeesCollection = db.collection('employees');
+        const employees = db.collection('employees');
 
-        const employee = await employeesCollection.findOne({ _id: new ObjectId(employeeId) });
-        if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+        // 1️⃣ Fetch employee
+        const employee = await employees.findOne({ _id: new ObjectId(employeeId) });
+        if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-        const currentAttendance = employee.attendance || {};
-        let leaveFound = false;
+        // 2️⃣ Get leave dates to remove
+        const leaveDates = employee.attendance && employee.attendance.October
+            ? employee.attendance.October.filter(att => att.date >= leaveStartDate && att.date <= leaveEndDate)
+                .map(att => att.date)
+            : [];
 
-        // Loop through months to find the leave by date
-        for (const month of Object.keys(currentAttendance)) {
-            const newMonthAttendance = currentAttendance[month].filter(record => {
-                if (record.date === leaveDate && record.status && record.status !== 'present') {
-                    leaveFound = true;
-                    return false; // remove leave
-                }
-                return true; // keep other records
-            });
-            currentAttendance[month] = newMonthAttendance;
+        if (leaveDates.length === 0) {
+            return NextResponse.json({ error: 'No matching attendance records found' }, { status: 404 });
         }
 
-        if (!leaveFound) {
-            return NextResponse.json({ error: "Leave not found for this date" }, { status: 404 });
+        // 3️⃣ Remove leave-marked attendance from employee
+        const updatedAttendance = { ...employee.attendance };
+        if (updatedAttendance.October) {
+            updatedAttendance.October = updatedAttendance.October.filter(
+                att => !leaveDates.includes(att.date) || att.status === 'present' || att.status === 'Checked In'
+            );
         }
 
-        const result = await employeesCollection.updateOne(
+        await employees.updateOne(
             { _id: new ObjectId(employeeId) },
-            { $set: { attendance: currentAttendance, modified_on: new Date() } }
+            { $set: { attendance: updatedAttendance, modified_on: new Date() } }
         );
 
-        if (result.modifiedCount === 0) {
-            return NextResponse.json({ error: "Failed to withdraw leave" }, { status: 500 });
+        // 4️⃣ Remove leave from manager
+        if (employee.reportingId) {
+            const managerId = new ObjectId(employee.reportingId);
+            const manager = await employees.findOne({ _id: managerId });
+            if (manager) {
+                const updatedLeaves = manager.leaves.filter(
+                    leave =>
+                        !(leave.employeeId === employeeId &&
+                            leave.leaveDates.some(date => leaveDates.includes(date)))
+                );
+                const updatedPendingLeaves = manager.pendingLeaves.filter(
+                    leave =>
+                        !(leave.employeeId === employeeId &&
+                            leave.leaveDates.some(date => leaveDates.includes(date)))
+                );
+
+                await employees.updateOne(
+                    { _id: managerId },
+                    { $set: { leaves: updatedLeaves, pendingLeaves: updatedPendingLeaves, modified_on: new Date() } }
+                );
+            }
         }
 
         return NextResponse.json({
             success: true,
-            message: `Leave on ${leaveDate} withdrawn successfully`
+            message: `Leave withdrawn successfully for ${leaveStartDate} to ${leaveEndDate}`,
         });
-
     } catch (err) {
-        console.error('DELETE /api/leave error:', err);
-        return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+        console.error('❌ DELETE leave error:', err);
+        return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
     }
 }

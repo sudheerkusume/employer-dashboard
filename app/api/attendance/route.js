@@ -1,31 +1,60 @@
 import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
 
-// Helper: calculate working hours
+// Constants
+const STANDARD_CHECKIN = "09:45";
+const STANDARD_CHECKOUT = "16:00";
+const EARLY_OUT_CUTOFF = "17:45";
+const MAX_LATE_EARLY_COUNT = 3;
+
+// Helpers
+function timeToMinutes(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
 function calculateWorkingHours(checkIn, checkOut) {
   if (!checkIn || !checkOut) return 0;
-  const start = new Date(`1970-01-01T${checkIn}:00`);
-  const end = new Date(`1970-01-01T${checkOut}:00`);
-  const diff = (end - start) / (1000 * 60 * 60);
+  const diff = (timeToMinutes(checkOut) - timeToMinutes(checkIn)) / 60;
   return diff.toFixed(2);
 }
 
-// Helper: determine status
-function determineStatus(checkIn, checkOut) {
-  if (checkIn && checkOut) {
-    const wh = calculateWorkingHours(checkIn, checkOut);
-    if (wh >= 8) return "present";
-    if (wh >= 4) return "halfDay";
+function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0) {
+  if (!checkIn) return { status: "absent", workingHours: 0, lossOfPay: 0 };
+
+  let status = "present";
+  const checkInMins = timeToMinutes(checkIn);
+  const checkOutMins = checkOut ? timeToMinutes(checkOut) : null;
+
+  const standardCheckInMins = timeToMinutes(STANDARD_CHECKIN);
+  const earlyOutMins = timeToMinutes(EARLY_OUT_CUTOFF);
+
+  let late = false;
+  let earlyOut = false;
+
+  if (checkInMins > standardCheckInMins) {
+    status = "presentLate";
+    late = true;
   }
 
-  if (checkIn) {
-    const [h, m] = checkIn.split(":").map(Number);
-    const totalMins = h * 60 + m;
-    if (totalMins < 13 * 60) return "firstHalf"; // before 1 PM
-    return "secondHalf"; // after 1 PM
+  if (checkOutMins && checkOutMins < earlyOutMins) {
+    status = status === "presentLate" ? "lateAndEarlyOut" : "earlyOut";
+    earlyOut = true;
   }
 
-  return "absent";
+  // Only count late/early for loss of pay AFTER first 3
+  let lossOfPay = 0;
+  if (late || earlyOut) {
+    const effectiveCount = lateEarlyCount - 3; // ignore first 3
+    if (effectiveCount >= 0) {
+      lossOfPay = Math.floor((effectiveCount + 1) / MAX_LATE_EARLY_COUNT); // +1 for current
+    }
+  }
+
+  const workingHours = checkOut ? calculateWorkingHours(checkIn, checkOut) : 0;
+
+  return { status, workingHours, late, earlyOut, lossOfPay };
 }
 
 // ✅ API route for check-in / check-out
@@ -44,17 +73,15 @@ export async function POST(req) {
     const db = client.db(process.env.MONGODB_DBNAME);
     const employees = db.collection("employees");
 
-    // 🔹 Find existing employee by ObjectId
     const employee = await employees.findOne({ _id: new ObjectId(employeeId) });
     if (!employee) return Response.json({ error: "Employee not found" }, { status: 404 });
 
-    // Ensure attendance object exists
     if (!employee.attendance || typeof employee.attendance !== "object") employee.attendance = {};
     if (!employee.attendance[monthName]) employee.attendance[monthName] = [];
 
-    // Find today's attendance
     let todayAttendance = employee.attendance[monthName].find(a => a.date === today);
 
+    // 🔹 Check-in
     if (action === "checkin") {
       if (todayAttendance && todayAttendance.checkIn)
         return Response.json({ message: "Already checked in today" }, { status: 400 });
@@ -65,10 +92,10 @@ export async function POST(req) {
         checkOut: "",
         workingHours: "",
         status: "Checked In",
+        lossOfPay: 0,
       };
 
       if (todayAttendance) {
-        // Update existing record
         todayAttendance.checkIn = nowTime;
         todayAttendance.status = "Checked In";
       } else {
@@ -83,6 +110,7 @@ export async function POST(req) {
       return Response.json({ success: true, attendance: todayAttendance || newAttendance });
     }
 
+    // 🔹 Check-out
     if (action === "checkout") {
       if (!todayAttendance || !todayAttendance.checkIn)
         return Response.json({ message: "No check-in found today" }, { status: 400 });
@@ -90,12 +118,19 @@ export async function POST(req) {
       if (todayAttendance.checkOut)
         return Response.json({ message: "Already checked out today" }, { status: 400 });
 
-      const wh = calculateWorkingHours(todayAttendance.checkIn, nowTime);
-      const status = determineStatus(todayAttendance.checkIn, nowTime);
+      // Count previous late/early occurrences
+      const monthAttendance = employee.attendance[monthName];
+      let lateEarlyCount = monthAttendance.reduce((acc, a) => {
+        if (["presentLate", "earlyOut", "lateAndEarlyOut"].includes(a.status)) return acc + 1;
+        return acc;
+      }, 0);
+
+      const result = determineStatusWithRules(todayAttendance.checkIn, nowTime, lateEarlyCount);
 
       todayAttendance.checkOut = nowTime;
-      todayAttendance.workingHours = `${wh} hrs`;
-      todayAttendance.status = status;
+      todayAttendance.workingHours = `${result.workingHours} hrs`;
+      todayAttendance.status = result.status;
+      todayAttendance.lossOfPay = result.lossOfPay;
 
       await employees.updateOne(
         { _id: new ObjectId(employeeId) },
@@ -112,7 +147,7 @@ export async function POST(req) {
   }
 }
 
-// ✅ Function to run at midnight to finalize statuses
+// ✅ Daily Midnight Job
 export async function updateDailyAttendance() {
   try {
     const client = await clientPromise;
@@ -132,15 +167,25 @@ export async function updateDailyAttendance() {
 
       let att = emp.attendance[monthName].find(a => a.date === yDateStr);
 
+      // Count previous late/early occurrences
+      const monthAttendance = emp.attendance[monthName];
+      let lateEarlyCount = monthAttendance.reduce((acc, a) => {
+        if (["presentLate", "earlyOut", "lateAndEarlyOut"].includes(a.status)) return acc + 1;
+        return acc;
+      }, 0);
+
       if (!att) {
         // Absent
-        att = { date: yDateStr, checkIn: "", checkOut: "", workingHours: "0 hrs", status: "absent" };
+        att = { date: yDateStr, checkIn: "", checkOut: "", workingHours: "0 hrs", status: "absent", lossOfPay: 0 };
         emp.attendance[monthName].push(att);
       } else {
-        // Update working hours & status
-        const wh = calculateWorkingHours(att.checkIn, att.checkOut);
-        att.workingHours = att.checkOut ? `${wh} hrs` : "";
-        att.status = determineStatus(att.checkIn, att.checkOut);
+        // Auto checkout if missing
+        if (!att.checkOut && att.checkIn) att.checkOut = STANDARD_CHECKOUT;
+
+        const result = determineStatusWithRules(att.checkIn, att.checkOut, lateEarlyCount);
+        att.status = result.status;
+        att.workingHours = att.checkOut ? `${result.workingHours} hrs` : "";
+        att.lossOfPay = result.lossOfPay;
       }
 
       await employees.updateOne({ _id: emp._id }, { $set: { attendance: emp.attendance } });

@@ -1,9 +1,11 @@
 'use client';
-import React, { useState, useMemo, Fragment, useContext } from 'react';
+import React, { useState, useMemo, Fragment, useContext, useEffect } from 'react';
 import {
     format, addMonths, subMonths, startOfMonth, endOfMonth,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    getMonth, setMonth, getYear, setYear, isSunday
+    getMonth, setMonth, getYear, setYear, isSunday,
+    set,
+    differenceInMinutes
 } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { Dialog, Transition } from '@headlessui/react';
@@ -20,9 +22,7 @@ const categoryColors = {
     halfDay: "#A8DCAB",
     absent: "#ff6a6a",
     "Checked In": "#2563eb",
-    leaveApplied: "#ffffffff",
     leaveApproved: "#e8d15dff",
-    leaveRejected: "#ff6a6a",
     holiday: "#d5d7d9ff",
     sunday: "#d5d7d9ff",
     today: "#48a84dff",
@@ -67,7 +67,7 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus) => {
     const fullDayHrs = 8.75; // 8h 45m
     const halfDayHrs = 4.25; // 4h 15m
 
-    if (!checkIn && !checkOut && !leaveType) return 'absent'; // no checkin/out, no leave → absent
+    if (!checkIn && !checkOut && !leaveType) return 'absent';
 
     const toDecimal = (time) => {
         if (!time) return null;
@@ -85,40 +85,52 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus) => {
 
     const workingHours = calculateHours(checkIn, checkOut);
     const checkInDec = toDecimal(checkIn);
+    const checkOutDec = toDecimal(checkOut);
 
-    // FULL DAY LEAVE
+    // ----- LEAVE LOGIC -----
+    if (leaveStatus === 'firstHalfApproved') {
+        const secondHalfPresent = checkInDec >= 9.5 && checkInDec <= 13.5 && checkOutDec >= 18.0;
+        return secondHalfPresent ? 'firstHalfApproved_present' : 'firstHalfApproved_absent';
+    }
+
+    if (leaveStatus === 'secondHalfApproved') {
+        const firstHalfPresent = checkInDec <= 9.5 && checkOutDec >= 14.0;
+        return firstHalfPresent ? 'secondHalfApproved_present' : 'secondHalfApproved_absent';
+    }
+
     if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
 
-    // HALF DAY LEAVE
     if (leaveType === 'firstHalf' && leaveStatus === 'approved') {
-        if (workingHours >= halfDayHrs) return 'secondhalfp'; // second half present
-        return 'firsthalfa'; // first half leave, second half absent
+        if (workingHours >= halfDayHrs) return 'secondhalfp';
+        return 'firsthalfa';
     }
 
     if (leaveType === 'secondHalf' && leaveStatus === 'approved') {
-        if (workingHours >= halfDayHrs) return 'firstHalfp'; // first half present
-        return 'secondhalfa'; // second half leave, first half absent
+        if (workingHours >= halfDayHrs) return 'firstHalfp';
+        return 'secondhalfa';
     }
 
-    // NORMAL CHECK-IN / CHECK-OUT ATTENDANCE
-    if (!checkIn || !checkOut) {
-        return 'absent';
-    }
+    // ----- PURE ATTENDANCE (no leave) -----
+    if (!checkIn || !checkOut) return 'absent';
 
     if (workingHours >= fullDayHrs) return 'present';
-    if (checkInDec < 13.5) {
-        return workingHours >= halfDayHrs ? 'firstHalfp' : 'firstHalf';
-    }
-    if (checkInDec >= 13.5) {
-        return workingHours >= halfDayHrs ? 'secondhalfp' : 'secondHalf';
-    }
+
+    // 👉 Correct half-day logic purely by time of day
+    // If employee comes late (after 12) → second half present
+    if (checkInDec >= 12) return 'secondhalfp';
+
+    // If employee leaves early (before 14) → first half present
+    if (checkOutDec <= 14) return 'firstHalfp';
+
+    // If worked enough for half-day but spans both → mark as firstHalfp by default
+    if (workingHours >= halfDayHrs) return 'firstHalfp';
 
     return 'absent';
 };
 
 
 // Split Circle Component for visual indicators
-const SplitCircle = ({ status, isToday, size = 40 }) => {
+const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const radius = size / 2;
     const center = radius;
     const getColors = () => {
@@ -137,11 +149,18 @@ const SplitCircle = ({ status, isToday, size = 40 }) => {
                 return { left: categoryColors.firstHalf, right: categoryColors.present };
             case 'secondHalf':
                 return { left: categoryColors.absent, right: categoryColors.secondHalf };
+            // New statuses for approved half days
+            case 'firstHalfApproved_present':
+                return { left: categoryColors.leaveApproved, right: categoryColors.present };
+            case 'firstHalfApproved_absent':
+                return { left: categoryColors.leaveApproved, right: categoryColors.absent };
+            case 'secondHalfApproved_present':
+                return { left: categoryColors.present, right: categoryColors.leaveApproved };
+            case 'secondHalfApproved_absent':
+                return { left: categoryColors.absent, right: categoryColors.leaveApproved };
             case 'absent':
                 return { left: categoryColors.absent, right: categoryColors.absent };
-            case 'leaveApplied':
             case 'leaveApproved':
-            case 'leaveRejected':
                 return { left: categoryColors[status], right: categoryColors[status] };
             case 'holiday':
                 return { left: categoryColors.holiday, right: categoryColors.holiday };
@@ -159,6 +178,14 @@ const SplitCircle = ({ status, isToday, size = 40 }) => {
     const colors = getColors();
     const stroke = isToday && !status ? '#374151' : 'none';
 
+    // Check if it's an approved half-day status that needs diagonal split
+    const isDiagonalSplit = [
+        'firstHalfApproved_present',
+        'firstHalfApproved_absent',
+        'secondHalfApproved_present',
+        'secondHalfApproved_absent'
+    ].includes(status);
+
     return (
         <svg width={size} height={size} className="cursor-pointer">
             {/* Background circle for today */}
@@ -173,24 +200,74 @@ const SplitCircle = ({ status, isToday, size = 40 }) => {
                 />
             )}
 
-            {/* Left semicircle */}
-            <path
-                d={`M ${center} ${center} L ${center} 0 A ${radius} ${radius} 0 0 0 ${center} ${size} Z`}
-                fill={colors.left}
-            />
+            {/* For legend, show full circle with left color */}
+            {isLegend ? (
+                <circle
+                    cx={center}
+                    cy={center}
+                    r={radius - 1}
+                    fill={colors.left}
+                    stroke="#e5e7eb"
+                    strokeWidth="0.5"
+                />
+            ) : (
+                <>
+                    {/* Clip path for rounded circle */}
+                    <defs>
+                        <clipPath id="circleClip">
+                            <circle cx={center} cy={center} r={radius} />
+                        </clipPath>
+                    </defs>
 
-            {/* Right semicircle */}
-            <path
-                d={`M ${center} ${center} L ${center} ${size} A ${radius} ${radius} 0 0 0 ${center} 0 Z`}
-                fill={colors.right}
-            />
+                    <g clipPath="url(#circleClip)">
+                        {isDiagonalSplit ? (
+                            // Rounded diagonal split for approved half days
+                            <>
+                                {/* Top-left to bottom-right diagonal - First half */}
+                                <path
+                                    d={`M 0 0 L ${size} ${size} L 0 ${size} Z`}
+                                    fill={colors.left}
+                                />
+                                {/* Top-left to bottom-right diagonal - Second half */}
+                                <path
+                                    d={`M 0 0 L ${size} 0 L ${size} ${size} Z`}
+                                    fill={colors.right}
+                                />
+                            </>
+                        ) : (
+                            // Vertical split for other statuses
+                            <>
+                                {/* Left semicircle */}
+                                <path
+                                    d={`M ${center} ${center} L ${center} 0 A ${radius} ${radius} 0 0 0 ${center} ${size} Z`}
+                                    fill={colors.left}
+                                />
+                                {/* Right semicircle */}
+                                <path
+                                    d={`M ${center} ${center} L ${center} ${size} A ${radius} ${radius} 0 0 0 ${center} 0 Z`}
+                                    fill={colors.right}
+                                />
+                            </>
+                        )}
+                    </g>
+
+                    {/* Optional: Add border stroke for the circle */}
+                    <circle
+                        cx={center}
+                        cy={center}
+                        r={radius}
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="0.5"
+                    />
+                </>
+            )}
         </svg>
     );
 };
 
 export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn, setMonthName }) {
     const today = new Date();
-
     const [currentDate, setCurrentDate] = useState(today);
     const [selectedMonth, setSelectedMonth] = useState(getMonth(today));
     const [selectedYear, setSelectedYear] = useState(getYear(today));
@@ -241,19 +318,25 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
     const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
     const [serviceCall, setServiceCall] = useState(false);
-
+    const [currentTime, setCurrentTime] = useState(new Date());
     const attendanceMap = useMemo(() => {
         const map = {};
         if (!profile?.attendance) return map;
+
+        // Get date of joining from profile
+        const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
 
         // Map existing attendance
         Object.keys(profile.attendance).forEach(monthName => {
             profile.attendance[monthName].forEach(att => {
                 let workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
-                let status = determineStatus(att.checkIn, att.checkOut, att.leaveType, att.status);
+                let status = determineStatus(att.checkIn, att.checkOut, att.leaveType, att.status, att.date);
 
-                // Handle leave states
-                if (att.leaveType) {
+                // Handle leave states - check for approved half days first
+                if (att.status === "firstHalfApproved" || att.status === "secondHalfApproved") {
+                    // Status is already determined by determineStatus function
+                    // No need to override it here
+                } else if (att.leaveType) {
                     if (att.status === "pending") status = "leaveApplied";
                     else if (att.status === "approved") status = "leaveApproved";
                     else if (att.status === "rejected") status = "leaveRejected";
@@ -268,15 +351,18 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             });
         });
 
-        // Only mark absent for past dates in the current month
+        // Only mark absent for past dates in the current month that are after date of joining
         const todayStr = format(today, 'yyyy-MM-dd');
         allDays.forEach(day => {
             const dayStr = format(day, 'yyyy-MM-dd');
             const isPastOrToday = day <= today;
             const isCurrentMonth = getMonth(day) === getMonth(currentDate);
-            if (isPastOrToday && isCurrentMonth && !map[dayStr]) {
+            const isAfterJoining = dateOfJoining ? day >= dateOfJoining : true;
+
+            if (isPastOrToday && isCurrentMonth && !map[dayStr] && isAfterJoining) {
                 map[dayStr] = { status: 'absent', workingHours: 0 };
             }
+            // If date is before date of joining, don't mark as absent (leave it undefined)
         });
 
         return map;
@@ -385,6 +471,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         }
     };
 
+
     // Determine if today has leave applied
     const todayStr = format(today, 'yyyy-MM-dd');
     const todayAttendance = attendanceMap[todayStr];
@@ -395,8 +482,29 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
     // Update disabled states
     const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
-    const isCheckOutDisabled = !isCheckedIn || isTodaySunday || isTodayHoliday || isLeaveAppliedToday;
+    const hasWorkedEnough = useMemo(() => {
+        if (!todayAttendance?.checkIn) return false;
 
+        const [hours, minutes] = todayAttendance.checkIn.split(":").map(Number);
+        const checkInTime = set(new Date(), { hours, minutes, seconds: 0, milliseconds: 0 });
+        const diffMinutes = differenceInMinutes(currentTime, checkInTime);
+
+        return diffMinutes >= 255; // 4.25 hours = 255 minutes
+    }, [todayAttendance, currentTime]);
+
+    // ✅  Final disable condition
+    const isCheckOutDisabled =
+        !isCheckedIn ||
+        isTodaySunday ||
+        isTodayHoliday ||
+        isLeaveAppliedToday ||
+        !hasWorkedEnough;
+
+    // ✅ 6. Auto-refresh current time every minute
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <div className=" p-2 sm:p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
@@ -408,7 +516,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     disabled={isCheckInDisabled}
                     className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 >
-                    {isCheckedIn ? 'Already Checked In' : isBefore9AM() ? 'Check In (After 6 AM)' : 'Check In'}
+                    {isCheckedIn ? 'Already Checked In' : isBefore9AM() ? 'Check In (After 9 AM)' : 'Check In'}
                 </button>
                 <button
                     onClick={onCheckOut}
@@ -499,33 +607,42 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isTodayDate = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
                     const isCurrentMonth = getMonth(day) === getMonth(currentDate);
 
+                    // Check if date is before date of joining
+                    const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
+                    const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
+
                     // Determine status
                     let status = att?.status || null;
                     if (isSunday(day) && isCurrentMonth) status = 'sunday';
                     else if (isHoliday(day)) status = 'holiday';
+                    // If date is before joining, don't show any status
+                    else if (isBeforeJoining) status = null;
 
                     // Handle leave text/bg color
                     const isLeaveApplied = att?.status === 'leaveApplied';
                     const isLeaveApproved = att?.status === 'leaveApproved';
 
                     // Text color for the day number
-                    const dayTextColor = isLeaveApplied
-                        ? 'text-gray-600'             // leave applied → default/dimmed text
-                        : isLeaveApproved
-                            ? 'text-white'            // leave approved → text visible on colored bg
-                            : isCurrentMonth
-                                ? 'text-gray-900'     // normal current month
-                                : 'text-gray-400';    // other month dates
+                    const dayTextColor = isBeforeJoining
+                        ? 'text-gray-300'  // Light gray for dates before joining
+                        : isLeaveApplied
+                            ? 'text-gray-600'
+                            : isLeaveApproved
+                                ? 'text-white'
+                                : isCurrentMonth
+                                    ? 'text-gray-900'
+                                    : 'text-gray-400';
 
                     // Optional: background for approved leave
                     const dayBgColor = isLeaveApproved
-                        ? 'bg-purple-200 rounded-full'
+                        ? 'bg-[#e8d15dff] rounded-full'
                         : '';
 
                     return (
                         <div
                             key={i}
                             onClick={() => {
+                                if (isBeforeJoining) return; // Don't show popup for dates before joining
                                 setSelectedDate(day);
                                 setPopupData(att || {
                                     status: isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today') :
@@ -536,10 +653,18 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     workingHours: att?.workingHours || 0
                                 });
                             }}
-                            className={`relative w-10 h-10 flex items-center justify-center cursor-pointer rounded-full hover:ring-2 hover:ring-gray-300 transition ${dayBgColor}`}
-                            title={isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave Applied' : 'Today') : status === 'sunday' ? 'Sunday' : status === 'holiday' ? 'Holiday' : att ? att.status : 'No data'}
+                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition ${dayBgColor} ${isBeforeJoining ? 'cursor-not-allowed hover:ring-0' : 'border-none ring-none cursor-pointer hover:ring-2 hover:ring-gray-300'
+                                }`}
+                            title={isBeforeJoining ? '' :
+                                isTodayDate ? (att?.checkIn ? 'Checked In' : status === "approved" ? 'Leave Approved' : 'Today') :
+                                    status === 'sunday' ? 'Sunday' :
+                                        status === 'holiday' ? 'Holiday' :
+                                            att ? att.status : 'No data'}
                         >
-                            {!isTodayDate && <SplitCircle status={status} isToday={false} size={40} />}
+                            {!isTodayDate && !isBeforeJoining && <SplitCircle status={status} isToday={false} size={40} />}
+                            {isBeforeJoining && (
+                                <div className="absolute inset-0 bg-transparent"></div>
+                            )}
 
                             <span
                                 className={`absolute text-xs font-bold ${isTodayDate
@@ -559,27 +684,27 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Legend</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="today" size={16} />
+                        <SplitCircle status="today" size={16} isLegend={true} />
                         <span>Today</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="present" size={16} />
+                        <SplitCircle status="present" size={16} isLegend={true} />
                         <span>Present</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="absent" size={16} />
+                        <SplitCircle status="absent" size={16} isLegend={true} />
                         <span>Absent</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="leaveApproved" size={16} />
+                        <SplitCircle status="leaveApproved" size={16} isLegend={true} />
                         <span>Leave</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="holiday" size={16} />
+                        <SplitCircle status="holiday" size={16} isLegend={true} />
                         <span>Holiday</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <SplitCircle status="sunday" size={16} />
+                        <SplitCircle status="sunday" size={16} isLegend={true} />
                         <span>Sunday</span>
                     </div>
                 </div>
@@ -725,7 +850,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                     required
                                                 />
                                             </div>
-                                            <ComboBox title={"Leave Type"} data={["casual", "earned", "sick", "emergency"]} required={true} value={leaveRange.leaveType || ''}
+                                            <ComboBox title={"Leave Type"} data={["casual", "earned", "sick", "emergency", "first half", "second half"]} required={true} value={leaveRange.leaveType || ''}
                                                 onChange={(e) => setLeaveRange(prev => ({
                                                     ...prev,
                                                     leaveType: e
