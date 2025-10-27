@@ -33,7 +33,7 @@ export default function HomePage() {
     }
   };
 
-  if (!role) return <div>Loading...</div>;
+  if (!role) return <div className='min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-red-300'>Loading...</div>;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">

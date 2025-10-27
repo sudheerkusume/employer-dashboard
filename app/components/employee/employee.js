@@ -171,6 +171,7 @@ export default function EmployeeProfile({ employeesData }) {
                                 <input
                                     className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
                                     value={tempProfile.email || ""}
+                                    disabled={true}
                                     onChange={(e) =>
                                         setTempProfile({ ...tempProfile, email: e.target.value })
                                     }

@@ -376,7 +376,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     </p>
                     {paidLeaves > 0 && (
                         <p className="text-xs text-gray-500 mt-1">
-                            (Includes {paidLeaves} paid leave(s))
+                            (Includes {paidLeaves} paid leave)
                         </p>
                     )}
                 </div>

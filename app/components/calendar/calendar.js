@@ -4,7 +4,7 @@ import {
     format, addMonths, subMonths, startOfMonth, endOfMonth,
     startOfWeek, endOfWeek, eachDayOfInterval,
     getMonth, setMonth, getYear, setYear, isSunday,
-    set,
+    set, getDay,
     differenceInMinutes
 } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
@@ -401,76 +401,129 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const isTodayHoliday = isHoliday(today);
 
     const applyLeave = async () => {
+        // Step 1: Basic validations
         if (!leaveRange.start || !leaveRange.end || !leaveRange.leaveType) {
-            setRootContext((prevContext) => ({
-                ...prevContext,
+            setRootContext(prev => ({
+                ...prev,
                 toast: {
                     show: true,
                     dismiss: true,
                     type: "warning",
-                    title: "warning",
-                    message: 'Please fill all required fields',
+                    title: "Warning",
+                    message: "Please fill all required fields before applying for leave.",
                 },
             }));
+            return;
         }
-        setServiceCall(true)
+
+        // Step 2: Prevent leave on Monday or Saturday
+        const daysInRange = eachDayOfInterval({
+            start: leaveRange.start,
+            end: leaveRange.end,
+        });
+
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
+            return day === 1 || day === 6; // Block Monday (1) and Saturday (6)
+        });
+
+        if (invalidDays.length > 0) {
+            const invalidFormatted = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Leave Dates",
+                    message: `Leave cannot be applied on Monday or Saturday. Please remove: ${invalidFormatted}`,
+                },
+            }));
+            return; // ❌ Stop execution
+        }
+
+        // Step 3: Proceed to API call
+        setServiceCall(true);
         try {
-            const res = await fetch('/api/leave/apply', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const res = await fetch("/api/leave/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    employeeId: employeeId,
-                    startDate: format(leaveRange.start, 'yyyy-MM-dd'),
-                    endDate: format(leaveRange.end, 'yyyy-MM-dd'),
+                    employeeId,
+                    startDate: format(leaveRange.start, "yyyy-MM-dd"),
+                    endDate: format(leaveRange.end, "yyyy-MM-dd"),
                     leaveType: leaveRange.leaveType,
-                    reason: leaveRange.reason || ''
-                })
+                    reason: leaveRange.reason || "",
+                }),
             });
-            if (res.status) {
-                setServiceCall(false)
-            }
+
+            setServiceCall(false);
             const data = await res.json();
 
+            // Step 4: Show success or failure toast
             if (res.ok) {
-                setRootContext((prevContext) => ({
-                    ...prevContext,
+                setRootContext(prev => ({
+                    ...prev,
                     toast: {
                         show: true,
                         dismiss: true,
                         type: "success",
-                        title: "success",
-                        message: "Leave Applied successfully!",
+                        title: "Success",
+                        message: "Leave applied successfully!",
                     },
                 }));
                 handleCloseLeaveModal();
-                mutated();
+                mutated(); // refresh leave data
             } else {
-                setRootContext((prevContext) => ({
-                    ...prevContext,
+                setRootContext(prev => ({
+                    ...prev,
                     toast: {
                         show: true,
                         dismiss: true,
                         type: "error",
                         title: "Failed",
-                        message: `${data.error}` || 'Failed to apply leave',
+                        message: data.error || "Failed to apply leave.",
                     },
                 }));
             }
         } catch (err) {
-            console.error(err);
-            setRootContext((prevContext) => ({
-                ...prevContext,
+            console.error("Error applying leave:", err);
+            setServiceCall(false);
+            setRootContext(prev => ({
+                ...prev,
                 toast: {
                     show: true,
                     dismiss: true,
                     type: "error",
                     title: "Failed",
-                    message: 'Error applying leave',
+                    message: "An unexpected error occurred while applying leave.",
                 },
             }));
         }
     };
 
+    // Helper function to check if dates contain Monday or Saturday
+    const hasInvalidDays = (startDate, endDate) => {
+        if (!startDate || !endDate) return false;
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        return daysInRange.some(date => {
+            const day = getDay(date);
+            return day === 1 || day === 6; // Monday (1) or Saturday (6)
+        });
+    };
+
+    // Calculate if apply button should be disabled
+    const isApplyButtonDisabled =
+        !leaveRange.start ||
+        !leaveRange.end ||
+        !leaveRange.leaveType ||
+        hasInvalidDays(leaveRange.start, leaveRange.end) ||
+        serviceCall;
 
     // Determine if today has leave applied
     const todayStr = format(today, 'yyyy-MM-dd');
@@ -882,14 +935,21 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                         <div className="flex gap-2 pt-2">
                                             <button
                                                 onClick={applyLeave}
-                                                disabled={!leaveRange.start || !leaveRange.end || !leaveRange.leaveType}
-                                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                Submit Leave
+                                                {serviceCall ? (
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Applying...
+                                                    </div>
+                                                ) : (
+                                                    'Submit Leave'
+                                                )}
                                             </button>
                                             <button
                                                 onClick={handleCloseLeaveModal}
-                                                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+                                                disabled={serviceCall}
+                                                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition disabled:bg-gray-200 disabled:cursor-not-allowed"
                                             >
                                                 Cancel
                                             </button>

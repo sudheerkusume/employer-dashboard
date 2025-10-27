@@ -33,6 +33,12 @@ const employeeSchema = Joi.object({
         }),
 });
 
+const resetPasswordSchema = Joi.object({
+    email: Joi.string().email(),
+    mobile: Joi.string().pattern(/^[6-9]\d{9}$/),
+    newPassword: Joi.string().min(6).required(),
+}).xor("email", "mobile");
+
 export async function GET(req) {
     try {
         const client = await clientPromise;
@@ -101,9 +107,14 @@ export async function PUT(request) {
         const contentType = request.headers.get("content-type") || "";
         const parseJSON = (val) => { try { return JSON.parse(val); } catch { return val; } };
 
+        const client = await clientPromise;
+        const db = client.db(process.env.MONGODB_DBNAME);
+        const employeesCollection = db.collection("employees");
+
         let id;
         let updateFields = {};
 
+        // 🔹 Case 1: Handle multipart form data (profile updates, image upload)
         if (contentType.includes("multipart/form-data")) {
             const formData = await request.formData();
             id = formData.get("id");
@@ -119,11 +130,10 @@ export async function PUT(request) {
             updateFields.education = parseJSON(formData.get("education")) || [];
             updateFields.attendance = parseJSON(formData.get("attendance")) || {};
 
+            // Handle profile image upload
             const file = formData.get("image");
             if (file && file.size > 0) {
                 const buffer = Buffer.from(await file.arrayBuffer());
-
-                // Upload to Cloudinary
                 const result = await new Promise((resolve, reject) => {
                     const uploadStream = cloudinary.uploader.upload_stream(
                         { folder: "employees" },
@@ -131,29 +141,60 @@ export async function PUT(request) {
                     );
                     uploadStream.end(buffer);
                 });
-
-                updateFields.profileImage = result.secure_url; // Cloud URL
+                updateFields.profileImage = result.secure_url;
             }
 
-        } else {
-            // JSON body
-            const body = await request.json();
-            id = body.id;
-            updateFields = body;
+            updateFields.modified_on = new Date();
+
+            const result = await employeesCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: updateFields }
+            );
+
+            if (result.matchedCount === 0)
+                return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
+
+            return new Response(JSON.stringify({ success: true, updatedFields: updateFields }), { status: 200 });
         }
 
-        updateFields.modified_on = new Date();
+        // 🔹 Case 2: Handle JSON body (including password reset)
+        const body = await request.json();
 
-        const client = await clientPromise;
-        const db = client.db(process.env.MONGODB_DBNAME);
-        const employeesCollection = db.collection("employees");
+        // ✅ Check if this is a password reset request
+        if (body.newPassword && (body.email || body.mobile)) {
+            const { error, value } = resetPasswordSchema.validate(body);
+            if (error)
+                return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
+
+            const query = {};
+            if (value.email) query.email = value.email;
+            if (value.mobile) query.mobile = value.mobile;
+
+            const existingUser = await employeesCollection.findOne(query);
+            if (!existingUser)
+                return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
+
+            const result = await employeesCollection.updateOne(
+                { _id: existingUser._id },
+                { $set: { password: value.newPassword, modified_on: new Date() } }
+            );
+
+            return new Response(JSON.stringify({ success: true, message: "Password reset successful" }), { status: 200 });
+        }
+
+        // 🔹 Otherwise, it's a normal update request
+        id = body.id;
+        if (!id) return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
+
+        updateFields = { ...body, modified_on: new Date() };
 
         const result = await employeesCollection.updateOne(
             { _id: new ObjectId(id) },
             { $set: updateFields }
         );
 
-        if (result.matchedCount === 0) return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
+        if (result.matchedCount === 0)
+            return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
         return new Response(JSON.stringify({ success: true, updatedFields: updateFields }), { status: 200 });
     } catch (err) {

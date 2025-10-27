@@ -1,6 +1,6 @@
 import { MongoClient, ObjectId } from "mongodb";
 import Joi from "joi";
-import { eachDayOfInterval, format } from "date-fns";
+import { eachDayOfInterval, format, getDay } from "date-fns";
 
 // --- MongoDB Connection ---
 const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/yourdb";
@@ -33,7 +33,8 @@ export async function POST(request) {
 
         // Validate request body
         const { error, value } = leaveApplySchema.validate(body);
-        if (error) return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
+        if (error)
+            return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
 
         const { employeeId, startDate, endDate, leaveType, reason } = value;
         const db = await connectDB();
@@ -41,11 +42,33 @@ export async function POST(request) {
 
         // Find employee
         const employee = await employees.findOne({ _id: new ObjectId(employeeId) });
-        if (!employee) return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
+        if (!employee)
+            return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
-        // Generate leave dates
-        const leaveDates = eachDayOfInterval({ start: new Date(startDate), end: new Date(endDate) })
-            .map(d => format(d, "yyyy-MM-dd"));
+        // --- Generate all dates in the leave range ---
+        const leaveDates = eachDayOfInterval({
+            start: new Date(startDate),
+            end: new Date(endDate),
+        }).map(d => format(d, "yyyy-MM-dd"));
+
+        // --- 🚫 Block ALL Mondays (1) and Saturdays (6) ---
+        const invalidDays = eachDayOfInterval({
+            start: new Date(startDate),
+            end: new Date(endDate),
+        }).filter(date => {
+            const day = getDay(date); // Sunday = 0, Monday = 1, ..., Saturday = 6
+            return day === 1 || day === 6;
+        });
+
+        if (invalidDays.length > 0) {
+            const formatted = invalidDays.map(d => format(d, "EEE dd MMM yyyy")).join(", ");
+            return new Response(
+                JSON.stringify({
+                    error: `Leave cannot be applied on Mondays or Saturdays. Invalid dates: ${formatted}`,
+                }),
+                { status: 400 }
+            );
+        }
 
         // --- Check if any leave already exists for these dates ---
         const existingDates = [];
@@ -66,7 +89,7 @@ export async function POST(request) {
             );
         }
 
-        // Group by month
+        // --- Group by month ---
         const groupedByMonth = {};
         leaveDates.forEach(d => {
             const month = new Date(d).toLocaleString("default", { month: "long" });
@@ -74,13 +97,11 @@ export async function POST(request) {
             groupedByMonth[month].push(d);
         });
 
-        // Add leave to employee attendance
-        // Add leave to employee attendance
+        // --- Add leave entries to employee attendance ---
         for (const [monthName, dates] of Object.entries(groupedByMonth)) {
-            for (const [index, date] of dates.entries()) {
+            for (const date of dates) {
                 let leaveEntry;
 
-                // For single-day half-day leave
                 if (leaveType === "first half") {
                     leaveEntry = {
                         date,
@@ -98,7 +119,6 @@ export async function POST(request) {
                         markedOn: new Date().toISOString(),
                     };
                 } else {
-                    // Full-day leave
                     leaveEntry = {
                         date,
                         status: "pending",
@@ -115,8 +135,7 @@ export async function POST(request) {
             }
         }
 
-
-        // Assign to reporting manager
+        // --- Assign leave to reporting manager ---
         if (["employee", "hr"].includes(employee.role) && employee.reportingId) {
             const managerId = new ObjectId(employee.reportingId);
             const leaveRecord = {
@@ -133,9 +152,9 @@ export async function POST(request) {
             };
 
             const manager = await employees.findOne({ _id: managerId });
-            if (!manager) return new Response(JSON.stringify({ error: "Reporting manager not found" }), { status: 404 });
+            if (!manager)
+                return new Response(JSON.stringify({ error: "Reporting manager not found" }), { status: 404 });
 
-            // Ensure arrays exist
             const updateFields = {};
             if (!Array.isArray(manager.pendingLeaves)) updateFields.pendingLeaves = [];
             if (!Array.isArray(manager.leaves)) updateFields.leaves = [];
@@ -144,18 +163,19 @@ export async function POST(request) {
                 await employees.updateOne({ _id: managerId }, { $set: updateFields });
             }
 
-            // Push leave record
             await employees.updateOne(
                 { _id: managerId },
                 { $push: { pendingLeaves: leaveRecord, leaves: leaveRecord } }
             );
         }
 
-        return new Response(JSON.stringify({
-            success: true,
-            message: `Leave from ${startDate} to ${endDate} applied and added to manager's record.`
-        }), { status: 200 });
-
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: `Leave from ${startDate} to ${endDate} applied successfully and added to manager's record.`,
+            }),
+            { status: 200 }
+        );
     } catch (err) {
         console.error("❌ Error applying leave:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
