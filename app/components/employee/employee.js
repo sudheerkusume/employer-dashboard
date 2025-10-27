@@ -11,6 +11,7 @@ import RootContext from "../config/rootcontext";
 import { Mutated } from "../config/useswrfetch";
 import Loading from "../common/loading";
 import { formatDateTime } from "../config/sitesettings";
+import { useRouter } from "next/navigation";
 
 const tabs = [
     { name: "About Me", component: AboutMe },
@@ -105,12 +106,13 @@ export default function EmployeeProfile({ employeesData }) {
             setServiceCall(false);
         }
     };
-
+    const router = useRouter();
     const logOut = () => {
         localStorage.clear();
         let resp = rootContext;
         resp.authenticated = false;
         setRootContext({ ...resp });
+        router.push("/")
     };
 
     return (

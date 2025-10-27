@@ -6,6 +6,7 @@ import { parse, differenceInMinutes, eachDayOfInterval, startOfMonth, endOfMonth
 import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import RootContext from "@/app/components/config/rootcontext";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboard({ currentUserRole }) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -62,16 +63,18 @@ export default function AdminDashboard({ currentUserRole }) {
     return { totalWorkingDays, totalPresent };
   };
 
+  const router = useRouter();
   const logOut = () => {
     localStorage.clear();
     let resp = rootContext;
     resp.authenticated = false;
     setRootContext({ ...resp });
+    router.push("/")
   };
 
   if (error) { return <Error /> }
   return (
-    <div className="space-y-6 p-6 w-full">
+    <div className="space-y-6 p-6 w-full bg-white">
       {isLoading && <Loading />}
 
       <div className="absolute top-4 right-4">
@@ -101,7 +104,7 @@ export default function AdminDashboard({ currentUserRole }) {
             .toString()
             .padStart(2, "0")}`}
           onChange={(e) => setSelectedMonth(new Date(e.target.value))}
-          className="p-2 border border-gray-300 rounded-md focus:ring-gray-500 focus:border-gray-500"
+          className="p-2 border border-gray-300 text-gray-800 rounded-md focus:ring-gray-500 focus:border-gray-500"
         />
       </div>
 

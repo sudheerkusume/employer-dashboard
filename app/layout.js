@@ -1,11 +1,10 @@
-'use client'
+'use client';
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
-
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,28 +27,45 @@ export default function RootLayout({ children }) {
       token: "",
       isAdmin: "",
     },
-    active: 'all',
+    active: "all",
     toast: {
       show: false,
       dismiss: true,
-      type: '',
-      title: '',
-      message: ''
-    }
+      type: "",
+      title: "",
+      message: "",
+    },
   });
 
-  // ✅ Check localStorage for user details
+  const [accessDenied, setAccessDenied] = useState(false);
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
+
     if (storedUser) {
-      setRootContext(prev => ({
+      const userData = JSON.parse(storedUser);
+      const role = userData?.role?.toLowerCase();
+      const path = pathname.toLowerCase();
+
+      setRootContext((prev) => ({
         ...prev,
         authenticated: true,
         loader: false,
-        user: JSON.parse(storedUser),
+        user: userData,
       }));
+
+      // 🚫 Role-based access control
+      if (
+        (role === "admin" && (path.includes("/dashboard/employee") || path.includes("/dashboard/manager"))) ||
+        (role === "employee" && (path.includes("/dashboard/admin") || path.includes("/dashboard/manager"))) ||
+        (role === "manager" && (path.includes("/dashboard/admin") || path.includes("/dashboard/employee")))
+      ) {
+        setAccessDenied(true);
+      } else {
+        setAccessDenied(false);
+      }
     } else {
-      setRootContext(prev => ({ ...prev, loader: false }));
+      setRootContext((prev) => ({ ...prev, loader: false }));
       if (!pathname.startsWith("/login")) {
         router.push("/login");
       }
@@ -60,7 +76,19 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
-          {children}
+          {accessDenied ? (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 text-gray-800">
+              <div className="text-center p-6 bg-white rounded-lg shadow-lg">
+                <h1 className="text-3xl font-bold mb-3">Access Denied</h1>
+                <p className="text-gray-600">
+                  You don’t have permission to view this page.
+                </p>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
+
           {rootContext?.toast?.show && <Toast />}
         </RootContext.Provider>
       </body>

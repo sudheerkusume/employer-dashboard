@@ -7,6 +7,7 @@ import ManagerProfile from "@/app/components/manager/manager";
 import RootContext from "@/app/components/config/rootcontext";
 import { formatDateTime } from "@/app/components/config/sitesettings";
 import { parse, differenceInMinutes } from "date-fns";
+import { useRouter } from "next/navigation";
 
 
 export default function ManagerDashboard() {
@@ -91,15 +92,17 @@ export default function ManagerDashboard() {
 
   const pendingLeaves = data?.pendingLeaves || [];
 
+  const router = useRouter();
   const logOut = () => {
     localStorage.clear();
     let resp = rootContext;
     resp.authenticated = false;
     setRootContext({ ...resp });
+    router.push("/")
   };
 
   return (
-    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">      
+    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">
       {serviceCall && <Loading />}
       <div className="flex justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Manager Dashboard</h1>
