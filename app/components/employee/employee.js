@@ -24,7 +24,7 @@ export default function EmployeeProfile({ employeesData }) {
     const [activeTab, setActiveTab] = useState(0);
     const [profile, setProfile] = useState({
         name: "",
-        email: "",
+        panNumber: "",
         profileImage: "",
         summary: "",
         password: "",
@@ -38,6 +38,7 @@ export default function EmployeeProfile({ employeesData }) {
     const [serviceCall, setServiceCall] = useState(false);
     const [previewImage, setPreviewImage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [disabled, setDisabled] = useState(false);
     const router = useRouter();
     const { rootContext, setRootContext } = useContext(RootContext);
 
@@ -75,7 +76,7 @@ export default function EmployeeProfile({ employeesData }) {
             const formData = new FormData();
             formData.append("id", employeeID);
             formData.append("name", tempProfile.name || "");
-            formData.append("email", tempProfile.email || "");
+            formData.append("panNumber", tempProfile.panNumber || "");
             formData.append("role", role);
             if (tempProfile.password) formData.append("password", tempProfile.password);
             if (tempProfile.summary) formData.append("summary", tempProfile.summary);
@@ -169,11 +170,10 @@ export default function EmployeeProfile({ employeesData }) {
                                     }
                                 />
                                 <input
-                                    className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                    value={tempProfile.email || ""}
-                                    disabled={true}
+                                    className={`w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500`}
+                                    value={tempProfile.panNumber || ""}
                                     onChange={(e) =>
-                                        setTempProfile({ ...tempProfile, email: e.target.value })
+                                        setTempProfile({ ...tempProfile, panNumber: e.target.value })
                                     }
                                 />
                                 <div className="relative">
@@ -215,12 +215,16 @@ export default function EmployeeProfile({ employeesData }) {
                         ) : (
                             <div>
                                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{profile.name}</h2>
+                                <p className="text-xs sm:text-sm text-gray-500">Pan Number: {profile.panNumber}</p>
                                 <p className="text-xs sm:text-sm text-gray-500">Email: {profile.email}</p>
                                 <p className="text-xs sm:text-sm text-gray-500">
-                                    Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}
+                                    Emloyee Code: {profile?.employeeCode}
                                 </p>
                                 <p className="text-xs sm:text-sm text-gray-500">
-                                    Date of Birth: {formatDateTime(profile.dateOfbirth, "DD-MM-YYYY")}
+                                    Designation: {profile?.designation}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-500">
+                                    Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}
                                 </p>
                             </div>
                         )}
@@ -230,6 +234,7 @@ export default function EmployeeProfile({ employeesData }) {
                                     setEditingHeader(true);
                                     setTempProfile(profile);
                                     setShowPassword(false);
+                                    setDisabled(true)
                                 }}
                                 className="text-gray-600 hover:text-gray-900 mt-2 sm:mt-0"
                             >

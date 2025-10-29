@@ -31,6 +31,9 @@ const employeeSchema = Joi.object({
         .messages({
             "string.pattern.base": "Mobile number must be between 10 to 15 digits",
         }),
+    department: Joi.string().required(),
+    designation: Joi.string().required(),
+    ctc: Joi.string().required(),
 });
 
 const resetPasswordSchema = Joi.object({
@@ -77,28 +80,84 @@ export async function GET(req) {
     }
 }
 
-export async function POST(req) {
+// --- Generate next Employee Code based on department ---
+function generateNextCode(latestNum, department) {
+    let prefix = "REZ"; // Default
+    switch ((department || "").toLowerCase()) {
+        case "tech":
+            prefix = "REZT";
+            break;
+        case "sales":
+            prefix = "REZS";
+            break;
+        case "admin":
+            prefix = "REZA";
+            break;
+        default:
+            prefix = "REZ";
+    }
+
+    const nextNum = (latestNum || 0) + 1;
+    return `${prefix}${String(nextNum).padStart(3, "0")}`;
+}
+
+export async function POST(request) {
     try {
-        const client = await clientPromise;
-        const db = client.db(process.env.MONGODB_DBNAME);
-        const employeesCollection = db.collection("employees");
+        const body = await request.json();
 
-        const body = await req.json();
+        // ✅ Validate body
         const { error, value } = employeeSchema.validate(body);
-
         if (error)
-            return Response.json({ error: error.details[0].message }, { status: 400 });
+            return new Response(JSON.stringify({ error: error.details[0].message }), {
+                status: 400,
+            });
 
-        // ✅ Only check email
-        const exists = await employeesCollection.findOne({ email: value.email });
-        if (exists)
-            return Response.json({ error: "Employee with this email already exists" }, { status: 400 });
+        const db = await connectDB();
+        const employees = db.collection("employees");
 
-        const result = await employeesCollection.insertOne(value);
-        return Response.json({ success: true, employee: value, insertedId: result.insertedId });
+        // --- Find the latest cumulative numeric part across all departments ---
+        const latestEmployee = await employees
+            .find({ employeeCode: { $exists: true } })
+            .sort({ createdAt: -1 }) // or by code if codes are consistent
+            .limit(1)
+            .toArray();
+
+        let latestNum = 0;
+        if (latestEmployee.length && latestEmployee[0].employeeCode) {
+            const match = latestEmployee[0].employeeCode.match(/(\d{3})$/);
+            if (match) latestNum = parseInt(match[1], 10);
+        }
+
+        // --- Generate department-based prefix + cumulative numeric code ---
+        const newCode = generateNextCode(latestNum, value.department);
+
+        // --- Build new employee data ---
+        const newEmployee = {
+            ...value,
+            employeeCode: newCode,
+            createdAt: new Date(),
+            modified_on: new Date(),
+            attendance: {},
+            accountDetails: {}, // 👈 Empty object for future use
+        };
+
+        // --- Insert into DB ---
+        const result = await employees.insertOne(newEmployee);
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: `Employee ${newCode} added successfully.`,
+                employeeCode: newCode,
+                insertedId: result.insertedId,
+            }),
+            { status: 201 }
+        );
     } catch (err) {
-        console.error("POST /api/employees error:", err);
-        return Response.json({ error: err.message }, { status: 500 });
+        console.error("❌ Error adding employee:", err);
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+        });
     }
 }
 
@@ -114,30 +173,44 @@ export async function PUT(request) {
         let id;
         let updateFields = {};
 
-        // 🔹 Case 1: Handle multipart form data (profile updates, image upload)
+        // 🔹 Case 1: Handle multipart form data (profile updates + image + account details)
         if (contentType.includes("multipart/form-data")) {
             const formData = await request.formData();
             id = formData.get("id");
-            if (!id) return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
+            if (!id)
+                return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
 
             // Text fields
-            for (const key of ["name", "email", "password", "role", "summary"]) {
+            for (const key of ["name", "panNumber", "password", "role", "summary"]) {
                 const value = formData.get(key);
                 if (value) updateFields[key] = value;
             }
 
+            // Parse structured data
             updateFields.experience = parseJSON(formData.get("experience")) || [];
             updateFields.education = parseJSON(formData.get("education")) || [];
             updateFields.attendance = parseJSON(formData.get("attendance")) || {};
 
-            // Handle profile image upload
+            // 🔹 Handle Account Details (if provided)
+            const accountDetails = {
+                accountNumber: formData.get("accountNumber") || "",
+                ifscCode: formData.get("ifscCode") || "",
+                branch: formData.get("branch") || "",
+                accountHolderName: formData.get("accountHolderName") || "",
+            };
+
+            // Only set if any value exists
+            if (Object.values(accountDetails).some((val) => val))
+                updateFields.accountDetails = accountDetails;
+
+            // 🔹 Handle profile image upload
             const file = formData.get("image");
             if (file && file.size > 0) {
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const result = await new Promise((resolve, reject) => {
                     const uploadStream = cloudinary.uploader.upload_stream(
                         { folder: "employees" },
-                        (err, res) => err ? reject(err) : resolve(res)
+                        (err, res) => (err ? reject(err) : resolve(res))
                     );
                     uploadStream.end(buffer);
                 });
@@ -157,10 +230,10 @@ export async function PUT(request) {
             return new Response(JSON.stringify({ success: true, updatedFields: updateFields }), { status: 200 });
         }
 
-        // 🔹 Case 2: Handle JSON body (including password reset)
+        // 🔹 Case 2: Handle JSON body (normal or password reset)
         const body = await request.json();
 
-        // ✅ Check if this is a password reset request
+        // ✅ Password reset logic
         if (body.newPassword && (body.email || body.mobile)) {
             const { error, value } = resetPasswordSchema.validate(body);
             if (error)
@@ -174,7 +247,7 @@ export async function PUT(request) {
             if (!existingUser)
                 return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
-            const result = await employeesCollection.updateOne(
+            await employeesCollection.updateOne(
                 { _id: existingUser._id },
                 { $set: { password: value.newPassword, modified_on: new Date() } }
             );
@@ -182,11 +255,22 @@ export async function PUT(request) {
             return new Response(JSON.stringify({ success: true, message: "Password reset successful" }), { status: 200 });
         }
 
-        // 🔹 Otherwise, it's a normal update request
+        // 🔹 Normal JSON update request
         id = body.id;
-        if (!id) return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
+        if (!id)
+            return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
 
         updateFields = { ...body, modified_on: new Date() };
+
+        // 🔹 Handle Account Details from JSON
+        if (body.accountDetails) {
+            updateFields.accountDetails = {
+                accountNumber: body.accountDetails.accountNumber || "",
+                ifscCode: body.accountDetails.ifscCode || "",
+                branch: body.accountDetails.branch || "",
+                accountHolderName: body.accountDetails.accountHolderName || "",
+            };
+        }
 
         const result = await employeesCollection.updateOne(
             { _id: new ObjectId(id) },
@@ -202,7 +286,6 @@ export async function PUT(request) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
-
 
 export async function DELETE(req) {
     try {

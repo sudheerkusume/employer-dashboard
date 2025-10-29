@@ -15,6 +15,9 @@ export default function AddEmployeeForm({ currentUserRole }) {
         dateOfJoining: "",
         dateOfBirth: "",
         gender: "male",
+        designation: "",
+        department: "",
+        ctc: ""
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
@@ -45,6 +48,8 @@ export default function AddEmployeeForm({ currentUserRole }) {
                 dateOfJoining: form.dateOfJoining,
                 dateOfBirth: form.dateOfBirth,
                 gender: form.gender,
+                designation: form.designation,
+                ctc: form.ctc,
                 currentUserRole,
             };
 
@@ -66,6 +71,8 @@ export default function AddEmployeeForm({ currentUserRole }) {
                     dateOfJoining: "",
                     dateOfBirth: "",
                     gender: "male",
+                    designation: "",
+                    ctc: ""
                 });
                 setRootContext((prev) => ({
                     ...prev,
@@ -105,6 +112,10 @@ export default function AddEmployeeForm({ currentUserRole }) {
 
     const handleGenderChange = (selectedGender) => {
         setForm({ ...form, gender: selectedGender });
+    };
+
+    const handleDeptChange = (selectedValue) => {
+        setForm({ ...form, department: selectedValue });
     };
 
     return (
@@ -165,7 +176,13 @@ export default function AddEmployeeForm({ currentUserRole }) {
                     value={form.role}
                     onChange={handleRoleChange}
                 />
-
+                <ComboBox
+                    title={"Deportment"}
+                    data={["admin", "sales", "tech"]}
+                    required={true}
+                    value={form.department}
+                    onChange={handleDeptChange}
+                />
                 {/* Reporting Manager */}
                 <ComboBox
                     title={"Reporting Manager"}
@@ -175,7 +192,6 @@ export default function AddEmployeeForm({ currentUserRole }) {
                     value={form.manager}
                     onChange={handleManagerChange}
                 />
-
                 {/* Gender */}
                 <ComboBox
                     title={"Gender"}
@@ -184,6 +200,31 @@ export default function AddEmployeeForm({ currentUserRole }) {
                     value={form.gender}
                     onChange={handleGenderChange}
                 />
+                <div>
+                    <label className="block text-gray-700 font-medium mb-1">Designation</label>
+                    <input
+                        name="designation"
+                        type="text"
+                        value={form.designation}
+                        onChange={handleChange}
+                        placeholder="Enter Designation"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-gray-700 font-medium mb-1">CTC</label>
+                    <input
+                        name="ctc"
+                        type="text"
+                        value={form.ctc}
+                        onChange={handleChange}
+                        placeholder="Enter CTC"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500"
+                        required
+                    />
+                </div>
 
                 {/* Date of Joining */}
                 <div>

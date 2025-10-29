@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Mutated } from '../config/useswrfetch';
 import RootContext from '../config/rootcontext';
+import Loading from '../common/loading';
 
 const dummyLogos = [
     'https://placehold.co/48x48/F0F0F0/000000?text=Google',
@@ -30,12 +31,35 @@ export default function AboutMe({ profile }) {
     const { setRootContext } = useContext(RootContext);
     // Global state to disable other actions when one is in progress
     const [isAddingOrEditing, setIsAddingOrEditing] = useState(false);
+    // Account Details State
+    const [accountDetails, setAccountDetails] = useState(profile.accountDetails || {});
+    const [tempAccount, setTempAccount] = useState({ accountHolderName: '', accountNumber: '', ifscCode: '', branch: '' });
+    const [editingAccount, setEditingAccount] = useState(false);
+    const [serviceCall, setServiceCall] = useState(false);
+    const handleSaveAccount = async () => {
+        const success = await updateProfile({ accountDetails: tempAccount });
+        if (success) {
+            setAccountDetails(tempAccount);
+            setEditingAccount(false);
+        }
+    };
+
+    const handleCancelAccount = () => {
+        setEditingAccount(false);
+        setTempAccount(accountDetails);
+    };
 
     // Effect to update states when profile prop changes
     useEffect(() => {
         setSummary(profile.summary || 'Write a brief summary about yourself, your skills, and your professional goals.');
         setExperience(profile.experience || []);
         setEducation(profile.education || []);
+        setTempAccount({
+            accountHolderName: profile?.accountDetails?.accountHolderName || '',
+            accountNumber: profile?.accountDetails?.accountNumber || '',
+            ifscCode: profile?.accountDetails?.ifscCode || '',
+            branch: profile?.accountDetails?.branch || ''
+        })
     }, [profile]);
 
     // Effect to manage the global adding/editing state
@@ -53,6 +77,7 @@ export default function AboutMe({ profile }) {
 
     // Generic update function
     const updateProfile = async (updateData) => {
+        setServiceCall(true)
         try {
             const res = await fetch(`/api/employees`, {
                 method: 'PUT',
@@ -65,9 +90,21 @@ export default function AboutMe({ profile }) {
             });
 
             const data = await res.json();
-
+            if (res.status) {
+                setServiceCall(false)
+            }
             if (res.ok) {
                 mutated();
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: `Success`,
+                        message: `Details Added Successfully`,
+                    },
+                }));
                 return true;
             } else {
                 setRootContext((prevContext) => ({
@@ -225,6 +262,7 @@ export default function AboutMe({ profile }) {
 
     return (
         <div className="px-4 py-8 space-y-8 md:space-y-10 text-gary-700">
+            {serviceCall && <Loading />}
             {/* Summary Section */}
             <section className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-start mb-4">
@@ -271,6 +309,95 @@ export default function AboutMe({ profile }) {
                     <p className="text-base text-gray-700 leading-relaxed whitespace-pre-line">
                         {summary}
                     </p>
+                )}
+            </section>
+
+            {/* Account Details Section */}
+            <section className="bg-white rounded-xl p-6 text-gray-800 shadow-lg border border-gray-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-800">ACCOUNT DETAILS</h3>
+                    {!editingAccount ? (
+                        <button
+                            onClick={() => {
+                                setEditingAccount(true);
+                                setTempAccount(accountDetails || { accountHolderName: '', accountNumber: '', ifscCode: '', branch: '' });
+                            }}
+                            className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                            aria-label="Edit account details"
+                            disabled={isAddingOrEditing}
+                        >
+                            <PencilIcon className="w-5 h-5" />
+                        </button>
+                    ) : null}
+                </div>
+
+                {editingAccount ? (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+                                <input
+                                    type="text"
+                                    value={tempAccount.accountHolderName || ""}
+                                    onChange={(e) => setTempAccount({ ...tempAccount, accountHolderName: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Enter Account Holder Name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                                <input
+                                    type="text"
+                                    value={tempAccount.accountNumber || ""}
+                                    onChange={(e) => setTempAccount({ ...tempAccount, accountNumber: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g. 1234567890"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                                <input
+                                    type="text"
+                                    value={tempAccount.ifscCode || ""}
+                                    onChange={(e) => setTempAccount({ ...tempAccount, ifscCode: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g. HDFC0001234"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                                <input
+                                    type="text"
+                                    value={tempAccount.branch || ""}
+                                    onChange={(e) => setTempAccount({ ...tempAccount, branch: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g. Banjara Hills"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3 mt-4">
+                            <button
+                                onClick={handleSaveAccount}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md"
+                            >
+                                Save
+                            </button>
+                            <button
+                                onClick={handleCancelAccount}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors duration-200"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                        <p><span className="font-semibold">Account Holder Name:</span> {profile?.accountDetails?.accountHolderName || '-'}</p>
+                        <p><span className="font-semibold">Account Number:</span> {profile?.accountDetails?.accountNumber || '-'}</p>
+                        <p><span className="font-semibold">IFSC Code:</span> {profile?.accountDetails?.ifscCode || '-'}</p>
+                        <p><span className="font-semibold">Branch:</span> {profile?.accountDetails?.branch || '-'}</p>
+                    </div>
                 )}
             </section>
 

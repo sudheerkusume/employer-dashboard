@@ -136,7 +136,7 @@ export async function POST(request) {
         }
 
         // --- Assign leave to reporting manager ---
-        if (["employee", "hr"].includes(employee.role) && employee.reportingId) {
+        if (["employee", "manager"].includes(employee.role) && employee.reportingId) {
             const managerId = new ObjectId(employee.reportingId);
             const leaveRecord = {
                 _id: new ObjectId(),

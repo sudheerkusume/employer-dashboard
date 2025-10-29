@@ -104,7 +104,7 @@ export default function Attendance({ profile }) {
                         dismiss: true,
                         type: "success",
                         title: `success`,
-                        message: "Check-in Success",
+                        message: `At ${now} Check-in Success`,
                     },
                 }));
             } else {
@@ -128,7 +128,7 @@ export default function Attendance({ profile }) {
                     dismiss: true,
                     type: "error",
                     title: `Failed`,
-                    message: `"Failed to check in"` || "Check-in failed",
+                    message: `Failed to check in` || "Check-in failed",
                 },
             }));
         }
@@ -208,7 +208,7 @@ export default function Attendance({ profile }) {
                     dismiss: true,
                     type: "error",
                     title: `Failed`,
-                    message: `"Failed to check Out"` || "Check-Out failed",
+                    message: `Failed to check Out` || "Check-Out failed",
                 },
             }));
         }

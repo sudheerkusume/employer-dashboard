@@ -115,13 +115,11 @@ const CODE_OF_CONDUCT = `
 
 function mdToHtml(md) {
     return md
-        .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-semibold mt-6">$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2 class="text-xl font-medium mt-4">$1</h2>')
-        .replace(/^### (.*$)/gim, '<h3 class="text-lg font-medium mt-3">$1</h3>')
-        .replace(/\n\n/g, '<p class="mt-2">')
-        .replace(/\n/g, '<br/>')
-        .replace(/\*\- /g, '<li>')
-        .replace(/\n\- /g, '<li>');
+        .replace(/^# (.*$)/gim, '<h1 class="text-2xl sm:text-3xl font-semibold mt-6">$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2 class="text-xl sm:text-2xl font-medium mt-4">$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3 class="text-lg sm:text-xl font-medium mt-3">$1</h3>')
+        .replace(/\n\n/g, '<p class="mt-2 text-sm sm:text-base leading-relaxed">')
+        .replace(/\n/g, '<br/>');
 }
 
 export default function HRPolicy() {
@@ -136,38 +134,31 @@ export default function HRPolicy() {
     };
 
     return (
-        <main className="min-h-screen bg-white w-full p-6 text-gray-900">
-            <div className="max-w-6xl mx-auto">
-                <header className="flex items-center justify-between mb-6">
+        <main className="min-h-screen w-full bg-gradient-to-b from-white via-gray-50 to-white sm:p-6 text-gray-900">
+            <div className="w-full sm:max-w-6xl mx-auto space-y-8">
+                {/* Header */}
+                <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
                     <div>
-                        <h1 className="text-3xl font-bold">Company Policies</h1>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <h1 className="text-2xl sm:text-3xl font-bold">Company Policies</h1>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
                             HR Policy • Terms & Conditions • Code of Conduct
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => downloadFile('HR_POLICY.md', HR_POLICY)}
-                            className="px-4 py-2 rounded-md border bg-white/80 hover:bg-white/90 shadow-sm text-sm"
-                        >
+                    <div className="flex flex-wrap gap-2">
+                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
                             Download HR Policy
                         </button>
-                        <button
-                            onClick={() => downloadFile('TERMS_AND_CONDITIONS.md', TERMS)}
-                            className="px-4 py-2 rounded-md border bg-white/80 hover:bg-white/90 shadow-sm text-sm"
-                        >
+                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
                             Download T&C
                         </button>
-                        <button
-                            onClick={() => downloadFile('CODE_OF_CONDUCT.md', CODE_OF_CONDUCT)}
-                            className="px-4 py-2 rounded-md border bg-white/80 hover:bg-white/90 shadow-sm text-sm"
-                        >
+                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
                             Download Code of Conduct
                         </button>
                     </div>
                 </header>
 
-                <section className="space-y-10 bg-white/60 p-6 rounded-2xl shadow">
+                {/* Policy Content */}
+                <section className="bg-white/70 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow space-y-10">
                     <article id="hr-policy" className="prose max-w-none">
                         <div dangerouslySetInnerHTML={{ __html: mdToHtml(HR_POLICY) }} />
                     </article>
@@ -181,9 +172,10 @@ export default function HRPolicy() {
                     </article>
                 </section>
 
-                <footer className="mt-8 text-sm text-gray-600">
+                {/* Footer */}
+                <footer className="text-xs sm:text-sm text-gray-600 text-center mt-10">
                     <p>Last updated: {new Date().toLocaleDateString()}</p>
-                    <p className="mt-2">
+                    <p className="mt-1">
                         Need changes? Update the content constants at the top of this file to customize any section.
                     </p>
                 </footer>
