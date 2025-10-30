@@ -1,12 +1,49 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { generatePDF } from "./payslippdf";
 
 export default function PayslipCard({ payslip }) {
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth(); // 0 = Jan
+    const currentYear = today.getFullYear();
+
+    // Parse payslip date
+    const payslipDate = new Date(`${payslip.month} 1, ${payslip.year}`);
+    const payslipMonth = payslipDate.getMonth();
+    const payslipYear = payslipDate.getFullYear();
+
+    // Determine if payslip is for last month
+    const isPreviousMonth =
+        (currentMonth === payslipMonth + 1 && currentYear === payslipYear) ||
+        (currentMonth === 0 && payslipMonth === 11 && currentYear === payslipYear + 1);
+
+    // ✅ Show payslip if:
+    // - It’s NOT the immediate previous month → always show
+    // - If it IS the immediate previous month → show only if today >= 6
+    const shouldShow = !isPreviousMonth || (isPreviousMonth && currentDay >= 6);
+
+    if (!shouldShow) return null; // hide this payslip
+
+    const handleDownload = async () => {
+        setIsDownloading(true);
+        try {
+            await generatePDF(payslip);
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+        } finally {
+            setTimeout(() => setIsDownloading(false), 1000);
+        }
+    };
+
     return (
         <div className="bg-white text-gray-900 shadow rounded-2xl p-4 mb-4 flex justify-between items-center">
             <div>
-                <h3 className="text-lg font-semibold">{payslip.month} {payslip.year}</h3>
+                <h3 className="text-lg font-semibold">
+                    {payslip.month} {payslip.year}
+                </h3>
                 <p className="text-sm text-gray-500">
                     Net Pay: ₹{payslip.netPay.toLocaleString("en-IN")}
                 </p>
@@ -15,10 +52,14 @@ export default function PayslipCard({ payslip }) {
                 </p>
             </div>
             <button
-                onClick={() => generatePDF(payslip)}
-                className="px-4 py-1 bg-[#D79A2F] text-white rounded hover:bg-yellow-500"
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className={`px-4 py-1 rounded text-white transition ${isDownloading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#D79A2F] hover:bg-yellow-500"
+                    }`}
             >
-                Download PDF
+                {isDownloading ? "Downloading..." : "Download PDF"}
             </button>
         </div>
     );

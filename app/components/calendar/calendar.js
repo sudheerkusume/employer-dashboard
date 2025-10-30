@@ -653,31 +653,26 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
             {/* Month navigation and grid */}
 
-            <div className="grid grid-cols-7 gap-2 text-sm mt-2">
+            <div className="grid grid-cols-7 gap-2 text-sm mt-2 text-center place-items-center">
                 {allDays.map((day, i) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const att = attendanceMap[dayStr];
                     const isTodayDate = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
                     const isCurrentMonth = getMonth(day) === getMonth(currentDate);
 
-                    // Check if date is before date of joining
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
-                    // Determine status
                     let status = att?.status || null;
                     if (isSunday(day) && isCurrentMonth) status = 'sunday';
                     else if (isHoliday(day)) status = 'holiday';
-                    // If date is before joining, don't show any status
                     else if (isBeforeJoining) status = null;
 
-                    // Handle leave text/bg color
                     const isLeaveApplied = att?.status === 'leaveApplied';
                     const isLeaveApproved = att?.status === 'leaveApproved';
 
-                    // Text color for the day number
                     const dayTextColor = isBeforeJoining
-                        ? 'text-gray-300'  // Light gray for dates before joining
+                        ? 'text-gray-300'
                         : isLeaveApplied
                             ? 'text-gray-600'
                             : isLeaveApproved
@@ -686,43 +681,51 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     ? 'text-gray-900'
                                     : 'text-gray-400';
 
-                    // Optional: background for approved leave
-                    const dayBgColor = isLeaveApproved
-                        ? 'bg-[#e8d15dff] rounded-full'
-                        : '';
+                    const dayBgColor = isLeaveApproved ? 'bg-[#e8d15dff] rounded-full' : '';
 
                     return (
                         <div
                             key={i}
                             onClick={() => {
-                                if (isBeforeJoining) return; // Don't show popup for dates before joining
+                                if (isBeforeJoining) return;
                                 setSelectedDate(day);
                                 setPopupData(att || {
-                                    status: isTodayDate ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today') :
-                                        status === 'sunday' ? 'Sunday' :
-                                            status === 'holiday' ? 'Holiday' : 'No data',
+                                    status: isTodayDate
+                                        ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today')
+                                        : status === 'sunday' ? 'Sunday'
+                                            : status === 'holiday' ? 'Holiday'
+                                                : 'No data',
                                     checkIn: att?.checkIn || '-',
                                     checkOut: att?.checkOut || '-',
-                                    workingHours: att?.workingHours || 0
+                                    workingHours: att?.workingHours || 0,
                                 });
                             }}
-                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition ${dayBgColor} ${isBeforeJoining ? 'cursor-not-allowed hover:ring-0' : 'border-none ring-none cursor-pointer hover:ring-2 hover:ring-gray-300'
+                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition ${dayBgColor} ${isBeforeJoining
+                                    ? 'cursor-not-allowed hover:ring-0'
+                                    : 'cursor-pointer hover:ring-2 hover:ring-gray-300'
                                 }`}
-                            title={isBeforeJoining ? '' :
-                                isTodayDate ? (att?.checkIn ? 'Checked In' : status === "approved" ? 'Leave Approved' : 'Today') :
-                                    status === 'sunday' ? 'Sunday' :
-                                        status === 'holiday' ? 'Holiday' :
-                                            att ? att.status : 'No data'}
+                            title={
+                                isBeforeJoining
+                                    ? ''
+                                    : isTodayDate
+                                        ? att?.checkIn
+                                            ? 'Checked In'
+                                            : status === 'approved'
+                                                ? 'Leave Approved'
+                                                : 'Today'
+                                        : status === 'sunday'
+                                            ? 'Sunday'
+                                            : status === 'holiday'
+                                                ? 'Holiday'
+                                                : att
+                                                    ? att.status
+                                                    : 'No data'
+                            }
                         >
                             {!isTodayDate && !isBeforeJoining && <SplitCircle status={status} isToday={false} size={40} />}
-                            {isBeforeJoining && (
-                                <div className="absolute inset-0 bg-transparent"></div>
-                            )}
-
+                            {isBeforeJoining && <div className="absolute inset-0 bg-transparent"></div>}
                             <span
-                                className={`absolute text-xs font-bold ${isTodayDate
-                                    ? 'text-[#48a84dff] font-bold'
-                                    : dayTextColor
+                                className={`absolute text-xs font-bold ${isTodayDate ? 'text-[#48a84dff] font-bold' : dayTextColor
                                     }`}
                             >
                                 {format(day, 'd')}

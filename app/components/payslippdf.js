@@ -43,13 +43,12 @@ export async function generatePDF(payslip) {
     // ✅ Company Info
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("REAL BEEZ ESTATES PVT LTD", pageWidth / 2, 90, { align: "center" });
+    doc.text(payslip.company.name, pageWidth / 2, 90, { align: "center" });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(80);
-    doc.text(
-        "2nd Floor, YS RAO Towers, Madhapur Rd, Sri Rama Colony, Jubilee Hills, Hyderabad, Telangana - 500033",
+    doc.text(payslip.company.address,
         pageWidth / 2,
         105,
         { align: "center" }
@@ -71,7 +70,7 @@ export async function generatePDF(payslip) {
     const employeeData = [
         ["Employee Name", cleanText(payslip.employee.name), "Bank A/C", cleanText(payslip.employee.account)],
         ["Employee Code", cleanText(payslip.employee.code), "IFSC", cleanText(payslip.employee.ifsc)],
-        ["Designation", cleanText(payslip.employee.designation), "Pay Days", `${payslip.totalPresentDays}`],
+        ["Designation", cleanText(payslip.employee.designation), "Total Present (Days)", `${payslip.totalPresentDays}`],
         ["Department", cleanText(departmentTitleCase), "Loss of Pay (Days)", `${payslip.lossOfPayDays || 0}`],
         ["Date of Joining", joiningDate, "Net Pay", `Rs.${payslip.netPay.toLocaleString("en-IN")}`],
     ];

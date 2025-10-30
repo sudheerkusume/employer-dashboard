@@ -60,7 +60,7 @@ export function generatePayslip(employee) {
     const grossEarnings = earnings.reduce((a, b) => a + b.amount, 0);
 
     // ✅ Deductions
-    const deductions = [{ name: "Professional Tax (Telangana)", amount: 200 }];
+    const deductions = [{ name: "Professional Tax (PT)", amount: 200 }];
 
     if (lossOfPayDays > 0) {
         deductions.push({
@@ -75,7 +75,7 @@ export function generatePayslip(employee) {
     // ✅ Return structured payslip
     return {
         company: {
-            name: "Real Beez Estates Pvt Ltd",
+            name: "REAL BEEZ ESTATES PVT LTD",
             address:
                 "2nd Floor, YS RAO Towers, Madhapur Rd, Sri Rama Colony, Jubilee Hills, Hyderabad, Telangana 500033",
         },

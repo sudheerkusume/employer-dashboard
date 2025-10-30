@@ -6,7 +6,7 @@ import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
 import { Mutated } from '../config/useswrfetch';
-import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays } from 'date-fns';
+import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { formatDateTime } from '../config/sitesettings';
 
 const categoryColors = {
@@ -348,6 +348,9 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         return grouped;
     }, [profile, monthIndex]);
 
+    const today = new Date();
+    const lastDayOfMonth = endOfMonth(today);
+    const isMonthEnd = isSameDay(today, lastDayOfMonth);
 
     return (
         <div className="flex flex-col md:flex-row max-w-full text-gray-700 gap-4">
@@ -368,18 +371,21 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             {/* Right Side: Leaves Section */}
             <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
                 {/* ✅ Working Days */}
-                <div className="bg-green-100 py-2 text-center rounded-sm mb-2">
-                    <p className="text-sm text-gray-500">
-                        Working Days:{" "}
-                        <span className="text-sm font-bold text-gray-700">{totalWorked}</span>{" "}
-                        / {totalWorkingDays}
-                    </p>
-                    {paidLeaves > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                            (Includes {paidLeaves} paid leave)
+                {isMonthEnd && (
+                    <div className="bg-green-100 py-2 text-center rounded-sm mb-2">
+                        <p className="text-sm text-gray-500">
+                            Working Days:{" "}
+                            <span className="text-sm font-bold text-gray-700">{totalWorked}</span>{" "}
+                            / {totalWorkingDays}
                         </p>
-                    )}
-                </div>
+                        {/* Optional: uncomment if needed */}
+                        {/* {paidLeaves > 0 && (
+            <p className="text-xs text-gray-500 mt-1">
+                (Includes {paidLeaves} paid leave)
+            </p>
+        )} */}
+                    </div>
+                )}
 
                 {/* Combined Present Late & Early Out - Only show if greater than 0 */}
                 {(presentLate > 0 || earlyOut > 0) && (
@@ -451,7 +457,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                         const hours = Math.floor(minutesWorked / 60);
                         const minutes = minutesWorked % 60;
 
-                        totalHours = `${hours} hrs ${minutes} mins`;
+                        totalHours = `${hours || 0} hrs ${minutes || 0} mins`;
                     }
 
                     return (

@@ -115,11 +115,10 @@ const CODE_OF_CONDUCT = `
 
 function mdToHtml(md) {
     return md
-        .replace(/^# (.*$)/gim, '<h1 class="text-2xl sm:text-3xl font-semibold mt-6">$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2 class="text-xl sm:text-2xl font-medium mt-4">$1</h2>')
-        .replace(/^### (.*$)/gim, '<h3 class="text-lg sm:text-xl font-medium mt-3">$1</h3>')
+        .replace(/^# (.*$)/gim, '<h1 class="text-xl sm:text-3xl font-semibold section-heading">$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2 class="text-lg sm:text-2xl font-medium mt-4">$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3 class="text-md sm:text-xl font-medium mt-3">$1</h3>')
         .replace(/\n\n/g, '<p class="mt-2 text-sm sm:text-base leading-relaxed">')
-        .replace(/\n/g, '<br/>');
 }
 
 export default function HRPolicy() {
@@ -145,13 +144,22 @@ export default function HRPolicy() {
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
+                        <button
+                            onClick={() => downloadFile('HR_POLICY.md', HR_POLICY)}
+                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
+                        >
                             Download HR Policy
                         </button>
-                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
+                        <button
+                            onClick={() => downloadFile('TERMS_AND_CONDITIONS.md', TERMS)}
+                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-green-600 text-white hover:bg-green-700 transition shadow-sm"
+                        >
                             Download T&C
                         </button>
-                        <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md border bg-white hover:bg-gray-100 transition shadow-sm">
+                        <button
+                            onClick={() => downloadFile('CODE_OF_CONDUCT.md', CODE_OF_CONDUCT)}
+                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 transition shadow-sm"
+                        >
                             Download Code of Conduct
                         </button>
                     </div>
@@ -159,16 +167,37 @@ export default function HRPolicy() {
 
                 {/* Policy Content */}
                 <section className="bg-white/70 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow space-y-10">
-                    <article id="hr-policy" className="prose max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: mdToHtml(HR_POLICY) }} />
+                    {/* HR Policy */}
+                    <article
+                        id="hr-policy"
+                        className="prose max-w-none"
+                    >
+                        <div
+                            className="[&_.section-heading]:text-blue-600 [&_.section-heading]:border-b-2 [&_.section-heading]:border-blue-600 [&_.section-heading]:inline-block"
+                            dangerouslySetInnerHTML={{ __html: mdToHtml(HR_POLICY) }}
+                        />
                     </article>
 
-                    <article id="terms" className="prose max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: mdToHtml(TERMS) }} />
+                    {/* Terms & Conditions */}
+                    <article
+                        id="terms"
+                        className="prose max-w-none"
+                    >
+                        <div
+                            className="[&_.section-heading]:text-green-600 [&_.section-heading]:border-b-2 [&_.section-heading]:border-green-600 [&_.section-heading]:inline-block"
+                            dangerouslySetInnerHTML={{ __html: mdToHtml(TERMS) }}
+                        />
                     </article>
 
-                    <article id="code-of-conduct" className="prose max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: mdToHtml(CODE_OF_CONDUCT) }} />
+                    {/* Code of Conduct */}
+                    <article
+                        id="code-of-conduct"
+                        className="prose max-w-none"
+                    >
+                        <div
+                            className="[&_.section-heading]:text-amber-600 [&_.section-heading]:border-b-2 [&_.section-heading]:border-amber-600 [&_.section-heading]:inline-block"
+                            dangerouslySetInnerHTML={{ __html: mdToHtml(CODE_OF_CONDUCT) }}
+                        />
                     </article>
                 </section>
 

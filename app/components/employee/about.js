@@ -261,10 +261,10 @@ export default function AboutMe({ profile }) {
     }, [editingSummary, summary]);
 
     return (
-        <div className="px-4 py-8 space-y-8 md:space-y-10 text-gary-700">
+        <div className="sm:px-4 sm:py-8 space-y-8 md:space-y-10 text-gary-700">
             {serviceCall && <Loading />}
             {/* Summary Section */}
-            <section className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <section className="bg-white rounded-xl p-2 sm:p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-start mb-4">
                     <h3 className="text-xl font-bold text-gray-800">Summary of {profile.name || 'Your Profile'}</h3>
                     <div className="flex space-x-3">
@@ -313,7 +313,7 @@ export default function AboutMe({ profile }) {
             </section>
 
             {/* Account Details Section */}
-            <section className="bg-white rounded-xl p-6 text-gray-800 shadow-lg border border-gray-200">
+            <section className="bg-white rounded-xl p-2 sm:p-6 text-gray-800 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800">ACCOUNT DETAILS</h3>
                     {!editingAccount ? (
@@ -402,7 +402,7 @@ export default function AboutMe({ profile }) {
             </section>
 
             {/* Experience Section */}
-            <section className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <section className="bg-white rounded-xl p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800">EXPERIENCE</h3>
                     <button
@@ -606,7 +606,7 @@ export default function AboutMe({ profile }) {
             </section>
 
             {/* Qualification Section */}
-            <section className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <section className="bg-white rounded-xl p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800">QUALIFICATION</h3>
                     <button

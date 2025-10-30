@@ -127,8 +127,8 @@ export default function EmployeeProfile({ employeesData }) {
                     Logout
                 </button>
             </div>
-            <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
-                <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
+            <div className="w-full sm:max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
+                <div className="p-2 sm:p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
                     {/* Profile Image Upload */}
                     <div className="absolute -top-12 left-6 sm:left-6">
                         <label htmlFor="profileImageInput" className="cursor-pointer group relative">
@@ -246,7 +246,7 @@ export default function EmployeeProfile({ employeesData }) {
             </div>
 
             {/* Tabs */}
-            <div className="bg-white border-b border-gray-200 max-w-5xl mx-auto px-4 py-6 rounded-b-md shadow-sm">
+            <div className="bg-white border-b border-gray-200 w-full sm:max-w-5xl mx-auto p-3 sm:px-4 sm:py-6 rounded-b-md shadow-sm">
                 {rootContext?.user?.role === "recruiter" ? (
                     <AboutMe profile={profile} />
                 ) : (
