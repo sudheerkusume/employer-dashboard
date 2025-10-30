@@ -115,9 +115,9 @@ const CODE_OF_CONDUCT = `
 
 function mdToHtml(md) {
     return md
-        .replace(/^# (.*$)/gim, '<h1 class="text-xl sm:text-3xl font-semibold section-heading">$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2 class="text-lg sm:text-2xl font-medium mt-4">$1</h2>')
-        .replace(/^### (.*$)/gim, '<h3 class="text-md sm:text-xl font-medium mt-3">$1</h3>')
+        .replace(/^# (.*$)/gim, '<h1 class="text-xl sm:text-2xl font-semibold section-heading">$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2 class="text-lg sm:text-xl font-medium mt-4">$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3 class="text-md sm:text-lg font-medium mt-3">$1</h3>')
         .replace(/\n\n/g, '<p class="mt-2 text-sm sm:text-base leading-relaxed">')
 }
 
