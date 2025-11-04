@@ -44,7 +44,14 @@ export default function RootLayout({ children }) {
 
     if (storedUser) {
       const userData = JSON.parse(storedUser);
-      const role = userData?.role?.toLowerCase();
+      const role = userData?.role?.toLowerCase?.() || "";
+
+      // ✅ If user exists but role is missing, redirect to login
+      if (!role) {
+        router.push("/login");
+        return;
+      }
+
       const path = pathname.toLowerCase();
 
       setRootContext((prev) => ({
@@ -55,16 +62,19 @@ export default function RootLayout({ children }) {
       }));
 
       // 🚫 Role-based access control
-      if (
-        (role === "admin" && (path.includes("/dashboard/employee") || path.includes("/dashboard/manager"))) ||
-        (role === "employee" && (path.includes("/dashboard/admin") || path.includes("/dashboard/manager"))) ||
-        (role === "manager" && (path.includes("/dashboard/admin") || path.includes("/dashboard/employee")))
-      ) {
-        setAccessDenied(true);
-      } else {
-        setAccessDenied(false);
-      }
+      const restrictedPaths = {
+        admin: ["/dashboard/employee", "/dashboard/manager"],
+        employee: ["/dashboard/admin", "/dashboard/manager"],
+        manager: ["/dashboard/admin", "/dashboard/employee"],
+      };
+
+      const restricted = restrictedPaths[role]?.some((restrictedPath) =>
+        path.includes(restrictedPath)
+      );
+
+      setAccessDenied(!!restricted);
     } else {
+      // ✅ No user found → redirect to login
       setRootContext((prev) => ({ ...prev, loader: false }));
       if (!pathname.startsWith("/login")) {
         router.push("/login");
