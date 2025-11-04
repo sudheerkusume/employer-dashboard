@@ -29,6 +29,7 @@
     "react-calendar": "^6.0.0",
     "react-dom": "19.1.0",
     "react-easy-crop": "^5.5.3",
+    "react-image-crop": "^11.0.10",
     "swr": "^2.3.6",
     "three": "^0.180.0",
     "video.js": "^8.23.4"
