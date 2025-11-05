@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useContext } from 'react';
-import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, PlusIcon, TrashIcon, EyeIcon, EyeSlashIcon, DocumentArrowUpIcon, DocumentIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Mutated } from '../config/useswrfetch';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
@@ -18,48 +18,81 @@ export default function AboutMe({ profile }) {
     const [editingSummary, setEditingSummary] = useState(false);
     const [tempSummary, setTempSummary] = useState('');
     const [summary, setSummary] = useState(profile.summary || 'Write a brief summary about yourself, your skills, and your professional goals.');
+    const [previewSummary, setPreviewSummary] = useState(false);
 
     // State for Experience section
-    const [experience, setExperience] = useState(profile.experience || []);
+    const [experience, setExperience] = useState([]);
     const [editingExperienceIndex, setEditingExperienceIndex] = useState(null);
-    const [tempExperience, setTempExperience] = useState({ company: '', location: '', role: '', logo: dummyLogos[0], startDate: '', endDate: '', description: '' });
+    const [tempExperience, setTempExperience] = useState({
+        company: '',
+        location: '',
+        role: '',
+        logo: dummyLogos[0],
+        startDate: '',
+        endDate: '',
+        description: '',
+        document: null,
+        documentUrl: ''
+    });
+    const [previewExperience, setPreviewExperience] = useState(false);
+    const [uploadingExpDoc, setUploadingExpDoc] = useState(null);
+    const [expDocumentPreview, setExpDocumentPreview] = useState({ show: false, file: null, index: null });
 
     // State for Education section
-    const [education, setEducation] = useState(profile.education || []);
+    const [education, setEducation] = useState([]);
     const [editingEducationIndex, setEditingEducationIndex] = useState(null);
-    const [tempEducation, setTempEducation] = useState({ degree: '', board: '', years: '' });
+    const [tempEducation, setTempEducation] = useState({
+        degree: '',
+        board: '',
+        startYear: '',
+        endYear: '',
+        document: null,
+        documentUrl: ''
+    });
+    const [previewEducation, setPreviewEducation] = useState(false);
+    const [uploadingEduDoc, setUploadingEduDoc] = useState(null);
+    const [eduDocumentPreview, setEduDocumentPreview] = useState({ show: false, file: null, index: null });
+
     const { setRootContext } = useContext(RootContext);
-    // Global state to disable other actions when one is in progress
     const [isAddingOrEditing, setIsAddingOrEditing] = useState(false);
-    // Account Details State
     const [accountDetails, setAccountDetails] = useState(profile.accountDetails || {});
     const [tempAccount, setTempAccount] = useState({ accountHolderName: '', accountNumber: '', ifscCode: '', branch: '' });
     const [editingAccount, setEditingAccount] = useState(false);
     const [serviceCall, setServiceCall] = useState(false);
-    const handleSaveAccount = async () => {
-        const success = await updateProfile({ accountDetails: tempAccount });
-        if (success) {
-            setAccountDetails(tempAccount);
-            setEditingAccount(false);
-        }
+
+    // Sort experiences by start date (most recent first)
+    const sortExperiences = (experiences) => {
+        return experiences.sort((a, b) => {
+            const dateA = new Date(a.startDate || '1970-01-01');
+            const dateB = new Date(b.startDate || '1970-01-01');
+            return dateB - dateA;
+        });
     };
 
-    const handleCancelAccount = () => {
-        setEditingAccount(false);
-        setTempAccount(accountDetails);
+    // Sort education by end year (most recent first)
+    const sortEducation = (education) => {
+        return education.sort((a, b) => {
+            const yearA = parseInt(a.endYear || a.years?.split('-')[1] || '1970');
+            const yearB = parseInt(b.endYear || b.years?.split('-')[1] || '1970');
+            return yearB - yearA;
+        });
     };
 
     // Effect to update states when profile prop changes
     useEffect(() => {
         setSummary(profile.summary || 'Write a brief summary about yourself, your skills, and your professional goals.');
-        setExperience(profile.experience || []);
-        setEducation(profile.education || []);
+
+        const sortedExperiences = sortExperiences(profile.experience || []);
+        const sortedEducation = sortEducation(profile.education || []);
+
+        setExperience(sortedExperiences);
+        setEducation(sortedEducation);
         setTempAccount({
             accountHolderName: profile?.accountDetails?.accountHolderName || '',
             accountNumber: profile?.accountDetails?.accountNumber || '',
             ifscCode: profile?.accountDetails?.ifscCode || '',
             branch: profile?.accountDetails?.branch || ''
-        })
+        });
     }, [profile]);
 
     // Effect to manage the global adding/editing state
@@ -75,24 +108,39 @@ export default function AboutMe({ profile }) {
     const employeeID = user_details.userId;
     const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null)
 
-    // Generic update function
-    const updateProfile = async (updateData) => {
-        setServiceCall(true)
+    // Generic update function using FormData for document uploads
+    const updateProfileWithDocuments = async (updateData, documents = []) => {
+        setServiceCall(true);
         try {
+            const formData = new FormData();
+            formData.append('id', employeeID);
+
+            // Add all update data as JSON
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] !== undefined && updateData[key] !== null) {
+                    if (typeof updateData[key] === 'object') {
+                        formData.append(key, JSON.stringify(updateData[key]));
+                    } else {
+                        formData.append(key, updateData[key]);
+                    }
+                }
+            });
+
+            // Add document files
+            documents.forEach((doc, index) => {
+                if (doc.file) {
+                    formData.append(`${doc.type}Doc_${doc.index}`, doc.file);
+                }
+            });
+
             const res = await fetch(`/api/employees`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: employeeID,
-                    role: role,
-                    ...updateData
-                }),
+                body: formData,
             });
 
             const data = await res.json();
-            if (res.status) {
-                setServiceCall(false)
-            }
+            setServiceCall(false);
+
             if (res.ok) {
                 mutated();
                 setRootContext((prevContext) => ({
@@ -102,7 +150,7 @@ export default function AboutMe({ profile }) {
                         dismiss: true,
                         type: "success",
                         title: `Success`,
-                        message: `Details Added Successfully`,
+                        message: `Details Updated Successfully`,
                     },
                 }));
                 return true;
@@ -120,7 +168,7 @@ export default function AboutMe({ profile }) {
                 return false;
             }
         } catch (err) {
-            console.error('Update Error:', err);
+            setServiceCall(false);
             setRootContext((prevContext) => ({
                 ...prevContext,
                 toast: {
@@ -135,8 +183,286 @@ export default function AboutMe({ profile }) {
         }
     };
 
+    // Handle document file selection for experience with preview
+    const handleExperienceDocumentChange = (e, index) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file type (PDF, DOC, DOCX)
+            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Invalid File",
+                        message: 'Please upload PDF or Word documents only',
+                    },
+                }));
+                return;
+            }
+
+            // Check file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "File Too Large",
+                        message: 'File size should be less than 5MB',
+                    },
+                }));
+                return;
+            }
+
+            // Show preview
+            setExpDocumentPreview({
+                show: true,
+                file: file,
+                index: index
+            });
+
+            // Reset file input
+            e.target.value = '';
+        }
+    };
+
+    // Handle document file selection for education with preview
+    const handleEducationDocumentChange = (e, index) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file type (PDF, DOC, DOCX)
+            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Invalid File",
+                        message: 'Please upload PDF or Word documents only',
+                    },
+                }));
+                return;
+            }
+
+            // Check file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "File Too Large",
+                        message: 'File size should be less than 5MB',
+                    },
+                }));
+                return;
+            }
+
+            // Show preview
+            setEduDocumentPreview({
+                show: true,
+                file: file,
+                index: index
+            });
+
+            // Reset file input
+            e.target.value = '';
+        }
+    };
+
+    // Save experience document from preview
+    const handleSaveExperienceDocument = async () => {
+        if (!expDocumentPreview.file || expDocumentPreview.index === null) return;
+
+        setUploadingExpDoc(expDocumentPreview.index);
+
+        const success = await updateProfileWithDocuments(
+            { experience: experience },
+            [{ type: 'experience', file: expDocumentPreview.file, index: expDocumentPreview.index }]
+        );
+
+        if (success) {
+            // Update local state with the new document
+            const updated = [...experience];
+            // Note: The actual document URL will come from the backend response
+            // For now, we'll create a temporary object URL for immediate display
+            const tempUrl = URL.createObjectURL(expDocumentPreview.file);
+            updated[expDocumentPreview.index] = {
+                ...updated[expDocumentPreview.index],
+                documentUrl: tempUrl,
+                documentFile: expDocumentPreview.file
+            };
+            setExperience(updated);
+
+            // Update temp experience if currently editing
+            if (editingExperienceIndex === expDocumentPreview.index) {
+                setTempExperience(prev => ({
+                    ...prev,
+                    documentUrl: tempUrl,
+                    document: expDocumentPreview.file
+                }));
+            }
+
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "success",
+                    title: "Document Uploaded",
+                    message: 'Experience document uploaded successfully',
+                },
+            }));
+        }
+
+        setUploadingExpDoc(null);
+        setExpDocumentPreview({ show: false, file: null, index: null });
+    };
+
+    // Save education document from preview
+    const handleSaveEducationDocument = async () => {
+        if (!eduDocumentPreview.file || eduDocumentPreview.index === null) return;
+
+        setUploadingEduDoc(eduDocumentPreview.index);
+
+        const success = await updateProfileWithDocuments(
+            { education: education },
+            [{ type: 'education', file: eduDocumentPreview.file, index: eduDocumentPreview.index }]
+        );
+
+        if (success) {
+            // Update local state with the new document
+            const updated = [...education];
+            const tempUrl = URL.createObjectURL(eduDocumentPreview.file);
+            updated[eduDocumentPreview.index] = {
+                ...updated[eduDocumentPreview.index],
+                documentUrl: tempUrl,
+                documentFile: eduDocumentPreview.file
+            };
+            setEducation(updated);
+
+            // Update temp education if currently editing
+            if (editingEducationIndex === eduDocumentPreview.index) {
+                setTempEducation(prev => ({
+                    ...prev,
+                    documentUrl: tempUrl,
+                    document: eduDocumentPreview.file
+                }));
+            }
+
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "success",
+                    title: "Document Uploaded",
+                    message: 'Education document uploaded successfully',
+                },
+            }));
+        }
+
+        setUploadingEduDoc(null);
+        setEduDocumentPreview({ show: false, file: null, index: null });
+    };
+
+    // Cancel document upload from preview
+    const handleCancelExperienceDocument = () => {
+        setExpDocumentPreview({ show: false, file: null, index: null });
+    };
+
+    const handleCancelEducationDocument = () => {
+        setEduDocumentPreview({ show: false, file: null, index: null });
+    };
+
+    const DocumentPreviewModal = ({ isOpen, onClose, onSave, file, type, index, uploading }) => {
+        if (!isOpen || !file) return null;
+
+        const isPDF = file.type === "application/pdf";
+        const fileUrl = URL.createObjectURL(file);
+
+        return (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+                <div className="bg-white rounded-xl w-full sm:w-[90%] md:w-[80%] lg:w-[70%] h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+
+                    {/* Header */}
+                    <div className="flex justify-between items-center p-3 sm:p-4 border-b">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+                            Preview {type === "experience" ? "Experience" : "Education"} Document
+                        </h3>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <XMarkIcon className="w-5 h-5 text-gray-600" />
+                        </button>
+                    </div>
+
+                    {/* Preview Section */}
+                    <div className="flex-1 p-2 sm:p-4 overflow-auto">
+                        {isPDF ? (
+                            <iframe
+                                src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                                className="w-full h-full border rounded-lg"
+                                title="Document Preview"
+                            />
+                        ) : (
+                            <div className="text-center py-10">
+                                <DocumentIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                <p className="text-gray-600 font-medium">{file.name}</p>
+                                <p className="text-sm text-gray-500 mt-2">
+                                    Preview not available for this file type. Click Save to upload.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center p-3 sm:p-4 border-t bg-gray-50 gap-3">
+                        <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                            <p><strong>File:</strong> {file.name}</p>
+                            <p><strong>Size:</strong> {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+                                disabled={uploading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={onSave}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2"
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    "Save Document"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
     const handleSaveSummary = async () => {
-        const success = await updateProfile({ summary: tempSummary });
+        const success = await updateProfileWithDocuments({ summary: tempSummary });
         if (success) {
             setEditingSummary(false);
             setSummary(tempSummary);
@@ -145,14 +471,26 @@ export default function AboutMe({ profile }) {
 
     const handleCancelSummary = () => {
         setEditingSummary(false);
-        setTempSummary(summary); // Revert to original summary
+        setTempSummary(summary);
     };
 
     // Handlers for Experience section
     const handleAddExperience = () => {
-        setExperience([...experience, { company: '', location: '', role: '', logo: dummyLogos[0], startDate: '', endDate: '', description: '', showDescription: false }]);
-        setEditingExperienceIndex(experience.length); // Set to the new item's index
-        setTempExperience({ company: '', location: '', role: '', logo: dummyLogos[0], startDate: '', endDate: '', description: '' });
+        const newExperience = {
+            company: '',
+            location: '',
+            role: '',
+            logo: dummyLogos[0],
+            startDate: '',
+            endDate: '',
+            description: '',
+            showDescription: false,
+            documentUrl: ''
+        };
+        const updatedExperiences = [newExperience, ...experience];
+        setExperience(updatedExperiences);
+        setEditingExperienceIndex(0);
+        setTempExperience(newExperience);
     };
 
     const handleEditExperience = (index) => {
@@ -161,25 +499,45 @@ export default function AboutMe({ profile }) {
     };
 
     const handleSaveExperience = async (index) => {
+        const updatedExperience = {
+            company: tempExperience.company,
+            location: tempExperience.location,
+            role: tempExperience.role,
+            logo: tempExperience.logo,
+            startDate: tempExperience.startDate,
+            endDate: tempExperience.endDate,
+            description: tempExperience.description,
+            documentUrl: tempExperience.documentUrl,
+            showDescription: experience[index]?.showDescription || false
+        };
+
         const updated = [...experience];
-        updated[index] = { ...tempExperience, showDescription: updated[index]?.showDescription || false };
-        setExperience(updated);
+        updated[index] = updatedExperience;
+        const sortedExperiences = sortExperiences(updated);
+        setExperience(sortedExperiences);
         setEditingExperienceIndex(null);
 
-        const success = await updateProfile({ experience: updated });
+        const success = await updateProfileWithDocuments({ experience: sortedExperiences });
         if (!success) {
-            // Revert if update failed
             setExperience(experience);
         }
     };
 
     const handleCancelExperience = () => {
         if (editingExperienceIndex !== null && !experience[editingExperienceIndex]?.company) {
-            // If it was a new, unsaved entry, remove it
             setExperience(experience.filter((_, i) => i !== editingExperienceIndex));
         }
         setEditingExperienceIndex(null);
-        setTempExperience({ company: '', location: '', role: '', logo: dummyLogos[0], startDate: '', endDate: '', description: '' });
+        setTempExperience({
+            company: '',
+            location: '',
+            role: '',
+            logo: dummyLogos[0],
+            startDate: '',
+            endDate: '',
+            description: '',
+            documentUrl: ''
+        });
     };
 
     const handleDeleteExperience = async (index) => {
@@ -187,9 +545,8 @@ export default function AboutMe({ profile }) {
         setExperience(updated);
         setEditingExperienceIndex(null);
 
-        const success = await updateProfile({ experience: updated });
+        const success = await updateProfileWithDocuments({ experience: updated });
         if (!success) {
-            // Revert if update failed
             setExperience(experience);
         }
     };
@@ -206,9 +563,17 @@ export default function AboutMe({ profile }) {
 
     // Handlers for Education section
     const handleAddEducation = () => {
-        setEducation([...education, { degree: '', board: '', years: '' }]);
-        setEditingEducationIndex(education.length);
-        setTempEducation({ degree: '', board: '', years: '' });
+        const newEducation = {
+            degree: '',
+            board: '',
+            startYear: '',
+            endYear: '',
+            documentUrl: ''
+        };
+        const updatedEducation = [newEducation, ...education];
+        setEducation(updatedEducation);
+        setEditingEducationIndex(0);
+        setTempEducation(newEducation);
     };
 
     const handleEditEducation = (index) => {
@@ -217,14 +582,23 @@ export default function AboutMe({ profile }) {
     };
 
     const handleSaveEducation = async (index) => {
+        const updatedEducation = {
+            degree: tempEducation.degree,
+            board: tempEducation.board,
+            startYear: tempEducation.startYear,
+            endYear: tempEducation.endYear,
+            years: `${tempEducation.startYear} - ${tempEducation.endYear}`,
+            documentUrl: tempEducation.documentUrl
+        };
+
         const updated = [...education];
-        updated[index] = { ...tempEducation };
-        setEducation(updated);
+        updated[index] = updatedEducation;
+        const sortedEducation = sortEducation(updated);
+        setEducation(sortedEducation);
         setEditingEducationIndex(null);
 
-        const success = await updateProfile({ education: updated });
+        const success = await updateProfileWithDocuments({ education: sortedEducation });
         if (!success) {
-            // Revert if update failed
             setEducation(education);
         }
     };
@@ -234,7 +608,13 @@ export default function AboutMe({ profile }) {
             setEducation(education.filter((_, i) => i !== editingEducationIndex));
         }
         setEditingEducationIndex(null);
-        setTempEducation({ degree: '', board: '', years: '' });
+        setTempEducation({
+            degree: '',
+            board: '',
+            startYear: '',
+            endYear: '',
+            documentUrl: ''
+        });
     };
 
     const handleDeleteEducation = async (index) => {
@@ -242,15 +622,27 @@ export default function AboutMe({ profile }) {
         setEducation(updated);
         setEditingEducationIndex(null);
 
-        const success = await updateProfile({ education: updated });
+        const success = await updateProfileWithDocuments({ education: updated });
         if (!success) {
-            // Revert if update failed
             setEducation(education);
         }
     };
 
     const handleEducationChange = (e, field) => {
         setTempEducation({ ...tempEducation, [field]: e.target.value });
+    };
+
+    const handleSaveAccount = async () => {
+        const success = await updateProfileWithDocuments({ accountDetails: tempAccount });
+        if (success) {
+            setAccountDetails(tempAccount);
+            setEditingAccount(false);
+        }
+    };
+
+    const handleCancelAccount = () => {
+        setEditingAccount(false);
+        setTempAccount(accountDetails);
     };
 
     // Initialize tempSummary when editing starts
@@ -263,6 +655,28 @@ export default function AboutMe({ profile }) {
     return (
         <div className="sm:px-4 sm:py-8 space-y-8 md:space-y-10 text-gary-700">
             {serviceCall && <Loading />}
+
+            {/* Document Preview Modals */}
+            <DocumentPreviewModal
+                isOpen={expDocumentPreview.show}
+                onClose={handleCancelExperienceDocument}
+                onSave={handleSaveExperienceDocument}
+                file={expDocumentPreview.file}
+                type="experience"
+                index={expDocumentPreview.index}
+                uploading={uploadingExpDoc === expDocumentPreview.index}
+            />
+
+            <DocumentPreviewModal
+                isOpen={eduDocumentPreview.show}
+                onClose={handleCancelEducationDocument}
+                onSave={handleSaveEducationDocument}
+                file={eduDocumentPreview.file}
+                type="education"
+                index={eduDocumentPreview.index}
+                uploading={uploadingEduDoc === eduDocumentPreview.index}
+            />
+
             {/* Summary Section */}
             <section className="bg-white rounded-xl p-2 sm:p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-start mb-4">
@@ -284,7 +698,18 @@ export default function AboutMe({ profile }) {
                                 </button>
                             </>
                         ) : (
-                            <div>
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => setPreviewSummary(!previewSummary)}
+                                    className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                                    aria-label={previewSummary ? "Hide preview" : "Show preview"}
+                                >
+                                    {previewSummary ? (
+                                        <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                                    ) : (
+                                        <EyeIcon className="w-5 h-5 text-gray-600" />
+                                    )}
+                                </button>
                                 <button
                                     onClick={() => { setEditingSummary(true); setTempSummary(summary); }}
                                     className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
@@ -298,13 +723,23 @@ export default function AboutMe({ profile }) {
                     </div>
                 </div>
                 {editingSummary ? (
-                    <textarea
-                        className="mt-2 w-full p-3 border border-gray-300 rounded-lg text-base text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"
-                        rows={6}
-                        value={tempSummary}
-                        onChange={(e) => setTempSummary(e.target.value)}
-                        placeholder="Write a comprehensive summary about your professional journey..."
-                    />
+                    <div className="space-y-4">
+                        <textarea
+                            className="mt-2 w-full p-3 border border-gray-300 rounded-lg text-base text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"
+                            rows={6}
+                            value={tempSummary}
+                            onChange={(e) => setTempSummary(e.target.value)}
+                            placeholder="Write a comprehensive summary about your professional journey..."
+                        />
+                        {previewSummary && (
+                            <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                <h4 className="font-semibold text-gray-700 mb-2">Preview:</h4>
+                                <p className="text-base text-gray-700 leading-relaxed whitespace-pre-line">
+                                    {tempSummary}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 ) : (
                     <p className="text-base text-gray-700 leading-relaxed whitespace-pre-line">
                         {summary}
@@ -405,14 +840,27 @@ export default function AboutMe({ profile }) {
             <section className="bg-white rounded-xl p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800">EXPERIENCE</h3>
-                    <button
-                        onClick={handleAddExperience}
-                        className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                        aria-label="Add experience"
-                        disabled={isAddingOrEditing}
-                    >
-                        <PlusIcon className={`w-5 h-5 ${isAddingOrEditing ? 'text-gray-400' : 'text-white'}`} />
-                    </button>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={() => setPreviewExperience(!previewExperience)}
+                            className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                            aria-label={previewExperience ? "Hide preview" : "Show preview"}
+                        >
+                            {previewExperience ? (
+                                <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                            ) : (
+                                <EyeIcon className="w-5 h-5 text-gray-600" />
+                            )}
+                        </button>
+                        <button
+                            onClick={handleAddExperience}
+                            className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                            aria-label="Add experience"
+                            disabled={isAddingOrEditing}
+                        >
+                            <PlusIcon className={`w-5 h-5 ${isAddingOrEditing ? 'text-gray-400' : 'text-white'}`} />
+                        </button>
+                    </div>
                 </div>
                 <div className="space-y-6">
                     {experience.length === 0 ? (
@@ -513,7 +961,92 @@ export default function AboutMe({ profile }) {
                                                         placeholder="Describe your responsibilities and achievements in this role."
                                                     />
                                                 </div>
+
+                                                {/* Document Upload for Experience */}
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Experience Document (PDF/DOC)
+                                                    </label>
+                                                    {!tempExperience.documentUrl && <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="file"
+                                                            accept=".pdf,.doc,.docx"
+                                                            onChange={(e) => handleExperienceDocumentChange(e, index)}
+                                                            className="hidden"
+                                                            id={`exp-doc-${index}`}
+                                                        />
+                                                        <label
+                                                            htmlFor={`exp-doc-${index}`}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
+                                                        >
+                                                            <DocumentArrowUpIcon className="w-4 h-4" />
+                                                            Upload Document
+                                                        </label>
+                                                        {tempExperience.documentUrl && (
+                                                            <a
+                                                                href={tempExperience.documentUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                            >
+                                                                <DocumentIcon className="w-4 h-4" />
+                                                                View Document
+                                                            </a>
+                                                        )}
+                                                    </div>}
+                                                    {!tempExperience.documentUrl && <p className="text-xs text-gray-500 mt-1">
+                                                        Upload experience certificate, offer letter, or relevant document (PDF/DOC, max 5MB)
+                                                    </p>}
+                                                </div>
                                             </div>
+
+                                            {previewExperience && (
+                                                <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-white">
+                                                    <h4 className="font-semibold text-gray-700 mb-3">Experience Preview:</h4>
+                                                    <div className="flex items-center gap-4">
+                                                        <img
+                                                            src={tempExperience.logo || dummyLogos[index % dummyLogos.length]}
+                                                            alt={`${tempExperience.company} Logo`}
+                                                            className="w-12 h-12 object-contain border border-gray-200 rounded-full p-1 bg-white shadow-sm"
+                                                        />
+                                                        <div>
+                                                            <h4 className="text-base font-semibold text-gray-900">{tempExperience.role || 'Your Role'}</h4>
+                                                            <p className="text-sm text-gray-700">
+                                                                {tempExperience.company || 'Company'} • {tempExperience.location || 'Location'}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {tempExperience.startDate || 'Start Date'} – {tempExperience.endDate?.toLowerCase() === "present" ? (
+                                                                    <span className="text-green-600 font-medium">Present</span>
+                                                                ) : (
+                                                                    tempExperience.endDate || 'End Date'
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className='flex gap-5 justify-between'>
+                                                        {tempExperience.description && (
+                                                            <div className="mt-3">
+                                                                <p className="text-sm text-gray-800 whitespace-pre-line">
+                                                                    {tempExperience.description}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        {tempExperience.documentUrl && (
+                                                            <div className="mt-3">
+                                                                <a
+                                                                    href={tempExperience.documentUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                                >
+                                                                    <DocumentIcon className="w-4 h-4" />
+                                                                    View Document
+                                                                </a>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="flex justify-end space-x-3 mt-4">
                                                 <button
@@ -580,20 +1113,58 @@ export default function AboutMe({ profile }) {
                                                     </button>
                                                 </div>
                                             </div>
+                                            <div className='flex gap-5 sm:justify-between'>
+                                                {exp.description && (
+                                                    <div className="mt-2">
+                                                        <button
+                                                            onClick={() => toggleDescription(index)}
+                                                            className="text-sm text-blue-600 hover:underline focus:outline-none"
+                                                        >
+                                                            {exp.showDescription ? 'Show Less' : 'Know More'}
+                                                        </button>
+                                                        {exp.showDescription && (
+                                                            <p className="text-sm text-gray-800 mt-2 whitespace-pre-line">
+                                                                {exp.description}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {/* Document display for non-editing mode */}
+                                                {exp.documentUrl && (
+                                                    <div className="mt-3">
+                                                        <a
+                                                            href={`${exp.documentUrl.replace(
+                                                                "/upload/",
+                                                                "/upload/fl_attachment:original_document/"
+                                                            )}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                        >
+                                                            <DocumentIcon className="w-4 h-4" />
+                                                            View Document
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                            {exp.description && (
-                                                <div className="mt-2">
-                                                    <button
-                                                        onClick={() => toggleDescription(index)}
-                                                        className="text-sm text-blue-600 hover:underline focus:outline-none"
+                                            {/* Document upload for non-editing mode */}
+                                            {(!editingExperienceIndex && (exp.documentUrl === "" || !exp.documentUrl)) && (
+                                                <div className="mt-3">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf,.doc,.docx"
+                                                        onChange={(e) => handleExperienceDocumentChange(e, index)}
+                                                        className="hidden"
+                                                        id={`exp-doc-view-${index}`}
+                                                    />
+                                                    <label
+                                                        htmlFor={`exp-doc-view-${index}`}
+                                                        className="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
                                                     >
-                                                        {exp.showDescription ? 'Show Less' : 'Know More'}
-                                                    </button>
-                                                    {exp.showDescription && (
-                                                        <p className="text-sm text-gray-800 mt-2 whitespace-pre-line">
-                                                            {exp.description}
-                                                        </p>
-                                                    )}
+                                                        <DocumentArrowUpIcon className="w-4 h-4" />
+                                                        Upload Document
+                                                    </label>
                                                 </div>
                                             )}
                                         </div>
@@ -609,14 +1180,27 @@ export default function AboutMe({ profile }) {
             <section className="bg-white rounded-xl p-2 sm:p-6 shadow-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800">QUALIFICATION</h3>
-                    <button
-                        onClick={handleAddEducation}
-                        className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                        aria-label="Add education"
-                        disabled={isAddingOrEditing}
-                    >
-                        <PlusIcon className={`w-5 h-5 ${isAddingOrEditing ? 'text-gray-400' : 'text-white'}`} />
-                    </button>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={() => setPreviewEducation(!previewEducation)}
+                            className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                            aria-label={previewEducation ? "Hide preview" : "Show preview"}
+                        >
+                            {previewEducation ? (
+                                <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                            ) : (
+                                <EyeIcon className="w-5 h-5 text-gray-600" />
+                            )}
+                        </button>
+                        <button
+                            onClick={handleAddEducation}
+                            className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                            aria-label="Add education"
+                            disabled={isAddingOrEditing}
+                        >
+                            <PlusIcon className={`w-5 h-5 ${isAddingOrEditing ? 'text-gray-400' : 'text-white'}`} />
+                        </button>
+                    </div>
                 </div>
                 <div className="space-y-6">
                     {education.length === 0 ? (
@@ -647,17 +1231,102 @@ export default function AboutMe({ profile }) {
                                                     placeholder="University/Board Name"
                                                 />
                                             </div>
-                                            <div>
-                                                <label htmlFor={`years-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Years</label>
-                                                <input
-                                                    id={`years-${index}`}
-                                                    className="w-full p-2 border border-gray-300 text-gray-700 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                                    value={tempEducation.years}
-                                                    onChange={(e) => handleEducationChange(e, 'years')}
-                                                    placeholder="e.g., 2018 - 2022"
-                                                />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label htmlFor={`startYear-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Start Year</label>
+                                                    <input
+                                                        id={`startYear-${index}`}
+                                                        type="number"
+                                                        min="1950"
+                                                        max="2030"
+                                                        className="w-full p-2 border border-gray-300 text-gray-700 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        value={tempEducation.startYear}
+                                                        onChange={(e) => handleEducationChange(e, 'startYear')}
+                                                        placeholder="Start Year"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor={`endYear-${index}`} className="block text-sm font-medium text-gray-700 mb-1">End Year</label>
+                                                    <input
+                                                        id={`endYear-${index}`}
+                                                        type="number"
+                                                        min="1950"
+                                                        max="2030"
+                                                        className="w-full p-2 border border-gray-300 text-gray-700 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        value={tempEducation.endYear}
+                                                        onChange={(e) => handleEducationChange(e, 'endYear')}
+                                                        placeholder="End Year"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Document Upload for Education */}
+                                            <div className="md:col-span-3">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Education Document (PDF/DOC)
+                                                </label>
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf,.doc,.docx"
+                                                        onChange={(e) => handleEducationDocumentChange(e, index)}
+                                                        className="hidden"
+                                                        id={`edu-doc-${index}`}
+                                                    />
+                                                    <label
+                                                        htmlFor={`edu-doc-${index}`}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
+                                                    >
+                                                        <DocumentArrowUpIcon className="w-4 h-4" />
+                                                        Upload Document
+                                                    </label>
+                                                    {tempEducation.documentUrl && (
+                                                        <a
+                                                            href={`${tempEducation.documentUrl.replace(
+                                                                "/upload/",
+                                                                "/upload/fl_attachment:original_document/"
+                                                            )}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                        >
+                                                            <DocumentIcon className="w-4 h-4" />
+                                                            View Document
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    Upload degree certificate, marksheet, or relevant document (PDF/DOC, max 5MB)
+                                                </p>
                                             </div>
                                         </div>
+
+                                        {previewEducation && (
+                                            <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-white">
+                                                <h4 className="font-semibold text-gray-700 mb-2">Education Preview:</h4>
+                                                <div>
+                                                    <h4 className="text-base font-semibold text-gray-900">{tempEducation.degree || 'Your Degree'}</h4>
+                                                    <p className="text-sm text-gray-700">{tempEducation.board || 'University/Board'}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {tempEducation.startYear || 'Start'} - {tempEducation.endYear || 'End'}
+                                                    </p>
+                                                    {tempEducation.documentUrl && (
+                                                        <div className="mt-2">
+                                                            <a
+                                                                href={tempEducation.documentUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                            >
+                                                                <DocumentIcon className="w-4 h-4" />
+                                                                View Education Document
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="flex justify-end space-x-3 mt-4">
                                             <button
                                                 onClick={() => handleSaveEducation(index)}
@@ -675,12 +1344,50 @@ export default function AboutMe({ profile }) {
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-between w-full">
-                                        <div>
+                                        <div className="flex-1">
                                             <h4 className="text-base font-semibold text-gray-900">{edu.degree}</h4>
                                             <p className="text-sm text-gray-700">{edu.board}</p>
-                                            <p className="text-xs text-gray-500">{edu.years}</p>
+                                            <p className="text-xs text-gray-500">{edu.years || `${edu.startYear} - ${edu.endYear}`}</p>
+
+                                            {/* Document display for non-editing mode */}
+                                            {edu.documentUrl && (
+                                                <div className="mt-2">
+                                                    <a
+                                                        href={`${edu.documentUrl.replace(
+                                                            "/upload/",
+                                                            "/upload/fl_attachment:original_document/"
+                                                        )}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                    >
+                                                        <DocumentIcon className="w-4 h-4" />
+                                                        View
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="flex space-x-2">
+                                        <div className="flex space-x-2 ml-4">
+                                            {/* Document upload for non-editing mode */}
+                                            {!editingEducationIndex && (edu.documentUrl === "" || !edu.documentUrl) & (
+                                                <div className="mr-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf,.doc,.docx"
+                                                        onChange={(e) => handleEducationDocumentChange(e, index)}
+                                                        className="hidden"
+                                                        id={`edu-doc-view-${index}`}
+                                                    />
+                                                    <label
+                                                        htmlFor={`edu-doc-view-${index}`}
+                                                        className="inline-flex items-center gap-1 px-2 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
+                                                        title="Upload Document"
+                                                    >
+                                                        <DocumentArrowUpIcon className="w-3 h-3" />
+                                                        Upload
+                                                    </label>
+                                                </div>
+                                            )}
                                             <button
                                                 onClick={() => handleEditEducation(index)}
                                                 className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
