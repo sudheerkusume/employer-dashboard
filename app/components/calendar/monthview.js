@@ -2,7 +2,7 @@
 import React, { useRef, useMemo } from 'react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addDays, isSameMonth, format, isToday, isAfter, getDay
+  addDays, isSameMonth, format, isToday, isAfter, getDay, isBefore
 } from 'date-fns';
 
 export default function MonthView({ date, events, profile, setEditData, setShowDrawer, setMode, categoryColors }) {
@@ -17,41 +17,44 @@ export default function MonthView({ date, events, profile, setEditData, setShowD
   const editEvent = (item) => {
     setShowDrawer(true);
     setEditData(item);
-    setMode("update")
+    setMode("update");
   };
 
   const attendance = profile.attendance || {};
   const department = profile.department?.toLowerCase() || '';
+  const joiningDate = new Date(profile.dateOfJoining);
 
-  // --- Attendance only till current date ---
+  // --- Attendance only till current date & after joining ---
   const attendanceMap = useMemo(() => {
     const map = {};
     Object.keys(attendance).forEach((monthName) => {
       const monthData = attendance[monthName];
       if (Array.isArray(monthData)) {
         monthData.forEach((att) => {
-          if (att.date <= todayStr) {
+          const attDate = new Date(att.date);
+          if (attDate <= today && attDate >= joiningDate) {
             map[att.date] = att;
           }
         });
       }
     });
     return map;
-  }, [attendance, todayStr]);
+  }, [attendance, todayStr, joiningDate]);
 
-  // --- Events: show all dates ---
+  // --- Events: only show after joining (but include future ones) ---
   const eventMap = useMemo(() => {
     const map = {};
     if (!events) return map;
     events.forEach((evt) => {
-      if (evt.date) {
-        const key = format(new Date(evt.date), 'yyyy-MM-dd');
+      const evtDate = new Date(evt.date);
+      if (evtDate >= joiningDate) {
+        const key = format(evtDate, 'yyyy-MM-dd');
         if (!map[key]) map[key] = [];
         map[key].push(evt);
       }
     });
     return map;
-  }, [events]);
+  }, [events, joiningDate]);
 
   // --- Build calendar days ---
   const rows = [];
@@ -63,20 +66,21 @@ export default function MonthView({ date, events, profile, setEditData, setShowD
       const formattedDate = format(day, 'yyyy-MM-dd');
       const isCurrentMonth = isSameMonth(day, monthStart);
       const isTodayDate = isToday(day);
-      const weekday = getDay(day); // 0 = Sunday
+      const weekday = getDay(day);
+      const beforeJoining = isBefore(day, joiningDate);
 
       let att = attendanceMap[formattedDate];
       const evts = eventMap[formattedDate] || [];
 
-      // --- Auto-mark attendance logic ---
+      // --- Auto-mark attendance ---
       let autoStatus = '';
       if (department === 'tech') {
-        if (weekday === 0 || weekday === 2) autoStatus = 'off'; // Sunday & Tuesday
+        if (weekday === 0 || weekday === 2) autoStatus = 'off';
       } else {
-        if (weekday === 0) autoStatus = 'off'; // Only Sunday
+        if (weekday === 0) autoStatus = 'off';
       }
 
-      if (!isAfter(day, today)) {
+      if (!isAfter(day, today) && !beforeJoining) {
         if (!att) {
           att = { date: formattedDate, status: autoStatus || 'absent', checkIn: '', checkOut: '', workingHours: '' };
         } else {
@@ -88,23 +92,24 @@ export default function MonthView({ date, events, profile, setEditData, setShowD
       // --- Background color logic ---
       let bgColor = '#ffffff';
       if (!isCurrentMonth) bgColor = '#f5f5f5';
-      if (weekday === 0) bgColor = '#ffeaea'; // Sunday light red
-      if (att?.status === 'absent') bgColor = '#ffc9c9'; // Absent red
-      if (isTodayDate) bgColor = '#d9fdd3'; // Today green highlight
+      if (weekday === 0) bgColor = '#ffeaea'; // Sunday
+      if (att?.status === 'absent') bgColor = '#ffc9c9'; // Absent
+      if (isTodayDate) bgColor = '#d9fdd3'; // Today
+      if (beforeJoining) bgColor = '#f0f0f0'; // Before joining
 
       days.push(
         <div
           key={formattedDate}
-          className={`border border-gray-200 p-1 h-28 text-xs relative flex flex-col cursor-pointer`}
-          style={{ backgroundColor: bgColor }}
+          className="border border-gray-200 p-1 h-28 text-xs relative flex flex-col cursor-pointer"
+          style={{ backgroundColor: bgColor, opacity: beforeJoining ? 0.6 : 1 }}
         >
           {/* Date number */}
           <div className="font-semibold text-right pr-1 text-gray-700">
             {format(day, 'd')}
           </div>
 
-          {/* Attendance (only if date <= today) */}
-          {!isAfter(day, today) && att && (
+          {/* Attendance (only after joining and till today) */}
+          {!beforeJoining && !isAfter(day, today) && att && (
             <div
               className="mt-1 text-[11px] px-1 py-0.5 rounded capitalize"
               style={{
@@ -116,8 +121,8 @@ export default function MonthView({ date, events, profile, setEditData, setShowD
             </div>
           )}
 
-          {/* Events (all dates) */}
-          {evts.length > 0 && (
+          {/* Events (only after joining, all dates allowed) */}
+          {!beforeJoining && evts.length > 0 && (
             <div className="mt-1 space-y-1 overflow-hidden">
               {evts.map((e, idx) => (
                 <div
@@ -126,7 +131,7 @@ export default function MonthView({ date, events, profile, setEditData, setShowD
                   className="truncate rounded px-1 py-0.5 text-[11px]"
                   style={{
                     backgroundColor: hexToRgba(categoryColors[e.type] || '#f59e0b', 0.2),
-                    color: categoryColors[e.type] || '#92400e'
+                    color: categoryColors[e.type] || '#92400e',
                   }}
                 >
                   📅 {e.title}
