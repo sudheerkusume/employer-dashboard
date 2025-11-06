@@ -1,21 +1,24 @@
 'use client';
 import React, { useState, useMemo, useContext } from 'react';
-import MonthView from '../calendar/monthview';
-import CalendarHeader from '../calendar/calendarheader';
 import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
 import { Mutated } from '../config/useswrfetch';
 import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { formatDateTime } from '../config/sitesettings';
+import CalendarModal from '../calendar/calendarmodal';
 
 const categoryColors = {
-    present: "#22c55e",
-    firstHalf: "#fbbf24",
-    secondHalf: "#f59e0b",
-    halfDay: "#f97316",
-    absent: "#ef4444",
-    "Checked In": "#3b82f6",
+    present: "#A8DCAB",
+    firstHalf: "#A8DCAB",
+    secondHalf: "#A8DCAB",
+    halfDay: "#A8DCAB",
+    absent: "#ff6a6a",
+    "Checked In": "#2563eb",
+    leaveApproved: "#e8d15dff",
+    holiday: "#d5d7d9ff",
+    sunday: "#d5d7d9ff",
+    today: "#48a84dff",
 };
 
 export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn }) {
@@ -31,24 +34,6 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         setCurrentDate(prev => addMonths(prev, delta));
     };
     const mutated = Mutated(profile ? `/api/employees?id=${profile._id}` : null)
-
-    const events = useMemo(() => {
-        if (!profile || !profile.attendance) return [];
-        const allEvents = [];
-        Object.keys(profile.attendance).forEach(month => {
-            profile.attendance[month].forEach(item => {
-                const eventDate = new Date(item.date);
-                allEvents.push({
-                    ...item,
-                    start: eventDate,
-                    end: eventDate,
-                    type: item.status || 'present',
-                });
-            });
-        });
-        return allEvents;
-    }, [profile]);
-
 
     // Withdraw leave service
     const withdrawLeaveService = async (employeeId, startDate, endDate) => {
@@ -540,6 +525,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     </ul>
                 )}
             </aside>
+            <CalendarModal profile={profile} mutated={mutated} attendance={profile.attendance} employeeEvents={profile.events} showCalendar={showCalendar} setShowCalendar={setShowCalendar} />
         </div>
     );
 }

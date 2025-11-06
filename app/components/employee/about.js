@@ -183,7 +183,99 @@ export default function AboutMe({ profile }) {
         }
     };
 
-    // Handle document file selection for experience with preview
+    // Delete specific experience entry
+    const deleteExperienceEntry = async (index) => {
+        setServiceCall(true);
+        try {
+            const response = await fetch(`/api/employees/experience?id=${employeeID}&index=${index}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+            setServiceCall(false);
+
+            if (response.ok) {
+                mutated();
+                return true;
+            } else {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Delete Failed",
+                        message: data.error || 'Failed to delete experience',
+                    },
+                }));
+                return false;
+            }
+        } catch (err) {
+            setServiceCall(false);
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Delete Failed",
+                    message: 'Something went wrong while deleting experience',
+                },
+            }));
+            return false;
+        }
+    };
+
+    // Delete specific education entry
+    const deleteEducationEntry = async (index) => {
+        setServiceCall(true);
+        try {
+            const response = await fetch(`/api/employees/education?id=${employeeID}&index=${index}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+            setServiceCall(false);
+
+            if (response.ok) {
+                mutated();
+                return true;
+            } else {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Delete Failed",
+                        message: data.error || 'Failed to delete education',
+                    },
+                }));
+                return false;
+            }
+        } catch (err) {
+            setServiceCall(false);
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Delete Failed",
+                    message: 'Something went wrong while deleting education',
+                },
+            }));
+            return false;
+        }
+    };
+
+    // Handle document file selection for experience
     const handleExperienceDocumentChange = (e, index) => {
         const file = e.target.files[0];
         if (file) {
@@ -218,19 +310,40 @@ export default function AboutMe({ profile }) {
                 return;
             }
 
-            // Show preview
-            setExpDocumentPreview({
-                show: true,
-                file: file,
-                index: index
-            });
+            // If we're in edit mode, update tempExperience immediately without preview
+            if (editingExperienceIndex === index) {
+                const tempUrl = URL.createObjectURL(file);
+                setTempExperience(prev => ({
+                    ...prev,
+                    documentUrl: tempUrl,
+                    document: file
+                }));
+
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "Document Selected",
+                        message: 'Document will be saved when you save the experience',
+                    },
+                }));
+            } else {
+                // Show preview only for non-edit mode (view mode)
+                setExpDocumentPreview({
+                    show: true,
+                    file: file,
+                    index: index
+                });
+            }
 
             // Reset file input
             e.target.value = '';
         }
     };
 
-    // Handle document file selection for education with preview
+    // Handle document file selection for education
     const handleEducationDocumentChange = (e, index) => {
         const file = e.target.files[0];
         if (file) {
@@ -265,19 +378,40 @@ export default function AboutMe({ profile }) {
                 return;
             }
 
-            // Show preview
-            setEduDocumentPreview({
-                show: true,
-                file: file,
-                index: index
-            });
+            // If we're in edit mode, update tempEducation immediately without preview
+            if (editingEducationIndex === index) {
+                const tempUrl = URL.createObjectURL(file);
+                setTempEducation(prev => ({
+                    ...prev,
+                    documentUrl: tempUrl,
+                    document: file
+                }));
+
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "Document Selected",
+                        message: 'Document will be saved when you save the education',
+                    },
+                }));
+            } else {
+                // Show preview only for non-edit mode (view mode)
+                setEduDocumentPreview({
+                    show: true,
+                    file: file,
+                    index: index
+                });
+            }
 
             // Reset file input
             e.target.value = '';
         }
     };
 
-    // Save experience document from preview
+    // Save experience document from preview (for view mode)
     const handleSaveExperienceDocument = async () => {
         if (!expDocumentPreview.file || expDocumentPreview.index === null) return;
 
@@ -291,8 +425,6 @@ export default function AboutMe({ profile }) {
         if (success) {
             // Update local state with the new document
             const updated = [...experience];
-            // Note: The actual document URL will come from the backend response
-            // For now, we'll create a temporary object URL for immediate display
             const tempUrl = URL.createObjectURL(expDocumentPreview.file);
             updated[expDocumentPreview.index] = {
                 ...updated[expDocumentPreview.index],
@@ -300,15 +432,6 @@ export default function AboutMe({ profile }) {
                 documentFile: expDocumentPreview.file
             };
             setExperience(updated);
-
-            // Update temp experience if currently editing
-            if (editingExperienceIndex === expDocumentPreview.index) {
-                setTempExperience(prev => ({
-                    ...prev,
-                    documentUrl: tempUrl,
-                    document: expDocumentPreview.file
-                }));
-            }
 
             setRootContext((prevContext) => ({
                 ...prevContext,
@@ -326,7 +449,7 @@ export default function AboutMe({ profile }) {
         setExpDocumentPreview({ show: false, file: null, index: null });
     };
 
-    // Save education document from preview
+    // Save education document from preview (for view mode)
     const handleSaveEducationDocument = async () => {
         if (!eduDocumentPreview.file || eduDocumentPreview.index === null) return;
 
@@ -347,15 +470,6 @@ export default function AboutMe({ profile }) {
                 documentFile: eduDocumentPreview.file
             };
             setEducation(updated);
-
-            // Update temp education if currently editing
-            if (editingEducationIndex === eduDocumentPreview.index) {
-                setTempEducation(prev => ({
-                    ...prev,
-                    documentUrl: tempUrl,
-                    document: eduDocumentPreview.file
-                }));
-            }
 
             setRootContext((prevContext) => ({
                 ...prevContext,
@@ -382,31 +496,76 @@ export default function AboutMe({ profile }) {
         setEduDocumentPreview({ show: false, file: null, index: null });
     };
 
-    const DocumentPreviewModal = ({ isOpen, onClose, onSave, file, type, index, uploading }) => {
+    // Remove document during edit
+    const handleRemoveExperienceDocument = (index) => {
+        if (editingExperienceIndex === index) {
+            setTempExperience(prev => ({
+                ...prev,
+                document: null,
+                documentUrl: ''
+            }));
+        }
+    };
+
+    const handleRemoveEducationDocument = (index) => {
+        if (editingEducationIndex === index) {
+            setTempEducation(prev => ({
+                ...prev,
+                document: null,
+                documentUrl: ''
+            }));
+        }
+    };
+
+    const DocumentPreviewModal = ({
+        isOpen,
+        onClose,
+        onSave,
+        file,
+        type,
+        index,
+        uploading,
+    }) => {
         if (!isOpen || !file) return null;
 
         const isPDF = file.type === "application/pdf";
         const fileUrl = URL.createObjectURL(file);
 
-        return (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-                <div className="bg-white rounded-xl w-full sm:w-[90%] md:w-[80%] lg:w-[70%] h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+        // Prevent background scroll while modal open
+        useEffect(() => {
+            if (isOpen) document.body.style.overflow = "hidden";
+            else document.body.style.overflow = "auto";
+            return () => (document.body.style.overflow = "auto");
+        }, [isOpen]);
 
+        return (
+            <div
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="documentPreviewTitle"
+            >
+                <div className="bg-white rounded-xl w-full sm:w-[96%] md:w-[86%] lg:w-[76%] xl:w-[66%] h-[85vh] flex flex-col overflow-hidden shadow-2xl">
                     {/* Header */}
-                    <div className="flex justify-between items-center p-3 sm:p-4 border-b">
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+                    <div className="flex justify-between items-center p-3 sm:p-4 border-b bg-gray-50">
+                        <h3
+                            id="documentPreviewTitle"
+                            className="text-base sm:text-lg font-semibold text-gray-800 truncate"
+                        >
                             Preview {type === "experience" ? "Experience" : "Education"} Document
                         </h3>
+
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            aria-label="Close document preview"
+                            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
                         >
-                            <XMarkIcon className="w-5 h-5 text-gray-600" />
+                            <XMarkIcon className="w-5 h-5 text-gray-700" aria-hidden="true" />
                         </button>
                     </div>
 
-                    {/* Preview Section */}
-                    <div className="flex-1 p-2 sm:p-4 overflow-auto">
+                    {/* Document Preview */}
+                    <div className="flex-1 overflow-auto p-3 sm:p-4 bg-white">
                         {isPDF ? (
                             <iframe
                                 src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
@@ -414,35 +573,46 @@ export default function AboutMe({ profile }) {
                                 title="Document Preview"
                             />
                         ) : (
-                            <div className="text-center py-10">
+                            <div className="text-center py-10 px-4">
                                 <DocumentIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-600 font-medium">{file.name}</p>
-                                <p className="text-sm text-gray-500 mt-2">
-                                    Preview not available for this file type. Click Save to upload.
+                                <p className="text-gray-700 font-medium text-sm sm:text-base">
+                                    {file.name}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-2">
+                                    Preview not available for this file type. Click Save to upload
+                                    the document.
                                 </p>
                             </div>
                         )}
                     </div>
 
-                    {/* Buttons */}
-                    <div className="flex flex-col sm:flex-row justify-between items-center p-3 sm:p-4 border-t bg-gray-50 gap-3">
-                        <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-                            <p><strong>File:</strong> {file.name}</p>
-                            <p><strong>Size:</strong> {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    {/* Footer */}
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0 p-3 sm:p-4 border-t bg-gray-50">
+                        <div className="text-xs sm:text-sm text-gray-600 truncate">
+                            <p>
+                                <strong>File:</strong> {file.name}
+                            </p>
+                            <p>
+                                <strong>Size:</strong>{" "}
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex justify-end gap-2 sm:gap-3">
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-300 transition-colors duration-200"
                                 disabled={uploading}
+                                aria-label="Cancel and close preview"
                             >
                                 Cancel
                             </button>
+
                             <button
                                 onClick={onSave}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center gap-2"
                                 disabled={uploading}
+                                aria-label="Save document"
                             >
                                 {uploading ? (
                                     <>
@@ -459,7 +629,6 @@ export default function AboutMe({ profile }) {
             </div>
         );
     };
-
 
     const handleSaveSummary = async () => {
         const success = await updateProfileWithDocuments({ summary: tempSummary });
@@ -485,7 +654,8 @@ export default function AboutMe({ profile }) {
             endDate: '',
             description: '',
             showDescription: false,
-            documentUrl: ''
+            documentUrl: '',
+            document: null
         };
         const updatedExperiences = [newExperience, ...experience];
         setExperience(updatedExperiences);
@@ -495,10 +665,20 @@ export default function AboutMe({ profile }) {
 
     const handleEditExperience = (index) => {
         setEditingExperienceIndex(index);
-        setTempExperience({ ...experience[index] });
+        setTempExperience({
+            ...experience[index],
+            document: null // Reset temporary document when starting edit
+        });
     };
 
     const handleSaveExperience = async (index) => {
+        const documents = [];
+
+        // If there's a new document in tempExperience, include it for upload
+        if (tempExperience.document && tempExperience.document instanceof File) {
+            documents.push({ type: 'experience', file: tempExperience.document, index: index });
+        }
+
         const updatedExperience = {
             company: tempExperience.company,
             location: tempExperience.location,
@@ -517,9 +697,12 @@ export default function AboutMe({ profile }) {
         setExperience(sortedExperiences);
         setEditingExperienceIndex(null);
 
-        const success = await updateProfileWithDocuments({ experience: sortedExperiences });
+        const success = await updateProfileWithDocuments({ experience: sortedExperiences }, documents);
         if (!success) {
             setExperience(experience);
+        } else {
+            // Clear the temporary document after successful save
+            setTempExperience(prev => ({ ...prev, document: null }));
         }
     };
 
@@ -536,21 +719,54 @@ export default function AboutMe({ profile }) {
             startDate: '',
             endDate: '',
             description: '',
+            document: null,
             documentUrl: ''
         });
     };
 
+
     const handleDeleteExperience = async (index) => {
+        const experienceToDelete = experience[index];
+
+        const isConfirmed = window.confirm(
+            `Are you sure you want to delete this experience at ${experienceToDelete.company}?`
+        );
+
+        if (!isConfirmed) return;
+
         const updated = experience.filter((_, i) => i !== index);
         setExperience(updated);
         setEditingExperienceIndex(null);
 
-        const success = await updateProfileWithDocuments({ experience: updated });
-        if (!success) {
+        try {
+            const success = await deleteExperienceEntry(experienceToDelete._id);
+            if (!success) throw new Error();
+
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "success",
+                    title: "Deleted",
+                    message: "Experience entry deleted successfully",
+                },
+            }));
+        } catch (error) {
+            // Revert UI on failure
             setExperience(experience);
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Delete Failed",
+                    message: "Failed to delete experience entry",
+                },
+            }));
         }
     };
-
     const handleExperienceChange = (e, field) => {
         setTempExperience({ ...tempExperience, [field]: e.target.value });
     };
@@ -568,7 +784,8 @@ export default function AboutMe({ profile }) {
             board: '',
             startYear: '',
             endYear: '',
-            documentUrl: ''
+            documentUrl: '',
+            document: null
         };
         const updatedEducation = [newEducation, ...education];
         setEducation(updatedEducation);
@@ -578,10 +795,20 @@ export default function AboutMe({ profile }) {
 
     const handleEditEducation = (index) => {
         setEditingEducationIndex(index);
-        setTempEducation({ ...education[index] });
+        setTempEducation({
+            ...education[index],
+            document: null // Reset temporary document when starting edit
+        });
     };
 
     const handleSaveEducation = async (index) => {
+        const documents = [];
+
+        // If there's a new document in tempEducation, include it for upload
+        if (tempEducation.document && tempEducation.document instanceof File) {
+            documents.push({ type: 'education', file: tempEducation.document, index: index });
+        }
+
         const updatedEducation = {
             degree: tempEducation.degree,
             board: tempEducation.board,
@@ -597,9 +824,12 @@ export default function AboutMe({ profile }) {
         setEducation(sortedEducation);
         setEditingEducationIndex(null);
 
-        const success = await updateProfileWithDocuments({ education: sortedEducation });
+        const success = await updateProfileWithDocuments({ education: sortedEducation }, documents);
         if (!success) {
             setEducation(education);
+        } else {
+            // Clear the temporary document after successful save
+            setTempEducation(prev => ({ ...prev, document: null }));
         }
     };
 
@@ -613,18 +843,69 @@ export default function AboutMe({ profile }) {
             board: '',
             startYear: '',
             endYear: '',
+            document: null,
             documentUrl: ''
         });
     };
 
     const handleDeleteEducation = async (index) => {
+        const educationToDelete = education[index];
+
+        // Show confirmation dialog
+        const isConfirmed = window.confirm(
+            `Are you sure you want to delete this education: ${educationToDelete.degree}? This action cannot be undone.`
+        );
+
+        if (!isConfirmed) {
+            return;
+        }
+
         const updated = education.filter((_, i) => i !== index);
+
+        // Update local state immediately for better UX
         setEducation(updated);
         setEditingEducationIndex(null);
 
-        const success = await updateProfileWithDocuments({ education: updated });
-        if (!success) {
+        try {
+            const success = await deleteEducationEntry(index);
+            if (!success) {
+                // Revert if delete failed
+                setEducation(education);
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Delete Failed",
+                        message: 'Failed to delete education entry',
+                    },
+                }));
+            } else {
+                setRootContext((prevContext) => ({
+                    ...prevContext,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "Deleted",
+                        message: 'Education entry deleted successfully',
+                    },
+                }));
+            }
+        } catch (error) {
+            // Revert if delete failed
             setEducation(education);
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Delete Failed",
+                    message: 'Failed to delete education entry',
+                },
+            }));
         }
     };
 
@@ -965,9 +1246,9 @@ export default function AboutMe({ profile }) {
                                                 {/* Document Upload for Experience */}
                                                 <div className="md:col-span-2">
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Experience Document (PDF/DOC)
+                                                        Experience Document
                                                     </label>
-                                                    {!tempExperience.documentUrl && <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-3">
                                                         <input
                                                             type="file"
                                                             accept=".pdf,.doc,.docx"
@@ -980,23 +1261,37 @@ export default function AboutMe({ profile }) {
                                                             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
                                                         >
                                                             <DocumentArrowUpIcon className="w-4 h-4" />
-                                                            Upload Document
+                                                            {tempExperience.document ? 'Change Document' : 'Upload Document'}
                                                         </label>
+
                                                         {tempExperience.documentUrl && (
-                                                            <a
-                                                                href={tempExperience.documentUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
-                                                            >
-                                                                <DocumentIcon className="w-4 h-4" />
-                                                                View Document
-                                                            </a>
+                                                            <div className="flex items-center gap-2">
+                                                                <a
+                                                                    href={tempExperience.documentUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                                >
+                                                                    <DocumentIcon className="w-4 h-4" />
+                                                                    View Document
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveExperienceDocument(index)}
+                                                                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                                                                    aria-label="Remove document"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         )}
-                                                    </div>}
-                                                    {!tempExperience.documentUrl && <p className="text-xs text-gray-500 mt-1">
-                                                        Upload experience certificate, offer letter, or relevant document (PDF/DOC, max 5MB)
-                                                    </p>}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {tempExperience.document
+                                                            ? `Selected: ${tempExperience.document.name}`
+                                                            : 'Upload experience certificate, offer letter, or relevant document (PDF/DOC, max 5MB)'
+                                                        }
+                                                    </p>
                                                 </div>
                                             </div>
 
@@ -1263,7 +1558,7 @@ export default function AboutMe({ profile }) {
                                             {/* Document Upload for Education */}
                                             <div className="md:col-span-3">
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Education Document (PDF/DOC)
+                                                    Education Document
                                                 </label>
                                                 <div className="flex items-center gap-3">
                                                     <input
@@ -1278,25 +1573,39 @@ export default function AboutMe({ profile }) {
                                                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200 cursor-pointer"
                                                     >
                                                         <DocumentArrowUpIcon className="w-4 h-4" />
-                                                        Upload Document
+                                                        {tempEducation.document ? 'Change Document' : 'Upload Document'}
                                                     </label>
+
                                                     {tempEducation.documentUrl && (
-                                                        <a
-                                                            href={`${tempEducation.documentUrl.replace(
-                                                                "/upload/",
-                                                                "/upload/fl_attachment:original_document/"
-                                                            )}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
-                                                        >
-                                                            <DocumentIcon className="w-4 h-4" />
-                                                            View Document
-                                                        </a>
+                                                        <div className="flex items-center gap-2">
+                                                            <a
+                                                                href={`${tempEducation.documentUrl.replace(
+                                                                    "/upload/",
+                                                                    "/upload/fl_attachment:original_document/"
+                                                                )}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors duration-200"
+                                                            >
+                                                                <DocumentIcon className="w-4 h-4" />
+                                                                View Document
+                                                            </a>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveEducationDocument(index)}
+                                                                className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                                                                aria-label="Remove document"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-1">
-                                                    Upload degree certificate, marksheet, or relevant document (PDF/DOC, max 5MB)
+                                                    {tempEducation.document
+                                                        ? `Selected: ${tempEducation.document.name}`
+                                                        : 'Upload degree certificate, marksheet, or relevant document (PDF/DOC, max 5MB)'
+                                                    }
                                                 </p>
                                             </div>
                                         </div>
@@ -1369,7 +1678,7 @@ export default function AboutMe({ profile }) {
                                         </div>
                                         <div className="flex space-x-2 ml-4">
                                             {/* Document upload for non-editing mode */}
-                                            {!editingEducationIndex && (edu.documentUrl === "" || !edu.documentUrl) & (
+                                            {!editingEducationIndex && (edu.documentUrl === "" || !edu.documentUrl) && (
                                                 <div className="mr-2">
                                                     <input
                                                         type="file"

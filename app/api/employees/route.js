@@ -536,14 +536,54 @@ export async function DELETE(req) {
 
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
-        if (!id) return Response.json({ error: "Employee ID is required" }, { status: 400 });
+        const index = parseInt(searchParams.get("index"));
 
-        const result = await employeesCollection.deleteOne({ _id: new ObjectId(id) });
-        if (result.deletedCount === 0) return Response.json({ error: "Employee not found" }, { status: 404 });
+        if (!id) {
+            return NextResponse.json({ error: "Employee ID is required" }, { status: 400 });
+        }
 
-        return Response.json({ success: true, message: "Employee deleted successfully" });
+        if (index === null || index === undefined) {
+            return NextResponse.json({ error: "Education index is required" }, { status: 400 });
+        }
+
+        // Get the current employee data
+        const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
+
+        if (!employee) {
+            return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+        }
+
+        // Check if education array exists and index is valid
+        if (!employee.education || index >= employee.education.length) {
+            return NextResponse.json({ error: "Education entry not found" }, { status: 404 });
+        }
+
+        // Remove the specific education entry
+        const updatedEducation = employee.education.filter((_, i) => i !== index);
+
+        // Update the employee document
+        const result = await employeesCollection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    education: updatedEducation,
+                    modified_on: new Date()
+                }
+            }
+        );
+
+        if (result.modifiedCount === 0) {
+            return NextResponse.json({ error: "Failed to delete education" }, { status: 500 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: "Education deleted successfully",
+            education: updatedEducation
+        });
+
     } catch (err) {
-        console.error("DELETE /api/employees error:", err);
-        return Response.json({ error: err.message }, { status: 500 });
+        console.error("DELETE /api/employees/education error:", err);
+        return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }

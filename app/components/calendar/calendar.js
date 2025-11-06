@@ -35,6 +35,17 @@ const isBefore9AM = () => {
     return currentHour < 9;
 };
 
+// Helper: Check if it's Tuesday (off day)
+const isOffDay = (date) => {
+    const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
+    return day === 2; // Tuesday (2) is off day
+};
+
+// Helper: Check if it's Sunday (holiday)
+const isSundayHoliday = (date) => {
+    return getDay(date) === 0; // Sunday (0) is holiday
+};
+
 // Helper: Check if date is holiday (you can customize this with your holiday list)
 const isHoliday = (date) => {
     const holidayList = [
@@ -52,22 +63,53 @@ const isHoliday = (date) => {
 };
 
 // Helper: Calculate working hours in decimal
-const calculateWorkingHours = (checkIn, checkOut) => {
+const calculateWorkingHours = (checkIn, checkOut, date) => {
     if (!checkIn || !checkOut) return 0;
+
     const [inH, inM] = checkIn.split(':').map(Number);
     const [outH, outM] = checkOut.split(':').map(Number);
     const start = inH * 60 + inM;
     const end = outH * 60 + outM;
-    const diffMinutes = Math.max(0, end - start);
+
+    let diffMinutes = Math.max(0, end - start);
+
+    // Adjust for lunch break based on day
+    const day = getDay(new Date(date));
+    if (day !== 6) { // Not Saturday
+        // Subtract 1 hour lunch break for normal days
+        diffMinutes = Math.max(0, diffMinutes - 60);
+    } else {
+        // Saturday: Subtract 30 minutes lunch break
+        diffMinutes = Math.max(0, diffMinutes - 30);
+    }
+
     return diffMinutes / 60; // hours as decimal
 };
 
-// Helper: Determine status
-const determineStatus = (checkIn, checkOut, leaveType, leaveStatus) => {
-    const fullDayHrs = 8.75; // 8h 45m
-    const halfDayHrs = 4.25; // 4h 15m
+// Helper: Determine status based on your rules
+const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date) => {
+    // Check if it's Sunday (holiday)
+    if (date && isSundayHoliday(new Date(date))) {
+        return 'holiday';
+    }
 
-    if (!checkIn && !checkOut && !leaveType) return 'absent';
+    // Check if it's Tuesday (off day)
+    if (date && isOffDay(new Date(date))) {
+        return 'sunday'; // Using 'sunday' status for off days (will show light gray)
+    }
+
+    // Handle leave applications first
+    if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
+    if (leaveType === 'first half' && leaveStatus === 'approved') return 'firstHalfApproved';
+    if (leaveType === 'second half' && leaveStatus === 'approved') return 'secondHalfApproved';
+    if (leaveType && leaveStatus === 'pending') return 'leaveApplied';
+
+    // If no check-in/check-out and no approved leave
+    if (!checkIn || !checkOut) {
+        if (leaveType === 'first half' && leaveStatus === 'approved') return 'firstHalfApproved';
+        if (leaveType === 'second half' && leaveStatus === 'approved') return 'secondHalfApproved';
+        return 'absent';
+    }
 
     const toDecimal = (time) => {
         if (!time) return null;
@@ -75,59 +117,83 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus) => {
         return h + m / 60;
     };
 
-    const calculateHours = (inTime, outTime) => {
-        if (!inTime || !outTime) return 0;
-        const [inH, inM] = inTime.split(':').map(Number);
-        const [outH, outM] = outTime.split(':').map(Number);
-        const minutes = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        return minutes / 60;
-    };
-
-    const workingHours = calculateHours(checkIn, checkOut);
+    const day = getDay(new Date(date));
     const checkInDec = toDecimal(checkIn);
     const checkOutDec = toDecimal(checkOut);
 
-    // ----- LEAVE LOGIC -----
-    if (leaveStatus === 'firstHalfApproved') {
-        const secondHalfPresent = checkInDec >= 9.5 && checkInDec <= 13.5 && checkOutDec >= 18.0;
-        return secondHalfPresent ? 'firstHalfApproved_present' : 'firstHalfApproved_absent';
+    // Saturday rules (6.5 hours)
+    if (day === 6) { // Saturday
+        const expectedCheckIn = 9.5; // 09:30
+        const expectedCheckOut = 16.0; // 16:00
+        const minWorkingHours = 5.5; // 5.5 hours net (6.5 gross - 0.5 lunch)
+
+        const workingHours = calculateWorkingHours(checkIn, checkOut, date);
+
+        // Check if within expected time range and worked enough hours
+        if (checkInDec <= expectedCheckIn + 0.5 && // Allow 30 mins late
+            checkOutDec >= expectedCheckOut - 0.5 && // Allow 30 mins early
+            workingHours >= minWorkingHours) {
+            return 'present';
+        }
+
+        // Handle half days for Saturday
+        if (workingHours >= minWorkingHours / 2) {
+            if (checkInDec <= 12.0) {
+                return 'firstHalfp';
+            } else {
+                return 'secondhalfp';
+            }
+        }
+
+        return 'absent';
     }
 
-    if (leaveStatus === 'secondHalfApproved') {
-        const firstHalfPresent = checkInDec <= 9.5 && checkOutDec >= 14.0;
-        return firstHalfPresent ? 'secondHalfApproved_present' : 'secondHalfApproved_absent';
+    // Normal days (Mon, Wed, Thu, Fri) - 9 hours
+    if ([1, 3, 4, 5].includes(day)) { // Monday=1, Wednesday=3, Thursday=4, Friday=5
+        const expectedCheckIn = 9.5; // 09:30
+        const expectedCheckOut = 18.5; // 18:30
+        const minWorkingHours = 8.0; // 8 hours net (9 gross - 1 lunch)
+
+        const workingHours = calculateWorkingHours(checkIn, checkOut, date);
+
+        // Check if within expected time range and worked enough hours
+        if (checkInDec <= expectedCheckIn + 0.5 && // Allow 30 mins late
+            checkOutDec >= expectedCheckOut - 0.5 && // Allow 30 mins early
+            workingHours >= minWorkingHours) {
+            return 'present';
+        }
+
+        // Handle half days for normal days
+        const halfDayHours = 4.0; // 4 hours net
+        if (workingHours >= halfDayHours) {
+            // First half: Check-in before 12:00 and check-out around 14:00
+            if (checkInDec <= 12.0 && checkOutDec >= 14.0) {
+                if (leaveType === 'second half' && leaveStatus === 'approved') {
+                    return 'secondHalfApproved_present';
+                }
+                return 'firstHalfp';
+            }
+            // Second half: Check-in around 13:00 and check-out after 15:00
+            if (checkInDec >= 13.0 && checkOutDec >= 15.0) {
+                if (leaveType === 'first half' && leaveStatus === 'approved') {
+                    return 'firstHalfApproved_present';
+                }
+                return 'secondhalfp';
+            }
+
+            // Default half day assignment based on check-in time
+            if (checkInDec <= 12.0) {
+                return 'firstHalfp';
+            } else {
+                return 'secondhalfp';
+            }
+        }
+
+        return 'absent';
     }
-
-    if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
-
-    if (leaveType === 'firstHalf' && leaveStatus === 'approved') {
-        if (workingHours >= halfDayHrs) return 'secondhalfp';
-        return 'firsthalfa';
-    }
-
-    if (leaveType === 'secondHalf' && leaveStatus === 'approved') {
-        if (workingHours >= halfDayHrs) return 'firstHalfp';
-        return 'secondhalfa';
-    }
-
-    // ----- PURE ATTENDANCE (no leave) -----
-    if (!checkIn || !checkOut) return 'absent';
-
-    if (workingHours >= fullDayHrs) return 'present';
-
-    // 👉 Correct half-day logic purely by time of day
-    // If employee comes late (after 12) → second half present
-    if (checkInDec >= 12) return 'secondhalfp';
-
-    // If employee leaves early (before 14) → first half present
-    if (checkOutDec <= 14) return 'firstHalfp';
-
-    // If worked enough for half-day but spans both → mark as firstHalfp by default
-    if (workingHours >= halfDayHrs) return 'firstHalfp';
 
     return 'absent';
 };
-
 
 // Split Circle Component for visual indicators
 const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
@@ -319,6 +385,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
     const [serviceCall, setServiceCall] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
+
     const attendanceMap = useMemo(() => {
         const map = {};
         if (!profile?.attendance) return map;
@@ -329,18 +396,12 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         // Map existing attendance
         Object.keys(profile.attendance).forEach(monthName => {
             profile.attendance[monthName].forEach(att => {
-                let workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
+                let workingHours = calculateWorkingHours(att.checkIn, att.checkOut, att.date);
                 let status = determineStatus(att.checkIn, att.checkOut, att.leaveType, att.status, att.date);
 
-                // Handle leave states - check for approved half days first
-                if (att.status === "firstHalfApproved" || att.status === "secondHalfApproved") {
-                    // Status is already determined by determineStatus function
-                    // No need to override it here
-                } else if (att.leaveType) {
-                    if (att.status === "pending") status = "leaveApplied";
-                    else if (att.status === "approved") status = "leaveApproved";
-                    else if (att.status === "rejected") status = "leaveRejected";
-                    else status = "leaveApplied";
+                // Handle leave applied status
+                if (att.leaveType && att.status === "pending") {
+                    status = "leaveApplied";
                 }
 
                 map[att.date] = {
@@ -359,10 +420,22 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const isCurrentMonth = getMonth(day) === getMonth(currentDate);
             const isAfterJoining = dateOfJoining ? day >= dateOfJoining : true;
 
+            // Skip if it's Sunday (holiday) or Tuesday (off day)
+            const isSunday = isSundayHoliday(day);
+            const isTuesdayOff = isOffDay(day);
+            const isCustomHoliday = isHoliday(day);
+
             if (isPastOrToday && isCurrentMonth && !map[dayStr] && isAfterJoining) {
-                map[dayStr] = { status: 'absent', workingHours: 0 };
+                if (isSunday) {
+                    map[dayStr] = { status: 'holiday', workingHours: 0 };
+                } else if (isTuesdayOff) {
+                    map[dayStr] = { status: 'sunday', workingHours: 0 };
+                } else if (isCustomHoliday) {
+                    map[dayStr] = { status: 'holiday', workingHours: 0 };
+                } else {
+                    map[dayStr] = { status: 'absent', workingHours: 0 };
+                }
             }
-            // If date is before date of joining, don't mark as absent (leave it undefined)
         });
 
         return map;
@@ -397,8 +470,70 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const employeeId = user_details?.userId;
 
     const mutated = Mutated(employeeId ? `/api/employees?id=${employeeId}` : null)
-    const isTodaySunday = isSunday(today);
+
+    // Today's status checks
+    const isTodaySunday = isSundayHoliday(today);
+    const isTodayTuesdayOff = isOffDay(today);
     const isTodayHoliday = isHoliday(today);
+
+    // Determine if today has leave applied
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const todayAttendance = attendanceMap[todayStr];
+    const isLeaveAppliedToday = todayAttendance && (
+        todayAttendance.status === 'leaveApplied' ||
+        todayAttendance.status === 'leaveApproved'
+    );
+
+    // Update disabled states - disable check-in/out on Sunday, Tuesday, and holidays
+    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayTuesdayOff || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
+
+    const hasWorkedEnough = useMemo(() => {
+        if (!todayAttendance?.checkIn) return false;
+
+        const [hours, minutes] = todayAttendance.checkIn.split(":").map(Number);
+        const checkInTime = set(new Date(), { hours, minutes, seconds: 0, milliseconds: 0 });
+        const diffMinutes = differenceInMinutes(currentTime, checkInTime);
+
+        return diffMinutes >= 255; // 4.25 hours = 255 minutes
+    }, [todayAttendance, currentTime]);
+
+    // Final disable condition
+    const isCheckOutDisabled =
+        !isCheckedIn ||
+        isTodaySunday ||
+        isTodayTuesdayOff ||
+        isTodayHoliday ||
+        isLeaveAppliedToday ||
+        !hasWorkedEnough;
+
+    // Auto-refresh current time every minute
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Helper function to check if dates contain Monday or Saturday
+    const hasInvalidDays = (startDate, endDate) => {
+        if (!startDate || !endDate) return false;
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        return daysInRange.some(date => {
+            const day = getDay(date);
+            return day === 1 || day === 6; // Monday (1) or Saturday (6)
+        });
+    };
+
+    // Calculate if apply button should be disabled
+    const isApplyButtonDisabled =
+        !leaveRange.start ||
+        !leaveRange.end ||
+        !leaveRange.leaveType ||
+        hasInvalidDays(leaveRange.start, leaveRange.end) ||
+        serviceCall;
 
     const applyLeave = async () => {
         // Step 1: Basic validations
@@ -502,63 +637,6 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         }
     };
 
-    // Helper function to check if dates contain Monday or Saturday
-    const hasInvalidDays = (startDate, endDate) => {
-        if (!startDate || !endDate) return false;
-
-        const daysInRange = eachDayOfInterval({
-            start: startDate,
-            end: endDate,
-        });
-
-        return daysInRange.some(date => {
-            const day = getDay(date);
-            return day === 1 || day === 6; // Monday (1) or Saturday (6)
-        });
-    };
-
-    // Calculate if apply button should be disabled
-    const isApplyButtonDisabled =
-        !leaveRange.start ||
-        !leaveRange.end ||
-        !leaveRange.leaveType ||
-        hasInvalidDays(leaveRange.start, leaveRange.end) ||
-        serviceCall;
-
-    // Determine if today has leave applied
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const todayAttendance = attendanceMap[todayStr];
-    const isLeaveAppliedToday = todayAttendance && (
-        todayAttendance.status === 'leaveApplied' ||
-        todayAttendance.status === 'leaveApproved'
-    );
-
-    // Update disabled states
-    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
-    const hasWorkedEnough = useMemo(() => {
-        if (!todayAttendance?.checkIn) return false;
-
-        const [hours, minutes] = todayAttendance.checkIn.split(":").map(Number);
-        const checkInTime = set(new Date(), { hours, minutes, seconds: 0, milliseconds: 0 });
-        const diffMinutes = differenceInMinutes(currentTime, checkInTime);
-
-        return diffMinutes >= 255; // 4.25 hours = 255 minutes
-    }, [todayAttendance, currentTime]);
-
-    // ✅  Final disable condition
-    const isCheckOutDisabled =
-        !isCheckedIn ||
-        isTodaySunday ||
-        isTodayHoliday ||
-        isLeaveAppliedToday ||
-        !hasWorkedEnough;
-
-    // ✅ 6. Auto-refresh current time every minute
-    useEffect(() => {
-        const interval = setInterval(() => setCurrentTime(new Date()), 60000);
-        return () => clearInterval(interval);
-    }, []);
-
     return (
         <div className=" p-2 sm:p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
             {/* Check-in/Check-out Buttons */}
@@ -569,14 +647,21 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     disabled={isCheckInDisabled}
                     className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 >
-                    {isCheckedIn ? 'Already Checked In' : isBefore9AM() ? 'Check In (After 9 AM)' : 'Check In'}
+                    {isCheckedIn ? 'Already Checked In' :
+                        isBefore9AM() ? 'Check In (After 9 AM)' :
+                            isTodayTuesdayOff ? 'Check In (Tuesday Off)' :
+                                isTodaySunday ? 'Check In (Sunday Holiday)' :
+                                    isTodayHoliday ? 'Check In (Holiday)' : 'Check In'}
                 </button>
                 <button
                     onClick={onCheckOut}
                     disabled={isCheckOutDisabled}
                     className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckOutDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
                 >
-                    Check Out
+                    {isCheckOutDisabled ?
+                        (isTodayTuesdayOff ? 'Check Out (Tuesday Off)' :
+                            isTodaySunday ? 'Check Out (Sunday Holiday)' :
+                                isTodayHoliday ? 'Check Out (Holiday)' : 'Check Out') : 'Check Out'}
                 </button>
             </div>
             {/* Go to Calendar and Leave buttons */}
@@ -664,7 +749,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
                     let status = att?.status || null;
-                    if (isSunday(day) && isCurrentMonth) status = 'sunday';
+                    if (isSundayHoliday(day) && isCurrentMonth) status = 'holiday';
+                    else if (isOffDay(day) && isCurrentMonth) status = 'sunday'; // Tuesday off day
                     else if (isHoliday(day)) status = 'holiday';
                     else if (isBeforeJoining) status = null;
 
@@ -692,7 +778,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                 setPopupData(att || {
                                     status: isTodayDate
                                         ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today')
-                                        : status === 'sunday' ? 'Sunday'
+                                        : status === 'sunday' ? 'Off Day (Tuesday)'
                                             : status === 'holiday' ? 'Holiday'
                                                 : 'No data',
                                     checkIn: att?.checkIn || '-',
@@ -701,8 +787,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                 });
                             }}
                             className={`relative w-10 h-10 flex items-center justify-center rounded-full transition ${dayBgColor} ${isBeforeJoining
-                                    ? 'cursor-not-allowed hover:ring-0'
-                                    : 'cursor-pointer hover:ring-2 hover:ring-gray-300'
+                                ? 'cursor-not-allowed hover:ring-0'
+                                : 'cursor-pointer hover:ring-2 hover:ring-gray-300'
                                 }`}
                             title={
                                 isBeforeJoining
@@ -714,7 +800,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                 ? 'Leave Approved'
                                                 : 'Today'
                                         : status === 'sunday'
-                                            ? 'Sunday'
+                                            ? 'Off Day (Tuesday)'
                                             : status === 'holiday'
                                                 ? 'Holiday'
                                                 : att
@@ -761,7 +847,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     </div>
                     <div className="flex items-center gap-2">
                         <SplitCircle status="sunday" size={16} isLegend={true} />
-                        <span>Sunday</span>
+                        <span>Off Day</span>
                     </div>
                 </div>
             </div>
@@ -810,7 +896,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                         <p><strong>Status:</strong> {
                                             popupData?.status === "secondHalf" ? "Second Half" :
                                                 popupData?.status === "firstHalf" ? "First Half" :
-                                                    popupData?.status === "sunday" ? "Sunday" :
+                                                    popupData?.status === "sunday" ? "Off Day (Tuesday)" :
                                                         popupData?.status === "holiday" ? "Holiday" :
                                                             popupData?.status
                                         }</p>
@@ -938,6 +1024,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                         <div className="flex gap-2 pt-2">
                                             <button
                                                 onClick={applyLeave}
+                                                disabled={isApplyButtonDisabled}
                                                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 {serviceCall ? (

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
+import Head from "next/head";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -84,6 +85,10 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
+       <Head>
+        <title>Real Beez</title>
+        <meta name="description" content="Realbeez Holding Pvt Ltd" />
+      </Head>
       <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
           {accessDenied ? (

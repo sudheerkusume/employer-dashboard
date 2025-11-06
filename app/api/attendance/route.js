@@ -20,7 +20,8 @@ function calculateWorkingHours(checkIn, checkOut) {
   return diff.toFixed(2);
 }
 
-function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0) {
+// ✅ Updated: added `dayOfWeek` param for Saturday logic
+function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0, dateStr = null) {
   if (!checkIn) return { status: "absent", workingHours: 0, lossOfPay: 0 };
 
   let status = "present";
@@ -28,7 +29,15 @@ function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0) {
   const checkOutMins = checkOut ? timeToMinutes(checkOut) : null;
 
   const standardCheckInMins = timeToMinutes(STANDARD_CHECKIN);
-  const earlyOutMins = timeToMinutes(EARLY_OUT_CUTOFF);
+
+  // 🔹 Determine if Saturday → use 16:00 as cutoff
+  let earlyOutMins = timeToMinutes(EARLY_OUT_CUTOFF);
+  if (dateStr) {
+    const day = new Date(dateStr).getDay(); // 0 = Sun, 6 = Sat
+    if (day === 6) {
+      earlyOutMins = timeToMinutes(STANDARD_CHECKOUT); // 16:00 cutoff on Saturday
+    }
+  }
 
   let late = false;
   let earlyOut = false;
@@ -125,7 +134,8 @@ export async function POST(req) {
         return acc;
       }, 0);
 
-      const result = determineStatusWithRules(todayAttendance.checkIn, nowTime, lateEarlyCount);
+      // Pass `today` for Saturday logic
+      const result = determineStatusWithRules(todayAttendance.checkIn, nowTime, lateEarlyCount, today);
 
       todayAttendance.checkOut = nowTime;
       todayAttendance.workingHours = `${result.workingHours} hrs`;
@@ -182,7 +192,8 @@ export async function updateDailyAttendance() {
         // Auto checkout if missing
         if (!att.checkOut && att.checkIn) att.checkOut = STANDARD_CHECKOUT;
 
-        const result = determineStatusWithRules(att.checkIn, att.checkOut, lateEarlyCount);
+        // ✅ Pass date for Saturday rule
+        const result = determineStatusWithRules(att.checkIn, att.checkOut, lateEarlyCount, yDateStr);
         att.status = result.status;
         att.workingHours = att.checkOut ? `${result.workingHours} hrs` : "";
         att.lossOfPay = result.lossOfPay;

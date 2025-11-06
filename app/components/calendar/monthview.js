@@ -2,124 +2,154 @@
 import React, { useRef, useMemo } from 'react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addDays, isSameMonth, format, isToday
+  addDays, isSameMonth, format, isToday, isAfter, getDay
 } from 'date-fns';
 
-export default function MonthView({ date, events, categoryColors }) {
+export default function MonthView({ date, events, profile, setEditData, setShowDrawer, setMode, categoryColors }) {
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const calendarRef = useRef(null);
-  const rows = [];
-  let days = [];
-  let day = startDate;
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
 
-  // Helper: Calculate working hours in decimal
-  const calculateWorkingHours = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 0;
-    const [inH, inM] = checkIn.split(':').map(Number);
-    const [outH, outM] = checkOut.split(':').map(Number);
-    const diff = (outH + outM / 60) - (inH + inM / 60);
-    return diff > 0 ? diff : 0;
+  const editEvent = (item) => {
+    setShowDrawer(true);
+    setEditData(item);
+    setMode("update")
   };
 
-  // Helper: Determine status
-  const determineStatus = (checkIn, checkOut) => {
-    const fullDayHrs = 8.75; // 8 hrs 45 mins
-    const halfDayHrs = 4.25; // 4 hrs 15 mins
-    const workingHours = calculateWorkingHours(checkIn, checkOut);
+  const attendance = profile.attendance || {};
+  const department = profile.department?.toLowerCase() || '';
 
-    if (checkIn && checkOut) {
-      if (workingHours >= fullDayHrs) return 'present';
-      if (workingHours >= halfDayHrs) return 'halfDay';
-      return 'absent';
-    }
-    if (checkIn && !checkOut) return 'firstHalf';
-    if (!checkIn && checkOut) return 'secondHalf';
-    return 'absent';
-  };
-
-  // Map attendance events by date
+  // --- Attendance only till current date ---
   const attendanceMap = useMemo(() => {
     const map = {};
-    if (!events) return map;
-
-    Object.keys(events).forEach(monthName => {
-      const monthData = events[monthName];
+    Object.keys(attendance).forEach((monthName) => {
+      const monthData = attendance[monthName];
       if (Array.isArray(monthData)) {
-        monthData.forEach(att => {
-          if (att.date) {
-            const workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
-            const status = determineStatus(att.checkIn, att.checkOut);
-            map[att.date] = { ...att, workingHours, status };
+        monthData.forEach((att) => {
+          if (att.date <= todayStr) {
+            map[att.date] = att;
           }
         });
       }
     });
+    return map;
+  }, [attendance, todayStr]);
 
+  // --- Events: show all dates ---
+  const eventMap = useMemo(() => {
+    const map = {};
+    if (!events) return map;
+    events.forEach((evt) => {
+      if (evt.date) {
+        const key = format(new Date(evt.date), 'yyyy-MM-dd');
+        if (!map[key]) map[key] = [];
+        map[key].push(evt);
+      }
+    });
     return map;
   }, [events]);
+
+  // --- Build calendar days ---
+  const rows = [];
+  let days = [];
+  let day = startDate;
 
   while (day <= endDate) {
     for (let i = 0; i < 7; i++) {
       const formattedDate = format(day, 'yyyy-MM-dd');
-      const att = attendanceMap[formattedDate];
-      const status = att?.status || null;
       const isCurrentMonth = isSameMonth(day, monthStart);
       const isTodayDate = isToday(day);
+      const weekday = getDay(day); // 0 = Sunday
 
-      // Background color
+      let att = attendanceMap[formattedDate];
+      const evts = eventMap[formattedDate] || [];
+
+      // --- Auto-mark attendance logic ---
+      let autoStatus = '';
+      if (department === 'tech') {
+        if (weekday === 0 || weekday === 2) autoStatus = 'off'; // Sunday & Tuesday
+      } else {
+        if (weekday === 0) autoStatus = 'off'; // Only Sunday
+      }
+
+      if (!isAfter(day, today)) {
+        if (!att) {
+          att = { date: formattedDate, status: autoStatus || 'absent', checkIn: '', checkOut: '', workingHours: '' };
+        } else {
+          if (!att.checkIn && !att.checkOut && !autoStatus) att.status = 'absent';
+          else if (autoStatus) att.status = autoStatus;
+        }
+      }
+
+      // --- Background color logic ---
       let bgColor = '#ffffff';
-      if (isTodayDate) bgColor = '#d1d5db';
-      else if (status) bgColor = categoryColors[status] || '#9ca3af';
-
-      const textColor = (isTodayDate || status) ? '#ffffff' : '#374151';
-
-      // Tooltip
-      const title = att
-        ? `Check-in: ${att.checkIn || '-'} | Check-out: ${att.checkOut || '-'} | Hours: ${att.workingHours.toFixed(2) || '-'} | Status: ${att.status}`
-        : '';
+      if (!isCurrentMonth) bgColor = '#f5f5f5';
+      if (weekday === 0) bgColor = '#ffeaea'; // Sunday light red
+      if (att?.status === 'absent') bgColor = '#ffc9c9'; // Absent red
+      if (isTodayDate) bgColor = '#d9fdd3'; // Today green highlight
 
       days.push(
         <div
           key={formattedDate}
-          className={`border border-gray-200 p-1 h-28 text-xs align-top relative flex flex-col cursor-pointer ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'}`}
-          style={{ backgroundColor: bgColor, color: textColor }}
-          title={title}
+          className={`border border-gray-200 p-1 h-28 text-xs relative flex flex-col cursor-pointer`}
+          style={{ backgroundColor: bgColor }}
         >
-          <div className={`font-semibold text-right pr-1 ${isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}`}>
+          {/* Date number */}
+          <div className="font-semibold text-right pr-1 text-gray-700">
             {format(day, 'd')}
           </div>
 
-          <div className="space-y-1 mt-1 overflow-hidden flex-grow">
-            {att && (
-              <>
-                {att.checkIn && <div>In: {att.checkIn}</div>}
-                {att.checkOut && <div>Out: {att.checkOut}</div>}
+          {/* Attendance (only if date <= today) */}
+          {!isAfter(day, today) && att && (
+            <div
+              className="mt-1 text-[11px] px-1 py-0.5 rounded capitalize"
+              style={{
+                backgroundColor: hexToRgba(categoryColors[att.status] || '#ef4444', 0.15),
+                color: categoryColors[att.status] || '#b91c1c',
+              }}
+            >
+              {att.status} {att.workingHours && `(${att.workingHours})`}
+            </div>
+          )}
+
+          {/* Events (all dates) */}
+          {evts.length > 0 && (
+            <div className="mt-1 space-y-1 overflow-hidden">
+              {evts.map((e, idx) => (
                 <div
-                  className="truncate rounded px-1 py-0.5 w-full text-sm h-full"
+                  key={idx}
+                  onClick={() => editEvent(e)}
+                  className="truncate rounded px-1 py-0.5 text-[11px]"
                   style={{
-                    backgroundColor: hexToRgba(categoryColors[att.status], 0.15),
-                    color: categoryColors[att.status]
+                    backgroundColor: hexToRgba(categoryColors[e.type] || '#f59e0b', 0.2),
+                    color: categoryColors[e.type] || '#92400e'
                   }}
                 >
-                  {att.status} ({att.workingHours.toFixed(2)} hrs)
+                  📅 {e.title}
                 </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       );
 
       day = addDays(day, 1);
     }
-    rows.push(<div className="grid grid-cols-7 border-b border-gray-200 last:border-b-0" key={format(day, 'yyyy-MM-dd')}>{days}</div>);
+
+    rows.push(
+      <div key={format(day, 'yyyy-MM-dd')} className="grid grid-cols-7 border-b border-gray-200 last:border-b-0">
+        {days}
+      </div>
+    );
     days = [];
   }
 
   return (
-    <div ref={calendarRef} className="border border-gray-200 mt-5 overflow-hidden relative">
+    <div ref={calendarRef} className="border border-gray-200 mt-5 overflow-hidden relative rounded-lg shadow-sm">
       <div className="grid grid-cols-7 bg-gray-100 text-gray-700 font-semibold text-sm border-b border-gray-200">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(dayName => (
           <div key={dayName} className="text-center py-2">{dayName}</div>
