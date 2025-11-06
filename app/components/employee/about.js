@@ -113,48 +113,56 @@ export default function AboutMe({ profile }) {
         setServiceCall(true);
         try {
             const formData = new FormData();
-            formData.append('id', employeeID);
 
-            // Add all update data as JSON
-            Object.keys(updateData).forEach(key => {
-                if (updateData[key] !== undefined && updateData[key] !== null) {
-                    if (typeof updateData[key] === 'object') {
-                        formData.append(key, JSON.stringify(updateData[key]));
+            // 🆔 Always include employee ID
+            formData.append("id", employeeID);
+
+            // 🔹 Append all fields in updateData
+            Object.keys(updateData).forEach((key) => {
+                const value = updateData[key];
+                if (value !== undefined && value !== null) {
+                    // Convert nested objects/arrays to JSON
+                    if (typeof value === "object") {
+                        formData.append(key, JSON.stringify(value));
                     } else {
-                        formData.append(key, updateData[key]);
+                        formData.append(key, value);
                     }
                 }
             });
 
-            // Add document files
-            documents.forEach((doc, index) => {
-                if (doc.file) {
+            // 🔹 Attach document files (experience, education, etc.)
+            documents.forEach((doc) => {
+                if (doc?.file) {
+                    // Example: experienceDoc_0, educationDoc_1, etc.
                     formData.append(`${doc.type}Doc_${doc.index}`, doc.file);
                 }
             });
 
+            // 🔹 Make PUT request
             const res = await fetch(`/api/employees`, {
-                method: 'PUT',
+                method: "PUT",
                 body: formData,
             });
 
             const data = await res.json();
             setServiceCall(false);
 
+            // 🔹 Handle success
             if (res.ok) {
-                mutated();
+                mutated(); // Refresh employee data
                 setRootContext((prevContext) => ({
                     ...prevContext,
                     toast: {
                         show: true,
                         dismiss: true,
                         type: "success",
-                        title: `Success`,
-                        message: `Details Updated Successfully`,
+                        title: "Success",
+                        message: "Details Updated Successfully",
                     },
                 }));
                 return true;
             } else {
+                // 🔹 Handle API error
                 setRootContext((prevContext) => ({
                     ...prevContext,
                     toast: {
@@ -162,12 +170,13 @@ export default function AboutMe({ profile }) {
                         dismiss: true,
                         type: "error",
                         title: "Failed",
-                        message: data.error || 'Failed to update profile',
+                        message: data.error || "Failed to update profile",
                     },
                 }));
                 return false;
             }
         } catch (err) {
+            // 🔹 Handle network or unexpected error
             setServiceCall(false);
             setRootContext((prevContext) => ({
                 ...prevContext,
@@ -176,7 +185,7 @@ export default function AboutMe({ profile }) {
                     dismiss: true,
                     type: "error",
                     title: "Failed",
-                    message: 'Something went wrong while updating profile',
+                    message: "Something went wrong while updating profile",
                 },
             }));
             return false;
@@ -1063,7 +1072,7 @@ export default function AboutMe({ profile }) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
                                 <input
-                                    type="text"
+                                    type="number"
                                     value={tempAccount.accountNumber || ""}
                                     onChange={(e) => setTempAccount({ ...tempAccount, accountNumber: e.target.value })}
                                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"

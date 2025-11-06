@@ -235,24 +235,27 @@ export async function PUT(request) {
                 updateFields.education = existingEmployee.education;
             }
 
-            // 🔹 Handle Account Details - merge with existing
-            const newAccountDetails = {
-                accountNumber: formData.get("accountNumber"),
-                ifscCode: formData.get("ifscCode"),
-                branch: formData.get("branch"),
-                accountHolderName: formData.get("accountHolderName"),
-            };
+            // 🔹 Handle Account Details (sent as JSON string in formData)
+            const rawAccountDetails = formData.get("accountDetails");
+            let parsedAccountDetails = {};
 
-            // Only update account details if any field is provided
-            if (Object.values(newAccountDetails).some(val => val !== null && val !== undefined && val !== "")) {
+            if (rawAccountDetails) {
+                try {
+                    parsedAccountDetails = JSON.parse(rawAccountDetails);
+                } catch (err) {
+                    console.warn("Invalid accountDetails JSON:", rawAccountDetails);
+                    parsedAccountDetails = {};
+                }
+            }
+
+            // Only update if valid object and contains data
+            if (parsedAccountDetails && Object.keys(parsedAccountDetails).length > 0) {
                 updateFields.accountDetails = {
-                    ...existingEmployee.accountDetails, // Keep existing data
-                    ...Object.fromEntries(
-                        Object.entries(newAccountDetails)
-                            .filter(([_, value]) => value !== null && value !== undefined && value !== "")
-                    )
+                    ...existingEmployee.accountDetails,
+                    ...parsedAccountDetails
                 };
             } else {
+                // Preserve existing account details if nothing sent
                 updateFields.accountDetails = existingEmployee.accountDetails;
             }
 
