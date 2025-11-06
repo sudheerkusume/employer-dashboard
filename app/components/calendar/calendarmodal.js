@@ -37,18 +37,23 @@ export default function CalendarModal({ profile, mutated, showCalendar, setShowC
 
         if (profile.dateOfBirth) {
             const dob = new Date(profile.dateOfBirth);
+            const dobMonth = dob.getMonth();
+            const dobDate = dob.getDate();
+
+            // We'll add birthday for past, current, and future years to keep it always visible
+            const yearsRange = [];
             const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 3; y <= currentYear + 3; y++) {
+                yearsRange.push(y);
+            }
 
-            // Repeat birthday every year (you can adjust the range if needed)
-            const yearsToShow = [currentYear - 1, currentYear, currentYear + 1];
-
-            yearsToShow.forEach(year => {
-                const birthdayDate = new Date(year, dob.getMonth(), dob.getDate());
+            yearsRange.forEach((year) => {
+                const birthday = new Date(year, dobMonth, dobDate);
                 merged.push({
                     _id: `dob-event-${year}`,
                     title: "🎂 Birthday",
                     description: `${profile.name}'s Birthday`,
-                    date: birthdayDate.toISOString(),
+                    date: birthday.toISOString(),
                     type: "birthday",
                     createdAt: new Date().toISOString(),
                 });
