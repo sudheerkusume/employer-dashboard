@@ -122,15 +122,6 @@ function mdToHtml(md) {
 }
 
 export default function HRPolicy() {
-    const downloadFile = (filename, content) => {
-        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
 
     return (
         <main className="min-h-screen w-full bg-gradient-to-b from-white via-gray-50 to-white sm:p-6 text-gray-900">
@@ -142,26 +133,6 @@ export default function HRPolicy() {
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">
                             HR Policy • Terms & Conditions • Code of Conduct
                         </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => downloadFile('HR_POLICY.md', HR_POLICY)}
-                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
-                        >
-                            Download HR Policy
-                        </button>
-                        <button
-                            onClick={() => downloadFile('TERMS_AND_CONDITIONS.md', TERMS)}
-                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-green-600 text-white hover:bg-green-700 transition shadow-sm"
-                        >
-                            Download T&C
-                        </button>
-                        <button
-                            onClick={() => downloadFile('CODE_OF_CONDUCT.md', CODE_OF_CONDUCT)}
-                            className="px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 transition shadow-sm"
-                        >
-                            Download Code of Conduct
-                        </button>
                     </div>
                 </header>
 
