@@ -33,20 +33,29 @@ export default function CalendarModal({ profile, mutated, showCalendar, setShowC
     const mergedEvents = useMemo(() => {
         if (!profile || !events) return [];
 
-        // Convert DOB to event format
-        const dobEvent = profile.dateOfBirth
-            ? [{
-                _id: "dob-event",
-                title: "Birthday",
-                description: `🎂 ${profile.name}'s Birthday`,
-                date: new Date(profile.dateOfBirth),
-                type: "birthday",
-                createdAt: new Date().toISOString(),
-            }]
-            : [];
+        const merged = [...events];
 
-        // Merge DOB event with existing events
-        return [...events, ...dobEvent];
+        if (profile.dateOfBirth) {
+            const dob = new Date(profile.dateOfBirth);
+            const currentYear = new Date().getFullYear();
+
+            // Repeat birthday every year (you can adjust the range if needed)
+            const yearsToShow = [currentYear - 1, currentYear, currentYear + 1];
+
+            yearsToShow.forEach(year => {
+                const birthdayDate = new Date(year, dob.getMonth(), dob.getDate());
+                merged.push({
+                    _id: `dob-event-${year}`,
+                    title: "🎂 Birthday",
+                    description: `${profile.name}'s Birthday`,
+                    date: birthdayDate.toISOString(),
+                    type: "birthday",
+                    createdAt: new Date().toISOString(),
+                });
+            });
+        }
+
+        return merged;
     }, [profile, events]);
 
     // Then apply your existing category filter
