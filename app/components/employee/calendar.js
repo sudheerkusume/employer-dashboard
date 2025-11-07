@@ -4,7 +4,7 @@ import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
 import { Mutated } from '../config/useswrfetch';
-import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay } from 'date-fns';
+import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay, addMonths } from 'date-fns';
 import { formatDateTime } from '../config/sitesettings';
 import CalendarModal from '../calendar/calendarmodal';
 
@@ -21,6 +21,107 @@ const categoryColors = {
     today: "#48a84dff",
 };
 
+// --- Enhanced Attendance Regularization (AR) Form ---
+function ARForm({ defaultDate, onClose, onSubmit, submitting }) {
+    const [dateFrom, setDateFrom] = useState(defaultDate || new Date().toISOString().slice(0, 10));
+    const [dateTo, setDateTo] = useState(defaultDate);
+    const [inTime, setInTime] = useState('09:30');
+    const [outTime, setOutTime] = useState('18:30');
+    const [reason, setReason] = useState('');
+
+    return (
+        <div className="relative bg-white text-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 transition-all duration-300 border border-gray-700">
+            {/* Header */}
+            <h3 className="text-2xl font-semibold mb-4 text-[#FFD700] flex items-center gap-2">
+                🕒 Attendance Regularization
+            </h3>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">From Date</label>
+                    <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => {
+                            setDateFrom(e.target.value);
+                            if (dateTo < e.target.value) setDateTo(e.target.value);
+                        }}
+                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">To Date</label>
+                    <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                    />
+                </div>
+            </div>
+
+            {/* Time Inputs */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">In Time</label>
+                    <input
+                        type="time"
+                        value={inTime}
+                        onChange={(e) => setInTime(e.target.value)}
+                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">Out Time</label>
+                    <input
+                        type="time"
+                        value={outTime}
+                        onChange={(e) => setOutTime(e.target.value)}
+                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                    />
+                </div>
+            </div>
+
+            {/* Reason */}
+            <div className="mb-4">
+                <label className="block text-sm text-gray-900 mb-1">Reason</label>
+                <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={3}
+                    placeholder="Explain why you're requesting this adjustment..."
+                    className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-3">
+                <button
+                    onClick={onClose}
+                    className="px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition"
+                >
+                    Cancel
+                </button>
+                <button
+                    disabled={submitting}
+                    onClick={() => onSubmit({ dateFrom, dateTo, inTime, outTime, reason })}
+                    className={`px-4 py-2 rounded-lg text-black font-semibold transition ${submitting
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-[#FFD700] hover:bg-yellow-400'
+                        }`}
+                >
+                    {submitting ? 'Submitting...' : 'Submit'}
+                </button>
+            </div>
+
+            {/* Subtle glow */}
+            <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-yellow-400/10 to-transparent pointer-events-none" />
+        </div>
+    );
+}
+
+
 export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn }) {
     const myDate = new Date();
     const [currentDate, setCurrentDate] = useState(myDate);
@@ -35,41 +136,45 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     };
     const mutated = Mutated(profile ? `/api/employees?id=${profile._id}` : null)
 
-    // Withdraw leave service
-    const withdrawLeaveService = async (employeeId, startDate, endDate) => {
-        const res = await fetch(`/api/leave/delete?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, {
-            method: 'DELETE',
-        });
-        setServiceCall(true)
-        if (res.status) {
-            setServiceCall(false)
-        }
-        if (!res.ok) {
-            const data = await res.json();
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: `Failed`,
-                    message: `${data?.error}` || 'Failed to withdraw leave',
-                },
-            }));
-        } else {
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "success",
-                    title: `success`,
-                    message: `Leave withdraw successfully`,
-                },
-            }));
-            mutated()
-        }
-    };
+    // --- New: AR state ---
+    const [showARModal, setShowARModal] = useState(false);
+    const [arSubmitting, setArSubmitting] = useState(false);
+
+   // Withdraw leave/AR service
+const withdrawLeaveService = async (employeeId, startDate, endDate) => {
+  fetch(`/api/ar?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, { method: 'DELETE' })
+
+  setServiceCall(true);
+  if (res.status) setServiceCall(false);
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    setRootContext((prevContext) => ({
+      ...prevContext,
+      toast: {
+        show: true,
+        dismiss: true,
+        type: "error",
+        title: `Failed`,
+        message: data?.error || 'Failed to withdraw leave',
+      },
+    }));
+  } else {
+    setRootContext((prevContext) => ({
+      ...prevContext,
+      toast: {
+        show: true,
+        dismiss: true,
+        type: "success",
+        title: `Success`,
+        message: `Leave withdrawn successfully`,
+      },
+    }));
+    mutated();
+  }
+};
+
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -78,7 +183,8 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     // Get current month name from currentDate
     const monthIndex = currentDate.getMonth();
     const [monthName, setMonthName] = useState(monthIndex || 1);
-    const handleWithdraw = async (employeeId, startDate, endDate, leaveDates) => {
+
+    const handleWithdraw = async (mployeeId, startDate, endDate, leaveDates) => {
         try {
             setLoadingLeave(startDate);
 
@@ -337,6 +443,167 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     const lastDayOfMonth = endOfMonth(today);
     const isMonthEnd = isSameDay(today, lastDayOfMonth);
 
+    // --- Updated: submit AR request via Mongo API ---
+    const submitAR = async ({ dateFrom, dateTo, inTime, outTime, reason }) => {
+        if (!profile?._id) return;
+        try {
+            setArSubmitting(true);
+            setServiceCall(true);
+
+            const payload = {
+                employeeId: profile._id,
+                dateFrom,
+                dateTo,
+                inTime,
+                outTime,
+                reason,
+                type: 'regularization',
+            };
+
+            const res = await fetch('/api/ar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to apply regularization.');
+
+            // ✅ Optimistic update
+            const d1 = parseISO(dateFrom);
+            const d2 = parseISO(dateTo);
+            const days = eachDayOfInterval({ start: d1, end: d2 }).map(d => format(d, 'yyyy-MM-dd'));
+
+            days.forEach(dt => {
+                const mname = monthNames[new Date(dt).getMonth()];
+                if (!profile.attendance[mname]) profile.attendance[mname] = [];
+                profile.attendance[mname].push({
+                    date: dt,
+                    status: 'pendingRegularization',
+                    checkIn: inTime,
+                    checkOut: outTime,
+                    reason,
+                });
+            });
+
+            setRootContext(prev => ({
+                ...prev,
+                toast: { show: true, dismiss: true, type: 'success', title: 'Success', message: 'Attendance Regularization submitted successfully.' },
+            }));
+
+            mutated();
+            setShowARModal(false);
+        } catch (err) {
+            console.error('AR submit error:', err);
+            setRootContext(prev => ({
+                ...prev,
+                toast: { show: true, dismiss: true, type: 'error', title: 'Error', message: err.message },
+            }));
+        } finally {
+            setServiceCall(false);
+            setArSubmitting(false);
+        }
+    };
+
+
+    // Withdraw AR (re-use withdrawLeaveService for simplicity, but call a dedicated endpoint if available)
+    const withdrawAR = async (employeeId, startDate, endDate, arDates = []) => {
+        if (!employeeId || !startDate || !endDate) return;
+
+        try {
+            setServiceCall(true);
+
+            const res = await fetch(
+                `/api/ar?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`,
+                { method: 'DELETE' }
+            );
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to withdraw regularization.');
+
+            // ✅ Remove withdrawn AR entries locally
+            for (const month of Object.keys(profile.attendance)) {
+                profile.attendance[month] = profile.attendance[month].filter(
+                    (entry) => !(entry.status === 'pendingRegularization' && arDates.includes(entry.date))
+                );
+            }
+
+            setRootContext((prev) => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'success',
+                    title: 'Withdrawn',
+                    message: 'Regularization withdrawn successfully.',
+                },
+            }));
+
+            mutated();
+        } catch (err) {
+            console.error('Withdraw AR error:', err);
+            setRootContext((prev) => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'error',
+                    title: 'Error',
+                    message: err.message,
+                },
+            }));
+        } finally {
+            setServiceCall(false);
+        }
+    };
+
+
+    // Yesterday UI block (unchanged)
+    const YesterdayBlock = (() => {
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+        const monthNameNow = monthNames[yesterday.getMonth()];
+        const yesterdayData =
+            profile.attendance?.[monthNameNow]?.find(
+                (d) => d.date === yesterdayStr
+            ) || null;
+
+        if (!yesterdayData) {
+            return (
+                <div className="bg-gray-100 text-center py-2 rounded-xl mb-3">
+                    <p className="text-sm text-gray-600 italic">No attendance record for yesterday.</p>
+                </div>
+            );
+        }
+
+        const checkIn = yesterdayData.checkIn || "—";
+        const checkOut = yesterdayData.checkOut || "—";
+        let totalHours = "—";
+
+        if (checkIn && checkOut) {
+            const inTime = parse(checkIn, "HH:mm", new Date());
+            const outTime = parse(checkOut, "HH:mm", new Date());
+            const minutesWorked = differenceInMinutes(outTime, inTime);
+
+            const hours = Math.floor(minutesWorked / 60);
+            const minutes = minutesWorked % 60;
+
+            totalHours = `${hours || 0} hrs ${minutes || 0} mins`;
+        }
+
+        return (
+            <div className="bg-blue-50 p-3 rounded-sm mb-3 border border-blue-200">
+                <p className="text-md text-center font-bold text-gray-700 mb-1">Yesterday's Attendance</p>
+                <p className='text-sm'>Check-in: <strong>{checkIn}</strong></p>
+                <p className='text-sm'>Check-out: <strong>{checkOut}</strong></p>
+                <p className="text-sm mt-1 text-gray-700">Total Worked: <span className="font-bold text-blue-700">{totalHours}</span></p>
+            </div>
+        );
+    })();
+
     return (
         <div className="flex flex-col md:flex-row max-w-full text-gray-700 gap-4">
             {serviceCall && <Loading />}
@@ -350,182 +617,109 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     isCheckedIn={isCheckedIn}
                     onGoToCalendar={() => setShowCalendar(true)}
                     setMonthName={setMonthName}
+                    // expose a prop so Calendar child can open AR modal for a specific date
+                    onRequestAR={(dateStr) => { setShowARModal(true); /* could pass default date if Calendar provides */ }}
                 />
             </div>
 
-            {/* Right Side: Leaves Section */}
+            {/* Right Side: Leaves & AR Section */}
             <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
-                {/* ✅ Working Days */}
-                {isMonthEnd && (
+                {/* AR Quick Action */}
+                <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Your Leaves & AR</h3>
+                    <button onClick={() => setShowARModal(true)} className="px-3 py-1 text-sm bg-blue-600 text-white rounded">Apply AR</button>
+                </div>
+
+                {/* Working Days */}
+                {isSameDay(new Date(), endOfMonth(new Date())) && (
                     <div className="bg-green-100 py-2 text-center rounded-sm mb-2">
-                        <p className="text-sm text-gray-500">
-                            Working Days:{" "}
-                            <span className="text-sm font-bold text-gray-700">{totalWorked}</span>{" "}
-                            / {totalWorkingDays}
-                        </p>
-                        {/* Optional: uncomment if needed */}
-                        {/* {paidLeaves > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-                (Includes {paidLeaves} paid leave)
-            </p>
-        )} */}
+                        <p className="text-sm text-gray-500">Working Days: <span className="text-sm font-bold text-gray-700">{totalWorked}</span> / {totalWorkingDays}</p>
                     </div>
                 )}
 
-                {/* Combined Present Late & Early Out - Only show if greater than 0 */}
                 {(presentLate > 0 || earlyOut > 0) && (
                     <div className="bg-yellow-100 p-2 text-center rounded-sm mb-2">
-                        <p className="text-sm text-gray-500">
-                            Present Late:{" "}
-                            <span className="text-sm font-bold text-gray-700">{presentLate}</span>
-                        </p>
+                        <p className="text-sm text-gray-500">Present Late: <span className="text-sm font-bold text-gray-700">{presentLate}</span></p>
                     </div>
                 )}
 
-                {/* First Half & Second Half - Only show if greater than 0 */}
                 {(firstHalf > 0 || secondHalf > 0) && (
                     <div className="bg-red-100 p-2 text-center rounded-sm mb-2">
-                        <p className="text-sm text-gray-500">
-                            Half Days:{" "}
-                            <span className="text-sm font-bold text-gray-700">
-                                {firstHalf + secondHalf}
-                            </span>
-                            {(firstHalf > 0 || secondHalf > 0) && (
-                                <span className="text-xs ml-2">
-                                    ({firstHalf} first half, {secondHalf} second half)
-                                </span>
-                            )}
-                        </p>
+                        <p className="text-sm text-gray-500">Half Days: <span className="text-sm font-bold text-gray-700">{firstHalf + secondHalf}</span> <span className="text-xs ml-2">({firstHalf} first half, {secondHalf} second half)</span></p>
                     </div>
                 )}
 
                 {lossOfPay > 0 && (
-                    <div className="bg-red-100 p-2 text-center rounded-sm mb-2">
-                        <p className="text-sm text-red-600 font-bold">
-                            Loss of Pay Days: {lossOfPay}
-                        </p>
-                    </div>
+                    <div className="bg-red-100 p-2 text-center rounded-sm mb-2"><p className="text-sm text-red-600 font-bold">Loss of Pay Days: {lossOfPay}</p></div>
                 )}
 
-                {/* ✅ Yesterday's Attendance Summary */}
-                {(() => {
-                    const today = new Date();
-                    const yesterday = new Date(today);
-                    yesterday.setDate(today.getDate() - 1);
-                    const yesterdayStr = yesterday.toISOString().split("T")[0];
+                {/* Yesterday block */}
+                {YesterdayBlock}
 
-                    const monthNameNow = monthNames[yesterday.getMonth()];
-                    const yesterdayData =
-                        profile.attendance?.[monthNameNow]?.find(
-                            (d) => d.date === yesterdayStr
-                        ) || null;
+                {/* Leaves & Pending ARs */}
+                <h4 className="mt-2 mb-2 font-medium">Pending Requests</h4>
+                <div className="overflow-y-auto max-h-56 space-y-2">
+                    {/* Pending Leaves */}
+                    {monthLeaves.length === 0 ? (
+                        <p className="text-gray-400 italic">No leave applied.</p>
+                    ) : (
+                        <ul className="space-y-2">
+                            {monthLeaves.map((leave, index) => (
+                                <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
+                                    <div className="text-sm">
+                                        <div className="font-medium text-gray-600">{leave.leaveType}</div>
+                                        <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
+                                    </div>
+                                    {leave.status !== 'approved' && leave.status !== 'rejected' && (
+                                        <button disabled={loadingLeave === leave.startDate} onClick={() => handleWithdraw(profile._id, leave.startDate, leave.endDate, eachDayOfInterval({ start: parseISO(leave.startDate), end: parseISO(leave.endDate) }).map(d => format(d, 'yyyy-MM-dd')))} className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{loadingLeave === leave.startDate ? 'Withdrawing...' : 'Withdraw'}</button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
 
-                    if (!yesterdayData) {
+                    {/* Pending Regularizations (scan attendance for status 'pendingRegularization') */}
+                    {(() => {
+                        const pendingAR = [];
+                        Object.keys(profile.attendance || {}).forEach(m => {
+                            (profile.attendance[m] || []).forEach(it => {
+                                if (it.status === 'pendingRegularization') pendingAR.push(it);
+                            });
+                        });
+
+                        if (pendingAR.length === 0) return null;
+
                         return (
-                            <div className="bg-gray-100 text-center py-2 rounded-xl mb-3">
-                                <p className="text-sm text-gray-600 italic">
-                                    No attendance record for yesterday.
-                                </p>
+                            <div>
+                                <h5 className="text-sm font-medium mt-2">Pending Regularizations</h5>
+                                <ul className="mt-2 space-y-2">
+                                    {pendingAR.map((ar, idx) => (
+                                        <li key={idx} className="flex justify-between items-center p-2 border rounded">
+                                            <div className="text-sm">
+                                                <div className="font-medium">{ar.date}</div>
+                                                <div className="text-xs text-gray-500">{ar.checkIn || '—'} - {ar.checkOut || '—'}</div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => withdrawAR(profile._id, ar.date, ar.date, [ar.date])} className="px-2 py-1 rounded text-white bg-red-600 text-xs">Withdraw</button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         );
-                    }
+                    })()}
 
-                    const checkIn = yesterdayData.checkIn || "—";
-                    const checkOut = yesterdayData.checkOut || "—";
-                    let totalHours = "—";
-
-                    if (checkIn && checkOut) {
-                        const inTime = parse(checkIn, "HH:mm", new Date());
-                        const outTime = parse(checkOut, "HH:mm", new Date());
-                        const minutesWorked = differenceInMinutes(outTime, inTime);
-
-                        const hours = Math.floor(minutesWorked / 60);
-                        const minutes = minutesWorked % 60;
-
-                        totalHours = `${hours || 0} hrs ${minutes || 0} mins`;
-                    }
-
-                    return (
-                        <div className="bg-blue-50 p-3 rounded-sm mb-3 border border-blue-200">
-                            <p className="text-md text-center font-bold text-gray-700 mb-1">
-                                Yesterday's Attendance
-                            </p>
-                            <p className='text-sm'>Check-in: <strong>{checkIn}</strong></p>
-                            <p className='text-sm'>Check-out: <strong>{checkOut}</strong></p>
-                            <p className="text-sm mt-1 text-gray-700">
-                                Total Worked: <span className="font-bold text-blue-700">{totalHours}</span>
-                            </p>
-                        </div>
-                    );
-                })()}
-
-                {/* ✅ Leaves Section */}
-                <h3 className="text-lg font-semibold mb-3">Your Leaves</h3>
-
-                {monthLeaves.length === 0 ? (
-                    <p className="text-gray-400 italic">No leave applied.</p>
-                ) : (
-                    <ul className="space-y-2 overflow-y-auto max-h-[500px]">
-                        {monthLeaves.map((leave, index) => (
-                            <li
-                                key={index}
-                                className="flex justify-between capitalize items-center p-2 border border-gray-200 rounded-md"
-                            >
-                                <div className="flex flex-col text-sm">
-                                    <p className="font-medium text-gray-500">
-                                        Leave Type:{" "}
-                                        <span className="font-bold text-gray-800">
-                                            {leave.leaveType}
-                                        </span>
-                                    </p>
-                                    <p className="font-medium text-gray-500">
-                                        Leave Period:{" "}
-                                        <span className="font-bold text-gray-800">
-                                            {formatDateTime(leave.startDate, "DD-MM-YYYY")}
-                                            {leave.startDate !== leave.endDate && (
-                                                <> to {formatDateTime(leave.endDate, "DD-MM-YYYY")}</>
-                                            )}
-                                        </span>
-                                    </p>
-                                    <p className="font-medium text-gray-500">
-                                        Status:{" "}
-                                        <span
-                                            className={`font-bold ${leave.status === "approved"
-                                                ? "text-green-600"
-                                                : "text-yellow-500"
-                                                }`}
-                                        >
-                                            {leave.status}
-                                        </span>
-                                    </p>
-                                </div>
-                                {leave.status !== "approved" &&
-                                    leave.status !== "rejected" &&
-                                    leave.status !== "firstHalfApproved" &&
-                                    leave.status !== "secondHalfApproved" && (
-                                        <button
-                                            onClick={() =>
-                                                handleWithdraw(
-                                                    profile._id,
-                                                    leave.startDate,
-                                                    leave.endDate,
-                                                    eachDayOfInterval({ start: parseISO(leave.startDate), end: parseISO(leave.endDate) })
-                                                        .map(d => format(d, 'yyyy-MM-dd'))
-                                                )
-                                            }
-                                            disabled={loadingLeave === leave.startDate}
-                                            className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"
-                                                }`}
-                                        >
-                                            {loadingLeave === leave.startDate ? "Withdrawing..." : "Withdraw"}
-                                        </button>
-                                    )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
+                </div>
             </aside>
+
             <CalendarModal profile={profile} mutated={mutated} attendance={profile.attendance} employeeEvents={profile.events} showCalendar={showCalendar} setShowCalendar={setShowCalendar} />
+
+            {/* AR Modal (simple inline modal) */}
+            {showARModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <ARForm defaultDate={new Date().toISOString().slice(0, 10)} onClose={() => setShowARModal(false)} onSubmit={submitAR} submitting={arSubmitting} />
+                </div>
+            )}
         </div>
     );
 }

@@ -9,38 +9,39 @@ import { formatDateTime } from "@/app/components/config/sitesettings";
 import { parse, differenceInMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 
-
 export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [serviceCall, setServiceCall] = useState(false);
   const { rootContext, setRootContext } = useContext(RootContext);
   const router = useRouter();
-  // ✅ Read localStorage only on client once
+
+  // ✅ Read manager ID from localStorage
   useEffect(() => {
     const details = JSON.parse(localStorage.getItem("user_details") || "{}");
     if (details?.userId) setUserId(details.userId);
   }, []);
 
-  const { data, error, isLoading } = useSWRFetch(
+  // Fetch manager's own data (for leaves and pending requests)
+  const { data: managerData, error, isLoading } = useSWRFetch(
     userId ? `/api/employees?id=${userId}` : null
   );
   const mutate = Mutated(userId ? `/api/employees?id=${userId}` : null);
 
-  function GetEmployee() {
-    const { data, error } = useSWRFetch("/api/employees");
-    return {
-      employeesData: data || [],
-      employeesLoading: !error && !data,
-      employeesError: error,
-    };
-  }
+  // ✅ Fetch ALL employees to get team data
+  const { data: employeesData, isLoading: employeesLoading } = useSWRFetch(
+    "/api/employees"
+  );
 
-  const { employeesData } = GetEmployee();
+  // Filter team members (employees who report to this manager)
+  const teamMembers = employeesData?.filter(employee =>
+    employee.reportingId === userId
+  ) || [];
 
   if (error) return <Error />;
-  if (isLoading || !userId) return <Loading />;
+  if (isLoading || employeesLoading || !userId) return <Loading />;
 
+  // ✅ Handle Leave Approve / Reject
   const handleLeaveAction = async (leave, status) => {
     if (!confirm(`Are you sure you want to ${status} this leave?`)) return;
     setServiceCall(true);
@@ -60,7 +61,6 @@ export default function ManagerDashboard() {
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Something went wrong");
-      if (res.status) setServiceCall(false);
 
       setRootContext((prev) => ({
         ...prev,
@@ -73,7 +73,7 @@ export default function ManagerDashboard() {
         },
       }));
 
-      mutate(); // Refresh SWR data
+      mutate();
     } catch (err) {
       setRootContext((prev) => ({
         ...prev,
@@ -87,17 +87,68 @@ export default function ManagerDashboard() {
       }));
     } finally {
       setActionLoading(false);
+      setServiceCall(false);
     }
   };
 
-  const pendingLeaves = data?.pendingLeaves || [];
+  // ✅ Handle Attendance Regularization Approve / Reject
+  const handleARAction = async (ar, action) => {
+    if (!confirm(`Are you sure you want to ${action} this regularization?`)) return;
+    setServiceCall(true);
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/ar", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: ar._id,
+          action,
+          remarks: action === "approve" ? "Approved by Manager" : "Rejected by Manager",
+          managerId: userId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update AR");
+
+      setRootContext((prev) => ({
+        ...prev,
+        toast: {
+          show: true,
+          dismiss: true,
+          type: "success",
+          title: `Regularization ${action}`,
+          message: `Regularization ${action} successfully`,
+        },
+      }));
+
+      mutate();
+    } catch (err) {
+      setRootContext((prev) => ({
+        ...prev,
+        toast: {
+          show: true,
+          dismiss: true,
+          type: "error",
+          title: "Error",
+          message: err.message,
+        },
+      }));
+    } finally {
+      setServiceCall(false);
+      setActionLoading(false);
+    }
+  };
+
+  const pendingLeaves = managerData?.pendingLeaves || [];
+  const pendingARs = managerData?.pendingRegularizations || [];
 
   const logOut = () => {
     localStorage.clear();
     let resp = rootContext;
     resp.authenticated = false;
     setRootContext({ ...resp });
-    router.push("/")
+    router.push("/");
   };
 
   return (
@@ -111,6 +162,27 @@ export default function ManagerDashboard() {
         >
           Logout
         </button>
+      </div>
+
+      {/* Team Summary */}
+      <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">
+          Team Summary
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h3 className="text-lg font-semibold text-blue-800">Team Size</h3>
+            <p className="text-2xl font-bold text-blue-600">{teamMembers.length}</p>
+          </div>
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <h3 className="text-lg font-semibold text-yellow-800">Pending Leaves</h3>
+            <p className="text-2xl font-bold text-yellow-600">{pendingLeaves.length}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <h3 className="text-lg font-semibold text-purple-800">Pending Regularizations</h3>
+            <p className="text-2xl font-bold text-purple-600">{pendingARs.length}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -135,7 +207,8 @@ export default function ManagerDashboard() {
                     {leave.employeeName}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {formatDateTime(leave.startDate, "DD-MM-YYYY")} → {formatDateTime(leave.endDate, "DD-MM-YYYY")}
+                    {formatDateTime(leave.startDate, "DD-MM-YYYY")} →{" "}
+                    {formatDateTime(leave.endDate, "DD-MM-YYYY")}
                   </p>
                   <p className="text-sm text-gray-600">
                     Type: <span className="font-medium">{leave.leaveType}</span>
@@ -165,94 +238,55 @@ export default function ManagerDashboard() {
           </ul>
         </div>
 
-        {/* --- Team Attendance (Current Month Overview) --- */}
+        {/* --- Attendance Regularization Requests --- */}
         <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">
-            Team Attendance - {new Date().toLocaleString("en-US", { month: "long" })}
+            Attendance Regularization Requests
           </h2>
-          <p className="text-gray-500 mb-4">
-            Today's check-in & check-out and monthly presence summary.
-          </p>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full border text-sm text-left text-gray-700 rounded-xl">
-              <thead className="bg-gray-100 text-gray-800 font-semibold">
-                <tr>
-                  <th className="py-2 px-3 border">Employee</th>
-                  <th className="py-2 px-3 border text-center">Check-In (Today)</th>
-                  <th className="py-2 px-3 border text-center">Check-Out (Today)</th>
-                  <th className="py-2 px-3 border text-center">Present Days</th>
-                  <th className="py-2 px-3 border text-center">Working Days</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employeesData.map((emp, idx) => {
-                  const attendance = emp.attendance || {};
-                  const today = new Date();
-                  const currentMonthIndex = today.getMonth();
-                  const currentYear = today.getFullYear();
-                  const monthName = today.toLocaleString("en-US", { month: "long" });
+          {pendingARs.length === 0 && (
+            <p className="text-gray-500">No pending regularization requests</p>
+          )}
 
-                  const monthData = attendance[monthName] || [];
-
-                  // Define holidays for this month
-                  const holidays = [`${currentYear}-10-02`, `${currentYear}-10-15`];
-
-                  const FULL_DAY_HOURS = 8.75;
-                  const HALF_DAY_HOURS = 4.25;
-
-                  // Total working days excluding Sundays & holidays
-                  const start = new Date(currentYear, currentMonthIndex, 1);
-                  const end = new Date(currentYear, currentMonthIndex + 1, 0);
-                  const totalWorkingDays = Array.from(
-                    { length: end.getDate() },
-                    (_, i) => new Date(currentYear, currentMonthIndex, i + 1)
-                  ).filter(
-                    (d) => d.getDay() !== 0 && !holidays.includes(d.toISOString().split("T")[0])
-                  ).length;
-
-                  // Calculate employee worked days
-                  let workedDays = 0;
-                  monthData.forEach((d) => {
-                    if (d.checkIn && d.checkOut) {
-                      const checkInTime = parse(d.checkIn, "HH:mm", new Date());
-                      const checkOutTime = parse(d.checkOut, "HH:mm", new Date());
-                      const minutesWorked = differenceInMinutes(checkOutTime, checkInTime);
-                      const hoursWorked = minutesWorked / 60;
-
-                      if (hoursWorked >= FULL_DAY_HOURS) workedDays += 1;
-                      else if (hoursWorked >= HALF_DAY_HOURS) workedDays += 0.5;
-                    } else if (d.status === "firstHalfApproved" || d.status === "secondHalfApproved") {
-                      workedDays += 0.5;
-                    } else if (d.status === "present") {
-                      workedDays += 1;
-                    }
-                  });
-
-                  // Today's attendance
-                  const todayStr = today.toISOString().split("T")[0];
-                  const todayEntry = monthData.find((d) => d.date === todayStr);
-                  const checkIn = todayEntry?.checkIn || "-";
-                  const checkOut = todayEntry?.checkOut || "-";
-
-                  return (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 px-3 border font-medium">{emp.name}</td>
-                      <td className="py-2 px-3 border text-center text-green-700">{checkIn}</td>
-                      <td className="py-2 px-3 border text-center text-blue-700">{checkOut}</td>
-                      <td className="py-2 px-3 border text-center text-green-600 font-semibold">{workedDays}</td>
-                      <td className="py-2 px-3 border text-center font-semibold text-gray-800">{totalWorkingDays}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ul className="space-y-4">
+            {pendingARs.map((ar) => (
+              <li
+                key={ar._id}
+                className="p-4 border rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition"
+              >
+                <div>
+                  <p className="font-semibold text-gray-800">{ar.employeeName}</p>
+                  {/* <p className="text-sm text-gray-600">
+                    Dates: {ar.date.join(", ")}
+                  </p> */}
+                  <p className="text-sm text-gray-600">Reason: {ar.reason}</p>
+                  <p className="text-sm text-gray-600 italic text-blue-700">
+                    Status: {ar.status}
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:space-x-2">
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => handleARAction(ar, "approve")}
+                    className="bg-green-500 text-white px-4 py-1 rounded-lg hover:bg-green-600 transition"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => handleARAction(ar, "reject")}
+                    className="bg-red-500 text-white px-4 py-1 rounded-lg hover:bg-red-600 transition"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-
       </div>
 
-      <ManagerProfile employeesData={data} />
+      <ManagerProfile employeesData={managerData} />
     </div>
   );
 }

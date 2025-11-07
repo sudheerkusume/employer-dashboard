@@ -185,7 +185,9 @@ export default function AboutMe({ profile }) {
             });
 
             const data = await res.json();
-            setServiceCall(false);
+            if (es.status) {
+                setServiceCall(false);
+            }
 
             // 🔹 Handle success
             if (res.ok) {
@@ -226,98 +228,6 @@ export default function AboutMe({ profile }) {
                     type: "error",
                     title: "Failed",
                     message: "Something went wrong while updating profile",
-                },
-            }));
-            return false;
-        }
-    };
-
-    // Delete specific experience entry
-    const deleteExperienceEntry = async (index) => {
-        setServiceCall(true);
-        try {
-            const response = await fetch(`/api/employees/experience?id=${employeeID}&index=${index}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            const data = await response.json();
-            setServiceCall(false);
-
-            if (response.ok) {
-                mutated();
-                return true;
-            } else {
-                setRootContext((prevContext) => ({
-                    ...prevContext,
-                    toast: {
-                        show: true,
-                        dismiss: true,
-                        type: "error",
-                        title: "Delete Failed",
-                        message: data.error || 'Failed to delete experience',
-                    },
-                }));
-                return false;
-            }
-        } catch (err) {
-            setServiceCall(false);
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Delete Failed",
-                    message: 'Something went wrong while deleting experience',
-                },
-            }));
-            return false;
-        }
-    };
-
-    // Delete specific education entry
-    const deleteEducationEntry = async (index) => {
-        setServiceCall(true);
-        try {
-            const response = await fetch(`/api/employees/education?id=${employeeID}&index=${index}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            const data = await response.json();
-            setServiceCall(false);
-
-            if (response.ok) {
-                mutated();
-                return true;
-            } else {
-                setRootContext((prevContext) => ({
-                    ...prevContext,
-                    toast: {
-                        show: true,
-                        dismiss: true,
-                        type: "error",
-                        title: "Delete Failed",
-                        message: data.error || 'Failed to delete education',
-                    },
-                }));
-                return false;
-            }
-        } catch (err) {
-            setServiceCall(false);
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Delete Failed",
-                    message: 'Something went wrong while deleting education',
                 },
             }));
             return false;
@@ -544,25 +454,122 @@ export default function AboutMe({ profile }) {
     const handleCancelEducationDocument = () => {
         setEduDocumentPreview({ show: false, file: null, index: null });
     };
+    // Delete entire experience entry
+    const handleRemoveExperience = async (index) => {
+        setServiceCall(true);
+        try {
+            const res = await fetch(`/api/employees?id=${profile?._id}&index=${index}&type=experience&deleteType=entry`, {
+                method: 'DELETE',
+            });
 
-    // Remove document during edit
-    const handleRemoveExperienceDocument = (index) => {
-        if (editingExperienceIndex === index) {
-            setTempExperience(prev => ({
-                ...prev,
-                document: null,
-                documentUrl: ''
-            }));
+            const data = await res.json();
+            if (res.status) {
+                setServiceCall(false);
+            }
+            mutated()
+            if (!res.ok) {
+                console.error("Error deleting experience:", data.error);
+                alert(data.error || "Failed to delete experience");
+                return;
+            }
+
+            console.log("✅ Experience entry deleted successfully");
+
+        } catch (err) {
+            console.error("❌ Failed to delete experience:", err);
+            alert("Something went wrong while deleting experience");
         }
     };
 
-    const handleRemoveEducationDocument = (index) => {
-        if (editingEducationIndex === index) {
-            setTempEducation(prev => ({
-                ...prev,
-                document: null,
-                documentUrl: ''
-            }));
+    // Delete only experience document (keep the entry)
+    const handleRemoveExperienceDocument = async (index) => {
+        setServiceCall(true);
+        try {
+            if (editingExperienceIndex === index) {
+                setTempExperience(prev => ({
+                    ...prev,
+                    document: null,
+                    documentUrl: ''
+                }));
+            }
+
+            const res = await fetch(`/api/employees?id=${profile?._id}&index=${index}&type=experience&deleteType=document`, {
+                method: 'DELETE',
+            });
+            if (res.status) {
+                setServiceCall(false);
+            }
+            const data = await res.json();
+            mutated();
+            if (!res.ok) {
+                console.error("Error deleting experience document:", data.error);
+                alert(data.error || "Failed to delete experience document");
+                return;
+            }
+            console.log("✅ Experience document deleted successfully");
+
+        } catch (err) {
+            console.error("❌ Failed to delete experience document:", err);
+            alert("Something went wrong while deleting experience document");
+        }
+    };
+
+    // Delete entire education entry
+    const handleRemoveEducation = async (index) => {
+        setServiceCall(true);
+        try {
+            const res = await fetch(`/api/employees?id=${profile?._id}&index=${index}&type=education&deleteType=entry`, {
+                method: 'DELETE',
+            });
+
+            const data = await res.json();
+            if (res.status) {
+                setServiceCall(false);
+            }
+            mutated()
+            if (!res.ok) {
+                console.error("Error deleting education:", data.error);
+                alert(data.error || "Failed to delete education");
+                return;
+            }
+            console.log("✅ Education entry deleted successfully");
+
+        } catch (err) {
+            console.error("❌ Failed to delete education:", err);
+            alert("Something went wrong while deleting education");
+        }
+    };
+
+    // Delete only education document (keep the entry)
+    const handleRemoveEducationDocument = async (index) => {
+        setServiceCall(true);
+        try {
+            if (editingEducationIndex === index) {
+                setTempEducation((prev) => ({
+                    ...prev,
+                    document: null,
+                    documentUrl: ''
+                }));
+            }
+
+            const res = await fetch(`/api/employees?id=${profile?._id}&index=${index}&type=education&deleteType=document`, {
+                method: 'DELETE',
+            });
+            if (res.status) {
+                setServiceCall(true);
+            }
+            const data = await res.json();
+            mutated()
+            if (!res.ok) {
+                console.error("Error deleting education document:", data.error);
+                alert(data.error || "Failed to delete education document");
+                return;
+            }
+            console.log("✅ Education document deleted successfully");
+
+        } catch (err) {
+            console.error("❌ Failed to delete education document:", err);
+            alert("Something went wrong while deleting education document");
         }
     };
 
@@ -774,48 +781,6 @@ export default function AboutMe({ profile }) {
     };
 
 
-    const handleDeleteExperience = async (index) => {
-        const experienceToDelete = experience[index];
-
-        const isConfirmed = window.confirm(
-            `Are you sure you want to delete this experience at ${experienceToDelete.company}?`
-        );
-
-        if (!isConfirmed) return;
-
-        const updated = experience.filter((_, i) => i !== index);
-        setExperience(updated);
-        setEditingExperienceIndex(null);
-
-        try {
-            const success = await deleteExperienceEntry(experienceToDelete._id);
-            if (!success) throw new Error();
-
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "success",
-                    title: "Deleted",
-                    message: "Experience entry deleted successfully",
-                },
-            }));
-        } catch (error) {
-            // Revert UI on failure
-            setExperience(experience);
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Delete Failed",
-                    message: "Failed to delete experience entry",
-                },
-            }));
-        }
-    };
     const handleExperienceChange = (e, field) => {
         setTempExperience({ ...tempExperience, [field]: e.target.value });
     };
@@ -895,67 +860,6 @@ export default function AboutMe({ profile }) {
             document: null,
             documentUrl: ''
         });
-    };
-
-    const handleDeleteEducation = async (index) => {
-        const educationToDelete = education[index];
-
-        // Show confirmation dialog
-        const isConfirmed = window.confirm(
-            `Are you sure you want to delete this education: ${educationToDelete.degree}? This action cannot be undone.`
-        );
-
-        if (!isConfirmed) {
-            return;
-        }
-
-        const updated = education.filter((_, i) => i !== index);
-
-        // Update local state immediately for better UX
-        setEducation(updated);
-        setEditingEducationIndex(null);
-
-        try {
-            const success = await deleteEducationEntry(index);
-            if (!success) {
-                // Revert if delete failed
-                setEducation(education);
-                setRootContext((prevContext) => ({
-                    ...prevContext,
-                    toast: {
-                        show: true,
-                        dismiss: true,
-                        type: "error",
-                        title: "Delete Failed",
-                        message: 'Failed to delete education entry',
-                    },
-                }));
-            } else {
-                setRootContext((prevContext) => ({
-                    ...prevContext,
-                    toast: {
-                        show: true,
-                        dismiss: true,
-                        type: "success",
-                        title: "Deleted",
-                        message: 'Education entry deleted successfully',
-                    },
-                }));
-            }
-        } catch (error) {
-            // Revert if delete failed
-            setEducation(education);
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Delete Failed",
-                    message: 'Failed to delete education entry',
-                },
-            }));
-        }
     };
 
     const handleEducationChange = (e, field) => {
@@ -1637,7 +1541,7 @@ export default function AboutMe({ profile }) {
                                                         <PencilIcon className={`w-5 h-5 ${isAddingOrEditing && editingExperienceIndex !== index ? 'text-gray-400' : 'text-blue-600'}`} />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteExperience(index)}
+                                                        onClick={() => handleRemoveExperience(index)}
                                                         className="p-2 rounded-full hover:bg-red-100 transition-colors duration-200"
                                                         aria-label="Delete experience"
                                                         disabled={isAddingOrEditing}
@@ -1769,9 +1673,7 @@ export default function AboutMe({ profile }) {
                                                     <label htmlFor={`startYear-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Start Year</label>
                                                     <input
                                                         id={`startYear-${index}`}
-                                                        type="number"
-                                                        min="1950"
-                                                        max="2030"
+                                                        type="month"
                                                         className="w-full p-2 border border-gray-300 text-gray-700 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                                                         value={tempEducation.startYear}
                                                         onChange={(e) => handleEducationChange(e, 'startYear')}
@@ -1782,9 +1684,7 @@ export default function AboutMe({ profile }) {
                                                     <label htmlFor={`endYear-${index}`} className="block text-sm font-medium text-gray-700 mb-1">End Year</label>
                                                     <input
                                                         id={`endYear-${index}`}
-                                                        type="number"
-                                                        min="1950"
-                                                        max="2030"
+                                                        type="month"
                                                         className="w-full p-2 border border-gray-300 text-gray-700 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                                                         value={tempEducation.endYear}
                                                         onChange={(e) => handleEducationChange(e, 'endYear')}
@@ -1944,7 +1844,7 @@ export default function AboutMe({ profile }) {
                                                 <PencilIcon className={`w-5 h-5 ${isAddingOrEditing && editingEducationIndex !== index ? 'text-gray-400' : 'text-blue-600'}`} />
                                             </button>
                                             <button
-                                                onClick={() => handleDeleteEducation(index)}
+                                                onClick={() => handleRemoveEducation(index)}
                                                 className="p-2 rounded-full hover:bg-red-100 transition-colors duration-200"
                                                 aria-label="Delete education"
                                                 disabled={isAddingOrEditing}

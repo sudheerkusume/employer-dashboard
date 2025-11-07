@@ -93,11 +93,6 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date) => {
         return 'holiday';
     }
 
-    // Check if it's Tuesday (off day)
-    if (date && isOffDay(new Date(date))) {
-        return 'sunday'; // Using 'sunday' status for off days (will show light gray)
-    }
-
     // Handle leave applications first
     if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
     if (leaveType === 'first half' && leaveStatus === 'approved') return 'firstHalfApproved';
@@ -420,19 +415,23 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const isCurrentMonth = getMonth(day) === getMonth(currentDate);
             const isAfterJoining = dateOfJoining ? day >= dateOfJoining : true;
 
-            // Skip if it's Sunday (holiday) or Tuesday (off day)
             const isSunday = isSundayHoliday(day);
-            const isTuesdayOff = isOffDay(day);
+            const isTuesday = getDay(day) === 2; // 0=Sunday, 1=Monday, 2=Tuesday, etc.
             const isCustomHoliday = isHoliday(day);
+
+            // ✅ ONLY tech department gets Tuesday off
+            const isTuesdayOff = profile?.department === "tech" && isTuesday;
 
             if (isPastOrToday && isCurrentMonth && !map[dayStr] && isAfterJoining) {
                 if (isSunday) {
                     map[dayStr] = { status: 'holiday', workingHours: 0 };
                 } else if (isTuesdayOff) {
+                    // Only mark as off day if department is tech AND no attendance exists
                     map[dayStr] = { status: 'sunday', workingHours: 0 };
                 } else if (isCustomHoliday) {
                     map[dayStr] = { status: 'holiday', workingHours: 0 };
                 } else {
+                    // For non-tech departments on Tuesday, mark as absent if no attendance
                     map[dayStr] = { status: 'absent', workingHours: 0 };
                 }
             }
@@ -473,7 +472,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
     // Today's status checks
     const isTodaySunday = isSundayHoliday(today);
-    const isTodayTuesdayOff = isOffDay(today);
+    const isTodayTuesdayOff = isOffDay(today) && profile?.department === "tech"; // Only tech gets Tuesday off
     const isTodayHoliday = isHoliday(today);
 
     // Determine if today has leave applied
@@ -484,7 +483,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         todayAttendance.status === 'leaveApproved'
     );
 
-    // Update disabled states - disable check-in/out on Sunday, Tuesday, and holidays
+    // Update disabled states - disable check-in/out on Sunday, Tuesday (only for tech), and holidays
     const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayTuesdayOff || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
 
     const hasWorkedEnough = useMemo(() => {
@@ -748,11 +747,31 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
+                    // ✅ ALWAYS use status from attendanceMap - never override existing records
                     let status = att?.status || null;
-                    if (isSundayHoliday(day) && isCurrentMonth) status = 'holiday';
-                    else if (isOffDay(day) && isCurrentMonth) status = 'sunday'; // Tuesday off day
-                    else if (isHoliday(day)) status = 'holiday';
-                    else if (isBeforeJoining) status = null;
+
+                    // Map your status to our system
+                    if (status === 'present' || status === 'presentLate') {
+                        status = 'present';
+                    }
+                    // 'Checked In', 'absent', etc. remain as they are
+
+                    // Only apply special statuses if there's NO existing attendance record
+                    if (!att && isCurrentMonth && !isBeforeJoining) {
+                        const isSunday = isSundayHoliday(day);
+                        const isTuesday = getDay(day) === 2;
+                        const isCustomHoliday = isHoliday(day);
+
+                        if (isSunday) {
+                            status = 'holiday';
+                        } else if (isTuesday && profile?.department === "tech") {
+                            status = 'sunday'; // Off day only for tech department
+                        } else if (isCustomHoliday) {
+                            status = 'holiday';
+                        } else if (day <= today) {
+                            status = 'absent'; // Only mark as absent for past dates
+                        }
+                    }
 
                     const isLeaveApplied = att?.status === 'leaveApplied';
                     const isLeaveApproved = att?.status === 'leaveApproved';
@@ -776,11 +795,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                 if (isBeforeJoining) return;
                                 setSelectedDate(day);
                                 setPopupData(att || {
-                                    status: isTodayDate
-                                        ? (att?.checkIn ? 'Checked In' : att?.leaveType ? 'Leave' : 'Today')
-                                        : status === 'sunday' ? 'Off Day (Tuesday)'
-                                            : status === 'holiday' ? 'Holiday'
-                                                : 'No data',
+                                    status: status || 'No data',
                                     checkIn: att?.checkIn || '-',
                                     checkOut: att?.checkOut || '-',
                                     workingHours: att?.workingHours || 0,
@@ -800,7 +815,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                 ? 'Leave Approved'
                                                 : 'Today'
                                         : status === 'sunday'
-                                            ? 'Off Day (Tuesday)'
+                                            ? (profile.department === "tech" ? 'Off Day (Tuesday)' : att?.status || 'No data')
                                             : status === 'holiday'
                                                 ? 'Holiday'
                                                 : att
@@ -841,7 +856,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                         <SplitCircle status="leaveApproved" size={16} isLegend={true} />
                         <span>Leave</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap=2">
                         <SplitCircle status="holiday" size={16} isLegend={true} />
                         <span>Holiday</span>
                     </div>

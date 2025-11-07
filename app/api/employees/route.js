@@ -544,54 +544,145 @@ export async function DELETE(req) {
 
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
-        const index = parseInt(searchParams.get("index"));
+        const index = Number(searchParams.get("index"));
+        const type = searchParams.get("type"); // "experience" or "education"
+        const deleteType = searchParams.get("deleteType") || "entry"; // "entry" or "document"
 
+        console.log(`DELETE Request:`, { id, index, type, deleteType });
+
+        // Validate required parameters
         if (!id) {
-            return NextResponse.json({ error: "Employee ID is required" }, { status: 400 });
+            return Response.json({ error: "Employee ID is required" }, { status: 400 });
         }
 
-        if (index === null || index === undefined) {
-            return NextResponse.json({ error: "Education index is required" }, { status: 400 });
+        if (!type || !["experience", "education"].includes(type)) {
+            return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
         }
 
-        // Get the current employee data
+        if (isNaN(index) || index < 0) {
+            return Response.json({ error: "Valid index is required" }, { status: 400 });
+        }
+
+        // Find employee
         const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
-
         if (!employee) {
-            return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+            return Response.json({ error: "Employee not found" }, { status: 404 });
         }
 
-        // Check if education array exists and index is valid
-        if (!employee.education || index >= employee.education.length) {
-            return NextResponse.json({ error: "Education entry not found" }, { status: 404 });
+        // Validate the array exists
+        if (!employee[type] || !Array.isArray(employee[type])) {
+            return Response.json({ error: `${type} data not found` }, { status: 404 });
         }
 
-        // Remove the specific education entry
-        const updatedEducation = employee.education.filter((_, i) => i !== index);
+        // Check if index is within bounds
+        if (index >= employee[type].length) {
+            return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
+        }
 
-        // Update the employee document
-        const result = await employeesCollection.updateOne(
-            { _id: new ObjectId(id) },
-            {
-                $set: {
-                    education: updatedEducation,
-                    modified_on: new Date()
+        let updateResult;
+        let updatedArray;
+
+        if (deleteType === "document") {
+            // 🔹 Only remove the document URL, keep the entry
+            updatedArray = [...employee[type]];
+            const itemToUpdate = updatedArray[index];
+
+            // Remove document from Cloudinary if exists
+            if (itemToUpdate.documentUrl) {
+                try {
+                    // Extract public_id from Cloudinary URL
+                    const urlParts = itemToUpdate.documentUrl.split('/');
+                    const publicIdWithExtension = urlParts[urlParts.length - 1];
+                    const publicId = publicIdWithExtension.split('.')[0];
+                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
+
+                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                    console.log(`Cloudinary document deleted: ${fullPublicId}`);
+                } catch (cloudinaryError) {
+                    console.warn("Could not delete from Cloudinary, continuing:", cloudinaryError);
                 }
             }
-        );
 
-        if (result.modifiedCount === 0) {
-            return NextResponse.json({ error: "Failed to delete education" }, { status: 500 });
+            // Remove document reference
+            updatedArray[index] = {
+                ...itemToUpdate,
+                documentUrl: "",
+                document: null
+            };
+
+            updateResult = await employeesCollection.updateOne(
+                { _id: new ObjectId(id) },
+                {
+                    $set: {
+                        [type]: updatedArray,
+                        modified_on: new Date()
+                    }
+                }
+            );
+
+        } else {
+            // 🔹 Delete the entire entry
+            updatedArray = [...employee[type]];
+            const itemToDelete = updatedArray[index];
+
+            // Delete associated document from Cloudinary if exists
+            if (itemToDelete.documentUrl) {
+                try {
+                    const urlParts = itemToDelete.documentUrl.split('/');
+                    const publicIdWithExtension = urlParts[urlParts.length - 1];
+                    const publicId = publicIdWithExtension.split('.')[0];
+                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
+
+                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                    console.log(`Cloudinary document deleted: ${fullPublicId}`);
+                } catch (cloudinaryError) {
+                    console.warn("Could not delete from Cloudinary, continuing:", cloudinaryError);
+                }
+            }
+
+            // Remove the entry
+            updatedArray.splice(index, 1);
+
+            updateResult = await employeesCollection.updateOne(
+                { _id: new ObjectId(id) },
+                {
+                    $set: {
+                        [type]: updatedArray,
+                        modified_on: new Date()
+                    }
+                }
+            );
         }
 
-        return NextResponse.json({
+        if (updateResult.matchedCount === 0) {
+            return Response.json({ error: "Employee not found during update" }, { status: 404 });
+        }
+
+        return Response.json({
             success: true,
-            message: "Education deleted successfully",
-            education: updatedEducation
+            message: deleteType === "document"
+                ? `${type} document deleted successfully`
+                : `${type} entry deleted successfully`,
+            [type]: updatedArray,
+            deletedIndex: index,
+            deleteType: deleteType
         });
 
     } catch (err) {
-        console.error("DELETE /api/employees/education error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("Error in DELETE /api/employees:", err);
+
+        // Handle specific MongoDB errors
+        if (err.message.includes("buffering timed out")) {
+            return Response.json({ error: "Database connection timeout" }, { status: 408 });
+        }
+
+        if (err.message.includes("Invalid ObjectId")) {
+            return Response.json({ error: "Invalid employee ID format" }, { status: 400 });
+        }
+
+        return Response.json(
+            { error: err.message || "Internal server error" },
+            { status: 500 }
+        );
     }
 }
