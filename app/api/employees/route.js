@@ -197,7 +197,12 @@ export async function PUT(request) {
             updateFields.modified_on = new Date();
 
             // Text fields - only update if provided
-            const textFields = ["name", "panNumber", "password", "role", "summary"];
+            // const textFields = ["name", "panNumber", "password", "role", "summary"];
+            const textFields = [
+                "name", "email", "mobile", "gender", "password", "summary",
+                "panNumber", "aadhaarNumber", "designation", "department",
+                "employeeCode", "ctc", "regime"
+            ];
             textFields.forEach(key => {
                 const value = formData.get(key);
                 if (value !== null && value !== undefined && value !== "") {
