@@ -10,8 +10,8 @@ const regularizationSchema = Joi.object({
     employeeId: Joi.string().required(),
     dateFrom: Joi.alternatives().try(Joi.string().isoDate(), Joi.date()).required(),
     dateTo: Joi.alternatives().try(Joi.string().isoDate(), Joi.date()).required(),
-    inTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
-    outTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+    checkIn: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+    checkOut: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
     reason: Joi.string().min(3).required(),
     type: Joi.string().valid("regularization").required(),
 });
@@ -41,7 +41,7 @@ export async function POST(request) {
         if (error)
             return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
 
-        const { employeeId, dateFrom, dateTo, inTime, outTime, reason } = value;
+        const { employeeId, dateFrom, dateTo, checkIn, checkOut, reason } = value;
         const client = await clientPromise;
         const db = client.db();
         const employees = db.collection("employees");
@@ -79,8 +79,8 @@ export async function POST(request) {
 
             const regEntry = {
                 date: formattedDate,
-                inTime,
-                outTime,
+                checkIn,
+                checkOut,
                 reason,
                 status: "pendingRegularization",
                 requestedOn: new Date().toISOString(),
@@ -102,8 +102,8 @@ export async function POST(request) {
                 employeeId,
                 employeeName: employee.name,
                 date: formattedDate,
-                inTime,
-                outTime,
+                checkIn,
+                checkOut,
                 reason,
                 status: "pendingRegularization",
                 appliedOn: new Date().toISOString(),
@@ -213,10 +213,14 @@ export async function DELETE(request) {
 /* -------------------------------------------------------------------------- */
 /* 🟣 PUT — Approve / Reject AR (Attendance Regularization)                   */
 /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* 🟣 PUT — Approve / Reject AR (Attendance Regularization)                   */
+/* -------------------------------------------------------------------------- */
 export async function PUT(request) {
     try {
         const body = await request.json();
         const { error, value } = arActionSchema.validate(body);
+
         if (error)
             return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
 
@@ -226,147 +230,117 @@ export async function PUT(request) {
         const db = client.db();
         const employees = db.collection("employees");
 
-        // Find manager
+        /* ------------------------------------------------------------------ */
+        /* 1️⃣ Fetch Manager                                                   */
+        /* ------------------------------------------------------------------ */
         const manager = await employees.findOne({ _id: new ObjectId(managerId) });
-        if (!manager) {
-            return new Response(JSON.stringify({ error: "Manager not found" }), { status: 404 });
-        }
 
-        // Find the pending regularization request
+        if (!manager)
+            return new Response(JSON.stringify({ error: "Manager not found" }), { status: 404 });
+
+        /* ------------------------------------------------------------------ */
+        /* 2️⃣ Find the pending regularization request                         */
+        /* ------------------------------------------------------------------ */
         const pendingRequest = manager.pendingRegularizations?.find(
-            req => req._id.toString() === requestId
+            (req) => req._id.toString() === requestId
         );
 
         if (!pendingRequest) {
             return new Response(JSON.stringify({ error: "Regularization request not found" }), { status: 404 });
         }
 
-        const { employeeId, date, employeeName, inTime, outTime, reason } = pendingRequest;
+        const { employeeId, date, checkIn, checkOut, reason, employeeName } = pendingRequest;
 
-        // Find employee
+        /* ------------------------------------------------------------------ */
+        /* 3️⃣ Fetch Employee                                                  */
+        /* ------------------------------------------------------------------ */
         const employee = await employees.findOne({ _id: new ObjectId(employeeId) });
-        if (!employee) {
+
+        if (!employee)
             return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
-        }
 
         const monthName = new Date(date).toLocaleString("default", { month: "long" });
-        const newStatus = action === "approve" ? "approvedRegularization" : "rejectedRegularization";
 
+        /* ------------------------------------------------------------------ */
+        /* 4️⃣ APPROVE FLOW — Replace the pending object                       */
+        /* ------------------------------------------------------------------ */
         if (action === "approve") {
-            // ✅ APPROVED: Update attendance with checkIn/checkOut and mark as present
-            const updateResult = await employees.updateOne(
+            const approvedRecord = {
+                date,
+                checkIn: checkIn,
+                checkOut: checkOut,
+                workingHours: calculateWorkingHours(checkIn, checkOut, date),
+                reason,
+                status: "present",
+                regularizationStatus: "approved",
+                reviewedBy: manager.name,
+                reviewedOn: new Date().toISOString(),
+                remarks: remarks || "",
+                requestedOn: pendingRequest.appliedOn
+            };
+
+            // Replace pending object
+            await employees.updateOne(
                 {
                     _id: new ObjectId(employeeId),
                     [`attendance.${monthName}.date`]: date
                 },
                 {
                     $set: {
-                        [`attendance.${monthName}.$.status`]: "present", // Mark as present
-                        [`attendance.${monthName}.$.checkIn`]: inTime,
-                        [`attendance.${monthName}.$.checkOut`]: outTime,
-                        [`attendance.${monthName}.$.workingHours`]: calculateWorkingHours(inTime, outTime, date),
-                        [`attendance.${monthName}.$.regularizationStatus`]: "approved", // Track regularization separately
-                        [`attendance.${monthName}.$.reviewedBy`]: manager.name,
-                        [`attendance.${monthName}.$.reviewedOn`]: new Date().toISOString(),
-                        [`attendance.${monthName}.$.remarks`]: remarks || ""
+                        [`attendance.${monthName}.$`]: approvedRecord
                     }
                 }
             );
-
-            if (updateResult.modifiedCount === 0) {
-                // If the attendance record doesn't exist, create a new one
-                await employees.updateOne(
-                    { _id: new ObjectId(employeeId) },
-                    {
-                        $push: {
-                            [`attendance.${monthName}`]: {
-                                date: date,
-                                status: "present",
-                                checkIn: inTime,
-                                checkOut: outTime,
-                                workingHours: calculateWorkingHours(inTime, outTime, date),
-                                regularizationStatus: "approved",
-                                reviewedBy: manager.name,
-                                reviewedOn: new Date().toISOString(),
-                                remarks: remarks || "",
-                                reason: reason
-                            }
-                        }
-                    }
-                );
-            }
-        } else {
-            // ❌ REJECTED: Keep the record but mark as rejected
-            const updateResult = await employees.updateOne(
-                {
-                    _id: new ObjectId(employeeId),
-                    [`attendance.${monthName}.date`]: date
-                },
-                {
-                    $set: {
-                        [`attendance.${monthName}.$.status`]: "rejectedRegularization",
-                        [`attendance.${monthName}.$.reviewedBy`]: manager.name,
-                        [`attendance.${monthName}.$.reviewedOn`]: new Date().toISOString(),
-                        [`attendance.${monthName}.$.remarks`]: remarks || ""
-                    }
-                }
-            );
-
-            if (updateResult.modifiedCount === 0) {
-                // If record doesn't exist, create with rejected status
-                await employees.updateOne(
-                    { _id: new ObjectId(employeeId) },
-                    {
-                        $push: {
-                            [`attendance.${monthName}`]: {
-                                date: date,
-                                status: "rejectedRegularization",
-                                inTime: inTime,
-                                outTime: outTime,
-                                reason: reason,
-                                regularizationStatus: "rejected",
-                                reviewedBy: manager.name,
-                                reviewedOn: new Date().toISOString(),
-                                remarks: remarks || "",
-                                requestedOn: pendingRequest.appliedOn
-                            }
-                        }
-                    }
-                );
-            }
         }
 
-        // Remove from manager's pendingRegularizations
+        /* ------------------------------------------------------------------ */
+        /* 5️⃣ REJECT FLOW — Remove the pending object completely              */
+        /* ------------------------------------------------------------------ */
+        if (action === "reject") {
+            await employees.updateOne(
+                { _id: new ObjectId(employeeId) },
+                {
+                    $pull: {
+                        [`attendance.${monthName}`]: {
+                            date: date,
+                            status: "pendingRegularization"
+                        }
+                    }
+                }
+            );
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 6️⃣ Remove from manager.pendingRegularizations                      */
+        /* ------------------------------------------------------------------ */
         await employees.updateOne(
             { _id: new ObjectId(managerId) },
-            { $pull: { pendingRegularizations: { _id: new ObjectId(requestId) } } }
+            {
+                $pull: {
+                    pendingRegularizations: { _id: new ObjectId(requestId) }
+                }
+            }
         );
 
-        // Add to manager's approved/rejected regularizations
+        /* ------------------------------------------------------------------ */
+        /* 7️⃣ Add record to manager's approved / rejected list                */
+        /* ------------------------------------------------------------------ */
         const reviewedRecord = {
             _id: new ObjectId(requestId),
             employeeId,
             employeeName,
             date,
-            inTime,
-            outTime,
+            checkIn,
+            checkOut,
             reason,
-            status: newStatus,
+            remarks: remarks || "",
+            status: action === "approve" ? "approved" : "rejected",
             reviewedBy: manager.name,
             reviewedOn: new Date().toISOString(),
-            remarks: remarks || "",
             appliedOn: pendingRequest.appliedOn
         };
 
         const fieldName = action === "approve" ? "approvedRegularizations" : "rejectedRegularizations";
-
-        // Initialize array if it doesn't exist
-        if (!Array.isArray(manager[fieldName])) {
-            await employees.updateOne(
-                { _id: new ObjectId(managerId) },
-                { $set: { [fieldName]: [] } }
-            );
-        }
 
         await employees.updateOne(
             { _id: new ObjectId(managerId) },
@@ -381,6 +355,7 @@ export async function PUT(request) {
             }),
             { status: 200 }
         );
+
     } catch (err) {
         console.error("❌ Error processing regularization action:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });

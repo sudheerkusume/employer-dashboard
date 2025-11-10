@@ -4,7 +4,7 @@ import {
     format, addMonths, subMonths, startOfMonth, endOfMonth,
     startOfWeek, endOfWeek, eachDayOfInterval,
     getMonth, setMonth, getYear, setYear, isSunday,
-    set, getDay,
+    set, getDay, isSameMonth,
     differenceInMinutes
 } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
@@ -23,7 +23,7 @@ const categoryColors = {
     absent: "#ff6a6a",
     "Checked In": "#2563eb",
     leaveApproved: "#e8d15dff",
-    holiday: "#d5d7d9ff",
+    holiday: "#CBC3E3",
     sunday: "#d5d7d9ff",
     today: "#48a84dff",
 };
@@ -56,7 +56,7 @@ const isHoliday = (date) => {
         '2025-10-02',
         '2025-10-18',
         '2025-10-20',
-        '2025-10-02',
+        '2025-11-20',
         '2025-12-25',
     ];
     return holidayList.includes(format(date, 'yyyy-MM-dd'));
@@ -87,107 +87,100 @@ const calculateWorkingHours = (checkIn, checkOut, date) => {
 };
 
 // Helper: Determine status based on your rules
-const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date) => {
-    // Check if it's Sunday (holiday)
+const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workingHoursStr) => {
+    // Check if it's Sunday (holiday) - return 'sunday' for Sundays
     if (date && isSundayHoliday(new Date(date))) {
-        return 'holiday';
+        return 'sunday'; // Changed from 'holiday' to 'sunday'
     }
 
-    // Handle leave applications first
-    if (leaveType === 'full' && leaveStatus === 'approved') return 'leaveApproved';
-    if (leaveType === 'first half' && leaveStatus === 'approved') return 'firstHalfApproved';
-    if (leaveType === 'second half' && leaveStatus === 'approved') return 'secondHalfApproved';
-    if (leaveType && leaveStatus === 'pending') return 'leaveApplied';
+    const today = new Date();
+    const currentDate = date ? new Date(date) : null;
+    const isFutureDate = currentDate && currentDate > today;
 
-    // If no check-in/check-out and no approved leave
-    if (!checkIn || !checkOut) {
-        if (leaveType === 'first half' && leaveStatus === 'approved') return 'firstHalfApproved';
-        if (leaveType === 'second half' && leaveStatus === 'approved') return 'secondHalfApproved';
-        return 'absent';
-    }
-
-    const toDecimal = (time) => {
-        if (!time) return null;
-        const [h, m] = time.split(':').map(Number);
-        return h + m / 60;
+    // Extract numeric working hours from string like "9.03 hrs" or "8.50"
+    const getNumericWorkingHours = (hoursStr) => {
+        if (!hoursStr) return 0;
+        // Remove "hrs" and any non-numeric characters except decimal point
+        const numericStr = hoursStr.toString().replace('hrs', '').trim();
+        return parseFloat(numericStr) || 0;
     };
 
-    const day = getDay(new Date(date));
-    const checkInDec = toDecimal(checkIn);
-    const checkOutDec = toDecimal(checkOut);
+    const workingHours = getNumericWorkingHours(workingHoursStr);
 
-    // Saturday rules (6.5 hours)
-    if (day === 6) { // Saturday
-        const expectedCheckIn = 9.5; // 09:30
-        const expectedCheckOut = 16.0; // 16:00
-        const minWorkingHours = 5.5; // 5.5 hours net (6.5 gross - 0.5 lunch)
-
-        const workingHours = calculateWorkingHours(checkIn, checkOut, date);
-
-        // Check if within expected time range and worked enough hours
-        if (checkInDec <= expectedCheckIn + 0.5 && // Allow 30 mins late
-            checkOutDec >= expectedCheckOut - 0.5 && // Allow 30 mins early
-            workingHours >= minWorkingHours) {
-            return 'present';
+    // Handle approved leaves first - check both leaveStatus and status fields
+    if (leaveStatus === 'approved' || leaveStatus === 'firstHalfApproved' || leaveStatus === 'secondHalfApproved') {
+        if (leaveType === 'full' || leaveType === 'casual') {
+            return 'leaveApproved'; // Full day leave
         }
 
-        // Handle half days for Saturday
-        if (workingHours >= minWorkingHours / 2) {
-            if (checkInDec <= 12.0) {
-                return 'firstHalfp';
+        if (leaveType === 'first half' || leaveStatus === 'firstHalfApproved') {
+            // For future dates with first half approved, just show the leave without absent/present
+            if (isFutureDate) {
+                return 'firstHalfApproved'; // Just show first half leave for future dates
+            }
+            // First half approved - check if second half is present based on working hours
+            if (workingHours >= 4) {
+                return 'firstHalfApproved_present'; // First half leave (yellow), second half present (green)
             } else {
-                return 'secondhalfp';
+                return 'firstHalfApproved_absent'; // First half leave (yellow), second half absent (red)
             }
         }
 
+        if (leaveType === 'second half' || leaveStatus === 'secondHalfApproved') {
+            // For future dates with second half approved, just show the leave without absent/present
+            if (isFutureDate) {
+                return 'secondHalfApproved'; // Just show second half leave for future dates
+            }
+            // Second half approved - check if first half is present based on working hours
+            if (workingHours >= 4) {
+                return 'secondHalfApproved_present'; // Second half leave (yellow), first half present (green)
+            } else {
+                return 'secondHalfApproved_absent'; // Second half leave (yellow), first half absent (red)
+            }
+        }
+    }
+
+    // Handle present status (including presentLate)
+    if ((workingHours >= 8.45 || leaveStatus === 'present') || leaveStatus === 'presentLate') {
+        return 'present';
+    }
+
+    // If no status but working hours are 8.45+ and check-in/check-out exist, mark as present
+    if ((!leaveStatus || leaveStatus === 'Checked In') && checkIn && checkOut && workingHours >= 8.45) {
+        return 'present';
+    }
+
+    // Condition: no check-in and check-out times
+    if (!checkIn && !checkOut) {
+        // For future dates without data, return null to show transparent
+        if (isFutureDate) {
+            return null;
+        }
         return 'absent';
     }
 
-    // Normal days (Mon, Wed, Thu, Fri) - 9 hours
-    if ([1, 3, 4, 5].includes(day)) { // Monday=1, Wednesday=3, Thursday=4, Friday=5
-        const expectedCheckIn = 9.5; // 09:30
-        const expectedCheckOut = 18.5; // 18:30
-        const minWorkingHours = 8.0; // 8 hours net (9 gross - 1 lunch)
-
-        const workingHours = calculateWorkingHours(checkIn, checkOut, date);
-
-        // Check if within expected time range and worked enough hours
-        if (checkInDec <= expectedCheckIn + 0.5 && // Allow 30 mins late
-            checkOutDec >= expectedCheckOut - 0.5 && // Allow 30 mins early
-            workingHours >= minWorkingHours) {
-            return 'present';
-        }
-
-        // Handle half days for normal days
-        const halfDayHours = 4.0; // 4 hours net
-        if (workingHours >= halfDayHours) {
-            // First half: Check-in before 12:00 and check-out around 14:00
-            if (checkInDec <= 12.0 && checkOutDec >= 14.0) {
-                if (leaveType === 'second half' && leaveStatus === 'approved') {
-                    return 'secondHalfApproved_present';
-                }
-                return 'firstHalfp';
-            }
-            // Second half: Check-in around 13:00 and check-out after 15:00
-            if (checkInDec >= 13.0 && checkOutDec >= 15.0) {
-                if (leaveType === 'first half' && leaveStatus === 'approved') {
-                    return 'firstHalfApproved_present';
-                }
-                return 'secondhalfp';
-            }
-
-            // Default half day assignment based on check-in time
-            if (checkInDec <= 12.0) {
-                return 'firstHalfp';
-            } else {
-                return 'secondhalfp';
-            }
-        }
-
-        return 'absent';
+    // Condition: present with 8+ working hours
+    if (workingHours >= 8.45) {
+        return 'present';
     }
 
-    return 'absent';
+    // Handle half days based on working hours
+    if (workingHours >= 4) {
+        // Determine which half based on check-in time
+        if (checkIn) {
+            const checkInTime = checkIn.split(':').map(Number);
+            const checkInHour = checkInTime[0] + (checkInTime[1] / 60);
+
+            if (checkInHour <= 12.0) { // Check-in before 12:00 = first half
+                return 'firstHalfp';
+            } else { // Check-in after 12:00 = second half
+                return 'secondhalfp';
+            }
+        }
+    }
+
+    // Default case - for future dates return null, for past dates return absent
+    return isFutureDate ? null : 'absent';
 };
 
 // Split Circle Component for visual indicators
@@ -198,19 +191,14 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
         switch (status) {
             case 'present':
                 return { left: categoryColors.present, right: categoryColors.present };
-            case 'firsthalfa':
-                return { left: categoryColors.leaveApproved, right: categoryColors.absent };
-            case 'secondhalfa':
-                return { left: categoryColors.absent, right: categoryColors.leaveApproved };
             case 'firstHalfp':
                 return { left: categoryColors.firstHalf, right: categoryColors.absent };
             case 'secondhalfp':
-                return { left: categoryColors.present, right: categoryColors.leaveApproved };
-            case 'firstHalf':
-                return { left: categoryColors.firstHalf, right: categoryColors.present };
-            case 'secondHalf':
                 return { left: categoryColors.absent, right: categoryColors.secondHalf };
-            // New statuses for approved half days
+            case 'firstHalfApproved':
+                return { left: categoryColors.leaveApproved, right: 'transparent' };
+            case 'secondHalfApproved':
+                return { left: 'transparent', right: categoryColors.leaveApproved };
             case 'firstHalfApproved_present':
                 return { left: categoryColors.leaveApproved, right: categoryColors.present };
             case 'firstHalfApproved_absent':
@@ -219,10 +207,10 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                 return { left: categoryColors.present, right: categoryColors.leaveApproved };
             case 'secondHalfApproved_absent':
                 return { left: categoryColors.absent, right: categoryColors.leaveApproved };
+            case 'leaveApproved':
+                return { left: categoryColors.leaveApproved, right: categoryColors.leaveApproved };
             case 'absent':
                 return { left: categoryColors.absent, right: categoryColors.absent };
-            case 'leaveApproved':
-                return { left: categoryColors[status], right: categoryColors[status] };
             case 'holiday':
                 return { left: categoryColors.holiday, right: categoryColors.holiday };
             case 'sunday':
@@ -239,13 +227,18 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const colors = getColors();
     const stroke = isToday && !status ? '#374151' : 'none';
 
-    // Check if it's an approved half-day status that needs diagonal split
+    // Only firstHalfApproved and secondHalfApproved statuses get diagonal split
     const isDiagonalSplit = [
+        'firstHalfApproved',
+        'secondHalfApproved',
         'firstHalfApproved_present',
         'firstHalfApproved_absent',
         'secondHalfApproved_present',
         'secondHalfApproved_absent'
     ].includes(status);
+
+    // All other statuses get vertical split
+    const isVerticalSplit = !isDiagonalSplit && status;
 
     return (
         <svg width={size} height={size} className="cursor-pointer">
@@ -282,7 +275,7 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
 
                     <g clipPath="url(#circleClip)">
                         {isDiagonalSplit ? (
-                            // Rounded diagonal split for approved half days
+                            // Diagonal split ONLY for approved half leaves
                             <>
                                 {/* Top-left to bottom-right diagonal - First half */}
                                 <path
@@ -295,8 +288,8 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                                     fill={colors.right}
                                 />
                             </>
-                        ) : (
-                            // Vertical split for other statuses
+                        ) : isVerticalSplit ? (
+                            // Vertical split for ALL other statuses
                             <>
                                 {/* Left semicircle */}
                                 <path
@@ -309,6 +302,14 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                                     fill={colors.right}
                                 />
                             </>
+                        ) : (
+                            // Default transparent for future dates without data
+                            <circle
+                                cx={center}
+                                cy={center}
+                                r={radius}
+                                fill="transparent"
+                            />
                         )}
                     </g>
 
@@ -385,53 +386,61 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         const map = {};
         if (!profile?.attendance) return map;
 
-        // Get date of joining from profile
         const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
 
-        // Map existing attendance
-        Object.keys(profile.attendance).forEach(monthName => {
-            profile.attendance[monthName].forEach(att => {
-                let workingHours = calculateWorkingHours(att.checkIn, att.checkOut, att.date);
-                let status = determineStatus(att.checkIn, att.checkOut, att.leaveType, att.status, att.date);
+        // Map existing attendance - ONLY for current month
+        const currentMonthName = format(currentDate, 'MMMM');
+        if (profile.attendance[currentMonthName]) {
+            profile.attendance[currentMonthName].forEach(att => {
+                // Only process dates that belong to the current month
+                const attDate = new Date(att.date);
+                if (getMonth(attDate) === getMonth(currentDate) && getYear(attDate) === getYear(currentDate)) {
+                    let workingHours = calculateWorkingHours(att.checkIn, att.checkOut, att.date);
 
-                // Handle leave applied status
-                if (att.leaveType && att.status === "pending") {
-                    status = "leaveApplied";
+                    let status = determineStatus(
+                        att.checkIn,
+                        att.checkOut,
+                        att.leaveType,
+                        att.status,
+                        att.date,
+                        att.workingHours
+                    );
+
+                    if (att.leaveType && att.status === "pending") {
+                        status = "leaveApplied";
+                    }
+
+                    map[att.date] = {
+                        ...att,
+                        workingHours: Number(workingHours) || 0,
+                        status,
+                    };
                 }
-
-                map[att.date] = {
-                    ...att,
-                    workingHours: Number(workingHours) || 0,
-                    status,
-                };
             });
-        });
+        }
 
-        // Only mark absent for past dates in the current month that are after date of joining
-        const todayStr = format(today, 'yyyy-MM-dd');
+        // Mark only PAST dates AFTER joining - ONLY for current month
         allDays.forEach(day => {
             const dayStr = format(day, 'yyyy-MM-dd');
-            const isPastOrToday = day <= today;
-            const isCurrentMonth = getMonth(day) === getMonth(currentDate);
+            const isPastDate = day < today;
+            const isCurrentMonth = isSameMonth(day, currentDate);
             const isAfterJoining = dateOfJoining ? day >= dateOfJoining : true;
 
-            const isSunday = isSundayHoliday(day);
-            const isTuesday = getDay(day) === 2; // 0=Sunday, 1=Monday, 2=Tuesday, etc.
-            const isCustomHoliday = isHoliday(day);
+            if (!isAfterJoining || !isCurrentMonth) return; // ❌ Do not mark anything before joining or outside current month
 
-            // ✅ ONLY tech department gets Tuesday off
+            const isSunday = isSundayHoliday(day);
+            const isTuesday = getDay(day) === 2;
+            const isHolidayDay = isHoliday(day);
             const isTuesdayOff = profile?.department === "tech" && isTuesday;
 
-            if (isPastOrToday && isCurrentMonth && !map[dayStr] && isAfterJoining) {
+            if (isPastDate && !map[dayStr]) {
                 if (isSunday) {
-                    map[dayStr] = { status: 'holiday', workingHours: 0 };
-                } else if (isTuesdayOff) {
-                    // Only mark as off day if department is tech AND no attendance exists
                     map[dayStr] = { status: 'sunday', workingHours: 0 };
-                } else if (isCustomHoliday) {
+                } else if (isTuesdayOff) {
+                    map[dayStr] = { status: 'sunday', workingHours: 0 };
+                } else if (isHolidayDay) {
                     map[dayStr] = { status: 'holiday', workingHours: 0 };
                 } else {
-                    // For non-tech departments on Tuesday, mark as absent if no attendance
                     map[dayStr] = { status: 'absent', workingHours: 0 };
                 }
             }
@@ -550,7 +559,25 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             return;
         }
 
-        // Step 2: Prevent leave on Monday or Saturday
+        // Step 2: Validate dates are not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+
+        if (leaveRange.start < today || leaveRange.end < today) {
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Dates",
+                    message: "Leave can only be applied for today and future dates.",
+                },
+            }));
+            return;
+        }
+
+        // Step 3: Prevent leave on restricted days
         const daysInRange = eachDayOfInterval({
             start: leaveRange.start,
             end: leaveRange.end,
@@ -558,11 +585,39 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
         const invalidDays = daysInRange.filter(date => {
             const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
-            return day === 1 || day === 6; // Block Monday (1) and Saturday (6)
+
+            // Common restrictions for all departments
+            if (day === 1 || day === 6) { // Monday (1) or Saturday (6)
+                return true;
+            }
+
+            // Additional restriction for tech department - no leave on Tuesday
+            if (profile?.department === "tech" && day === 2) { // Tuesday (2)
+                return true;
+            }
+
+            return false;
         });
 
         if (invalidDays.length > 0) {
-            const invalidFormatted = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+            // Create appropriate error message based on department
+            let errorMessage = '';
+            let restrictedDays = [];
+
+            if (profile?.department === "tech") {
+                restrictedDays = invalidDays.map(d => {
+                    const dayName = format(d, "EEE");
+                    return `${format(d, "MMM dd")} (${dayName})`;
+                }).join(", ");
+                errorMessage = `Leave cannot be applied on Monday, Tuesday or Saturday. Please remove: ${restrictedDays}`;
+            } else {
+                restrictedDays = invalidDays.map(d => {
+                    const dayName = format(d, "EEE");
+                    return `${format(d, "MMM dd")} (${dayName})`;
+                }).join(", ");
+                errorMessage = `Leave cannot be applied on Monday or Saturday. Please remove: ${restrictedDays}`;
+            }
+
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -570,13 +625,29 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     dismiss: true,
                     type: "error",
                     title: "Invalid Leave Dates",
-                    message: `Leave cannot be applied on Monday or Saturday. Please remove: ${invalidFormatted}`,
+                    message: errorMessage,
                 },
             }));
             return; // ❌ Stop execution
         }
 
-        // Step 3: Proceed to API call
+        // Step 4: Validate half-day leaves (first half/second half can only be single day)
+        if ((leaveRange.leaveType === 'first half' || leaveRange.leaveType === 'second half') &&
+            leaveRange.start.getTime() !== leaveRange.end.getTime()) {
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Leave Range",
+                    message: "Half-day leaves (first half/second half) can only be applied for a single day.",
+                },
+            }));
+            return;
+        }
+
+        // Step 5: Proceed to API call
         setServiceCall(true);
         try {
             const res = await fetch("/api/leave/apply", {
@@ -594,7 +665,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             setServiceCall(false);
             const data = await res.json();
 
-            // Step 4: Show success or failure toast
+            // Step 6: Show success or failure toast
             if (res.ok) {
                 setRootContext(prev => ({
                     ...prev,
@@ -633,6 +704,95 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     message: "An unexpected error occurred while applying leave.",
                 },
             }));
+        }
+    };
+
+    // Add this helper function to check for invalid days
+    const checkInvalidDays = (startDate, endDate) => {
+        if (!startDate || !endDate) return { hasInvalidDays: false, invalidDays: [] };
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date);
+
+            // Common restrictions for all departments
+            if (day === 1 || day === 6) {
+                return true;
+            }
+
+            // Additional restriction for tech department
+            if (profile?.department === "tech" && day === 2) {
+                return true;
+            }
+
+            return false;
+        });
+
+        return { hasInvalidDays: invalidDays.length > 0, invalidDays };
+    };
+
+    // Update the date change handlers to show warnings in real-time
+    const handleStartDateChange = (e) => {
+        const date = e.target.value ? new Date(e.target.value) : null;
+        setLeaveRange(prev => ({
+            ...prev,
+            start: date
+        }));
+
+        // Check for invalid days when start date is selected
+        if (date && leaveRange.end) {
+            const { hasInvalidDays, invalidDays } = checkInvalidDays(date, leaveRange.end);
+            if (hasInvalidDays) {
+                const restrictedDays = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+                const message = profile?.department === "tech"
+                    ? `Leave cannot be applied on Monday, Tuesday or Saturday. Invalid days: ${restrictedDays}`
+                    : `Leave cannot be applied on Monday or Saturday. Invalid days: ${restrictedDays}`;
+
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "warning",
+                        title: "Invalid Dates Selected",
+                        message: message,
+                    },
+                }));
+            }
+        }
+    };
+
+    const handleEndDateChange = (e) => {
+        const date = e.target.value ? new Date(e.target.value) : null;
+        setLeaveRange(prev => ({
+            ...prev,
+            end: date
+        }));
+
+        // Check for invalid days when end date is selected
+        if (date && leaveRange.start) {
+            const { hasInvalidDays, invalidDays } = checkInvalidDays(leaveRange.start, date);
+            if (hasInvalidDays) {
+                const restrictedDays = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+                const message = profile?.department === "tech"
+                    ? `Leave cannot be applied on Monday, Tuesday or Saturday. Invalid days: ${restrictedDays}`
+                    : `Leave cannot be applied on Monday or Saturday. Invalid days: ${restrictedDays}`;
+
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "warning",
+                        title: "Invalid Dates Selected",
+                        message: message,
+                    },
+                }));
+            }
         }
     };
 
@@ -741,95 +901,119 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                 {allDays.map((day, i) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const att = attendanceMap[dayStr];
-                    const isTodayDate = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
-                    const isCurrentMonth = getMonth(day) === getMonth(currentDate);
+                    const isTodayDate = dayStr === format(today, 'yyyy-MM-dd');
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isFutureDate = day > today;
 
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
-                    // ✅ ALWAYS use status from attendanceMap - never override existing records
+                    const isTuesday = getDay(day) === 2;
+                    const isTechOffDay = profile?.department === "tech" && isTuesday;
+
                     let status = att?.status || null;
 
-                    // Map your status to our system
-                    if (status === 'present' || status === 'presentLate') {
-                        status = 'present';
-                    }
-                    // 'Checked In', 'absent', etc. remain as they are
+                    if (status === "presentLate") status = "present";
 
-                    // Only apply special statuses if there's NO existing attendance record
-                    if (!att && isCurrentMonth && !isBeforeJoining) {
+                    // Tuesday off only after joining and in current month
+                    if (!isBeforeJoining && isCurrentMonth && isTechOffDay) {
+                        status = "sunday";
+                    }
+
+                    // No marking before joining
+                    if (isBeforeJoining) {
+                        status = null;
+                    } else if (!att && isCurrentMonth) {
                         const isSunday = isSundayHoliday(day);
-                        const isTuesday = getDay(day) === 2;
-                        const isCustomHoliday = isHoliday(day);
+                        const isHolidayDay = isHoliday(day);
 
-                        if (isSunday) {
-                            status = 'holiday';
-                        } else if (isTuesday && profile?.department === "tech") {
-                            status = 'sunday'; // Off day only for tech department
-                        } else if (isCustomHoliday) {
-                            status = 'holiday';
-                        } else if (day <= today) {
-                            status = 'absent'; // Only mark as absent for past dates
-                        }
+                        if (isHolidayDay) status = "holiday";
+                        else if (isSunday) status = "sunday";
                     }
 
-                    const isLeaveApplied = att?.status === 'leaveApplied';
-                    const isLeaveApproved = att?.status === 'leaveApproved';
+                    // For future dates in current month, show appropriate status
+                    if (!att && isFutureDate && isCurrentMonth && !isBeforeJoining) {
+                        const isSunday = isSundayHoliday(day);
+                        const isHolidayDay = isHoliday(day);
 
-                    const dayTextColor = isBeforeJoining
-                        ? 'text-gray-300'
+                        if (isSunday) status = "sunday";
+                        else if (isHolidayDay) status = "holiday";
+                        else status = null; // Future working days show as transparent
+                    }
+
+                    const isLeaveApplied = att?.status === "leaveApplied";
+                    const isLeaveApproved = att?.status === "leaveApproved";
+
+                    const dayTextColor = isBeforeJoining || !isCurrentMonth
+                        ? "text-gray-300"
                         : isLeaveApplied
-                            ? 'text-gray-600'
+                            ? "text-gray-600"
                             : isLeaveApproved
-                                ? 'text-white'
-                                : isCurrentMonth
-                                    ? 'text-gray-900'
-                                    : 'text-gray-400';
+                                ? "text-white"
+                                : "text-gray-900";
 
-                    const dayBgColor = isLeaveApproved ? 'bg-[#e8d15dff] rounded-full' : '';
+                    const dayBgColor = isLeaveApproved ? "bg-[#e8d15dff] rounded-full" : "";
+
+                    const offDayBgColor =
+                        isBeforeJoining || !isCurrentMonth ? "" : isTechOffDay ? "bg-gray-100" : "";
 
                     return (
                         <div
                             key={i}
                             onClick={() => {
-                                if (isBeforeJoining) return;
+                                if (isBeforeJoining || !isCurrentMonth) return;
+
                                 setSelectedDate(day);
-                                setPopupData(att || {
-                                    status: status || 'No data',
-                                    checkIn: att?.checkIn || '-',
-                                    checkOut: att?.checkOut || '-',
-                                    workingHours: att?.workingHours || 0,
-                                });
+                                setPopupData(
+                                    att || {
+                                        status: status || "No data",
+                                        checkIn: att?.checkIn || "-",
+                                        checkOut: att?.checkOut || "-",
+                                        workingHours: att?.workingHours || 0,
+                                    }
+                                );
                             }}
-                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition ${dayBgColor} ${isBeforeJoining
-                                ? 'cursor-not-allowed hover:ring-0'
-                                : 'cursor-pointer hover:ring-2 hover:ring-gray-300'
+                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition 
+                    ${dayBgColor} 
+                    ${offDayBgColor} 
+                    ${isBeforeJoining || !isCurrentMonth
+                                    ? "cursor-not-allowed hover:ring-0"
+                                    : "cursor-pointer hover:ring-2 hover:ring-gray-300"
                                 }`}
                             title={
-                                isBeforeJoining
-                                    ? ''
+                                isBeforeJoining || !isCurrentMonth
+                                    ? ""
                                     : isTodayDate
                                         ? att?.checkIn
-                                            ? 'Checked In'
-                                            : status === 'approved'
-                                                ? 'Leave Approved'
-                                                : 'Today'
-                                        : status === 'sunday'
-                                            ? (profile.department === "tech" ? 'Off Day (Tuesday)' : att?.status || 'No data')
-                                            : status === 'holiday'
-                                                ? 'Holiday'
+                                            ? "Checked In"
+                                            : status === "approved"
+                                                ? "Leave Approved"
+                                                : "Today"
+                                        : status === "sunday"
+                                            ? profile.department === "tech" && getDay(day) === 2
+                                                ? "Off Day (Tuesday)"
+                                                : "Sunday"
+                                            : status === "holiday"
+                                                ? "Holiday"
                                                 : att
                                                     ? att.status
-                                                    : 'No data'
+                                                    : isFutureDate
+                                                        ? "Future Date"
+                                                        : "No data"
                             }
                         >
-                            {!isTodayDate && !isBeforeJoining && <SplitCircle status={status} isToday={false} size={40} />}
-                            {isBeforeJoining && <div className="absolute inset-0 bg-transparent"></div>}
+                            {!isTodayDate &&
+                                !isBeforeJoining &&
+                                isCurrentMonth &&
+                                status && <SplitCircle status={status} isToday={false} size={40} />}
+
                             <span
-                                className={`absolute text-xs font-bold ${isTodayDate ? 'text-[#48a84dff] font-bold' : dayTextColor
+                                className={`absolute text-xs font-bold ${isTodayDate
+                                    ? "text-[#48a84dff] font-bold"
+                                    : dayTextColor
                                     }`}
                             >
-                                {format(day, 'd')}
+                                {format(day, "d")}
                             </span>
                         </div>
                     );
@@ -856,7 +1040,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                         <SplitCircle status="leaveApproved" size={16} isLegend={true} />
                         <span>Leave</span>
                     </div>
-                    <div className="flex items-center gap=2">
+                    <div className="flex items-center gap-2">
                         <SplitCircle status="holiday" size={16} isLegend={true} />
                         <span>Holiday</span>
                     </div>
@@ -966,6 +1150,13 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     </Dialog.Title>
                                     {serviceCall && <Loading />}
                                     <div className="mt-4 space-y-4 text-gray-800">
+                                        {/* Info Message */}
+                                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <p className="text-sm text-blue-800">
+                                                <strong>Note:</strong> Leave can only be applied for today ({format(today, 'MMM dd, yyyy')}) and future dates.
+                                            </p>
+                                        </div>
+
                                         {/* Date Input Fields */}
                                         <div className="space-y-3">
                                             <div>
@@ -980,9 +1171,11 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                         const date = e.target.value ? new Date(e.target.value) : null;
                                                         setLeaveRange(prev => ({
                                                             ...prev,
-                                                            start: date
+                                                            start: date,
+                                                            end: date // Automatically set end date to match start date
                                                         }));
                                                     }}
+                                                    min={format(today, 'yyyy-MM-dd')} // Disable past dates
                                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                     required
                                                 />
@@ -1002,16 +1195,21 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                             end: date
                                                         }));
                                                     }}
+                                                    min={leaveRange.start ? format(leaveRange.start, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd')}
                                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    min={leaveRange.start ? format(leaveRange.start, 'yyyy-MM-dd') : ''}
                                                     required
                                                 />
                                             </div>
-                                            <ComboBox title={"Leave Type"} data={["casual", "earned", "sick", "emergency", "first half", "second half"]} required={true} value={leaveRange.leaveType || ''}
+                                            <ComboBox
+                                                title={"Leave Type"}
+                                                data={["casual", "earned", "sick", "emergency", "first half", "second half"]}
+                                                required={true}
+                                                value={leaveRange.leaveType || ''}
                                                 onChange={(e) => setLeaveRange(prev => ({
                                                     ...prev,
                                                     leaveType: e
-                                                }))} />
+                                                }))}
+                                            />
                                             {/* Reason Textarea */}
                                             <div>
                                                 <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">

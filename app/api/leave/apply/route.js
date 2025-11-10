@@ -101,33 +101,13 @@ export async function POST(request) {
         for (const [monthName, dates] of Object.entries(groupedByMonth)) {
             for (const date of dates) {
                 let leaveEntry;
-
-                if (leaveType === "first half") {
-                    leaveEntry = {
-                        date,
-                        status: "first half",
-                        leaveType,
-                        reason,
-                        markedOn: new Date().toISOString(),
-                    };
-                } else if (leaveType === "second half") {
-                    leaveEntry = {
-                        date,
-                        status: "second half",
-                        leaveType,
-                        reason,
-                        markedOn: new Date().toISOString(),
-                    };
-                } else {
-                    leaveEntry = {
-                        date,
-                        status: "pending",
-                        leaveType,
-                        reason,
-                        markedOn: new Date().toISOString(),
-                    };
-                }
-
+                leaveEntry = {
+                    date,
+                    status: "pending",
+                    leaveType,
+                    reason,
+                    markedOn: new Date().toISOString(),
+                };
                 await employees.updateOne(
                     { _id: new ObjectId(employeeId) },
                     { $push: { [`attendance.${monthName}`]: leaveEntry } }
