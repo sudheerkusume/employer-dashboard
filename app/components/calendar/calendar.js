@@ -188,7 +188,6 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
 const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const radius = size / 2;
     const center = radius;
-    // ... (getColors function remains the same)
 
     const getColors = () => {
         switch (status) {
@@ -228,88 +227,114 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     };
 
     const colors = getColors();
-    const stroke = isToday && !status ? '#374151' : 'none';
 
-    // *** MODIFIED LOGIC START ***
-    // Now, all statuses (full day or half day) fall under vertical split logic 
-    // if a status is present.
-    const isVerticalSplit = !!status;
-    // The previous diagonal split logic has been removed.
-    // *** MODIFIED LOGIC END ***
+    // Determine if we need split or full circle
+    const needsSplit = [
+        'firstHalfp', 'secondhalfp',
+        'firstHalfApproved', 'secondHalfApproved',
+        'firstHalfApproved_present', 'firstHalfApproved_absent',
+        'secondHalfApproved_present', 'secondHalfApproved_absent'
+    ].includes(status);
+
+    const isDiagonal = [
+        'firstHalfApproved', 'secondHalfApproved',
+        'firstHalfApproved_present', 'firstHalfApproved_absent',
+        'secondHalfApproved_present', 'secondHalfApproved_absent'
+    ].includes(status);
 
     return (
-        <svg width={size} height={size} className="cursor-pointer">
-            {/* Background circle for today */}
-            {isToday && (
-                <circle
-                    cx={center}
-                    cy={center}
-                    r={radius - 1}
-                    fill="none"
-                    stroke={stroke}
-                    strokeWidth="1"
-                />
-            )}
+        <div
+            className="relative"
+            style={{
+                width: size,
+                height: size,
+                // Ensure proper rounding on all screens
+                borderRadius: '50%',
+                overflow: 'hidden'
+            }}
+        >
+            {/* Base circle with border */}
+            <div
+                className="absolute rounded-full border border-gray-300"
+                style={{
+                    width: size,
+                    height: size,
+                    backgroundColor: !needsSplit && colors.left !== 'transparent' ? colors.left : 'transparent',
+                    // Mobile-friendly border radius
+                    borderRadius: '50%'
+                }}
+            />
 
-            {/* For legend, show full circle with left color */}
-            {isLegend ? (
-                <circle
-                    cx={center}
-                    cy={center}
-                    r={radius - 1}
-                    fill={colors.left}
-                    stroke="#e5e7eb"
-                    strokeWidth="0.5"
-                />
-            ) : (
-                <>
-                    {/* Clip path for rounded circle */}
+            {/* Split overlay */}
+            {needsSplit && (
+                <svg
+                    width={size}
+                    height={size}
+                    className="absolute top-0 left-0"
+                    viewBox={`0 0 ${size} ${size}`}
+                    // Ensure SVG respects container's border radius
+                    style={{ borderRadius: '50%' }}
+                >
                     <defs>
-                        <clipPath id="circleClip">
-                            <circle cx={center} cy={center} r={radius} />
+                        <clipPath id={`circle-${size}`}>
+                            <circle cx={center} cy={center} r={radius - 1} />
                         </clipPath>
                     </defs>
 
-                    <g clipPath="url(#circleClip)">
-                        {isVerticalSplit ? (
-                            // Vertical split for ALL statuses (including former diagonal ones)
+                    {/* Apply clip path to maintain circle shape */}
+                    <g clipPath={`url(#circle-${size})`}>
+                        {isDiagonal ? (
+                            // Diagonal split using SVG paths
                             <>
-                                {/* Left semicircle */}
                                 <path
-                                    d={`M ${center} ${center} L ${center} 0 A ${radius} ${radius} 0 0 0 ${center} ${size} Z`}
-                                    fill={colors.left}
+                                    d={`M 0,0 L ${size},${size} L 0,${size} Z`}
+                                    fill={colors.left !== 'transparent' ? colors.left : 'none'}
                                 />
-                                {/* Right semicircle */}
                                 <path
-                                    d={`M ${center} ${center} L ${center} ${size} A ${radius} ${radius} 0 0 0 ${center} 0 Z`}
-                                    fill={colors.right}
+                                    d={`M 0,0 L ${size},${size} L ${size},0 Z`}
+                                    fill={colors.right !== 'transparent' ? colors.right : 'none'}
                                 />
                             </>
                         ) : (
-                            // Default transparent for future dates without data
-                            <circle
-                                cx={center}
-                                cy={center}
-                                r={radius}
-                                fill="transparent"
-                            />
+                            // Vertical split
+                            <>
+                                <rect
+                                    x="0"
+                                    y="0"
+                                    width={size / 2}
+                                    height={size}
+                                    fill={colors.left}
+                                />
+                                <rect
+                                    x={size / 2}
+                                    y="0"
+                                    width={size / 2}
+                                    height={size}
+                                    fill={colors.right}
+                                />
+                            </>
                         )}
                     </g>
-
-                    {/* Optional: Add border stroke for the circle */}
-                    <circle
-                        cx={center}
-                        cy={center}
-                        r={radius}
-                        fill="none"
-                        stroke="#e5e7eb"
-                        strokeWidth="0.5"
-                    />
-                </>
+                </svg>
             )}
-        </svg>
+
+            {/* Today border */}
+            {isToday && !status && (
+                <div
+                    className="absolute rounded-full border-2 border-gray-600"
+                    style={{
+                        width: size,
+                        height: size,
+                        top: 0,
+                        left: 0,
+                        borderRadius: '50%'
+                    }}
+                />
+            )}
+        </div>
     );
 };
+
 
 export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn, setMonthName }) {
     const today = new Date();
@@ -783,7 +808,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         <div className=" p-2 sm:p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
             {/* Check-in/Check-out Buttons */}
             {serviceCall && <Loading />}
-            <div className="flex flex-col md:flex-row justify-between gap-2 mb-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 justify-between gap-2 mb-3">
                 {/* Login / Logout buttons */}
                 <button
                     onClick={onCheckIn}
