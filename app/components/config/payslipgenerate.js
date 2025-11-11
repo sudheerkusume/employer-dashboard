@@ -1,49 +1,147 @@
-export function generatePayslip(employee) {
-    const currentDate = new Date();
+// Helper function to format date
+import { format } from 'date-fns';
 
-    // Determine salary month → always previous month
-    const payslipMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+export function generatePayslip(employee, targetMonth, targetYear) {
+    const currentDate = new Date();
+    const currentDay = currentDate.getDate();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    // If no target month/year provided, determine based on current date
+    let payslipMonthDate;
+    if (targetMonth !== undefined && targetYear !== undefined) {
+        payslipMonthDate = new Date(targetYear, targetMonth, 1);
+    } else {
+        // Default: show previous month's payslip, but only after 5th of current month
+        if (currentDay >= 5) {
+            payslipMonthDate = new Date(currentYear, currentMonth - 1, 1);
+        } else {
+            // If before 5th, show payslip from 2 months ago
+            payslipMonthDate = new Date(currentYear, currentMonth - 2, 1);
+        }
+    }
+
     const monthName = payslipMonthDate.toLocaleString("default", { month: "long" });
     const year = payslipMonthDate.getFullYear();
+    const monthIndex = payslipMonthDate.getMonth();
 
-    // Salary cycle: 25th previous → 25th current
-    const previousMonthName = new Date(year, payslipMonthDate.getMonth() - 1)
-        .toLocaleString("default", { month: "long" });
+    // Get date of joining
+    const dateOfJoining = new Date(employee.dateOfJoining);
+    const dojMonth = dateOfJoining.getMonth();
+    const dojYear = dateOfJoining.getFullYear();
+    const dojDay = dateOfJoining.getDate();
 
-    const prevAttendance = employee?.attendance?.[previousMonthName] || [];
-    const currAttendance = employee?.attendance?.[monthName] || [];
+    // Get attendance for the specific month
+    const monthAttendance = employee?.attendance?.[monthName] || [];
 
-    // ✅ Collect attendance window from 25th prev → 25th current
-    const combinedAttendance = [
-        ...prevAttendance.filter((d) => new Date(d.date).getDate() >= 25),
-        ...currAttendance.filter((d) => new Date(d.date).getDate() <= 25),
+    // ✅ Special handling for joining month
+    let startDay = 1;
+    let endDay = new Date(year, monthIndex + 1, 0).getDate(); // Last day of month
+
+    if (monthIndex === dojMonth && year === dojYear) {
+        // This is the joining month - calculate from joining date to end of month
+        startDay = dojDay;
+    }
+
+    // Filter attendance for the relevant period
+    const relevantAttendance = monthAttendance.filter(record => {
+        const recordDate = new Date(record.date);
+        const recordDay = recordDate.getDate();
+        return recordDay >= startDay && recordDay <= endDay;
+    });
+
+    // ✅ Total working days includes ALL calendar days in the period
+    const totalWorkingDays = endDay - startDay + 1;
+
+    // ✅ Define holidays for the year
+    const holidays = [
+        `${year}-01-01`, `${year}-01-26`, `${year}-03-25`, `${year}-08-15`,
+        `${year}-10-02`, `${year}-10-18`, `${year}-10-20`, `${year}-12-25`
     ];
 
-    // ✅ Calculate actual total working days in that period
-    const totalWorkingDays = combinedAttendance.filter(
-        (d) => d.status?.toLowerCase() !== "holiday" && d.status?.toLowerCase() !== "sunday"
-    ).length || 30; // fallback to 30 if no data
+    // ✅ Calculate Total Present Days (includes actual present + Sundays + holidays + tech Tuesdays)
+    let totalPresentDays = 0;
+    let actualPresentDays = 0;
+    let actualLeaves = 0;
 
-    // ✅ Count actual present & leave days
-    const totalPresentDays = combinedAttendance.filter(
-        (d) => d.status?.toLowerCase() === "present"
-    ).length;
+    for (let day = startDay; day <= endDay; day++) {
+        const currentDate = new Date(year, monthIndex, day);
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
 
-    const totalLeaves = combinedAttendance.filter(
-        (d) => d.status?.toLowerCase() === "approved" || d.status?.toLowerCase() === "leave"
-    ).length;
+        const isSunday = currentDate.getDay() === 0;
+        const isHoliday = holidays.includes(dateStr);
+        const isTuesday = currentDate.getDay() === 2;
+        const isTechOffDay = employee?.department === "tech" && isTuesday;
 
-    // ✅ Allow one paid leave, rest are LOP
-    const paidLeaves = Math.min(totalLeaves, 1);
-    const lossOfPayDays = Math.max(totalLeaves - paidLeaves, 0);
+        // ✅ Automatically count Sundays, holidays, and tech Tuesdays as present
+        if (isSunday || isHoliday || isTechOffDay) {
+            totalPresentDays++;
+        }
 
-    // ✅ Effective payable days
-    const effectivePaidDays = totalPresentDays + paidLeaves;
+        // Find attendance record for this date
+        const attendanceRecord = relevantAttendance.find(record => {
+            const recordDate = new Date(record.date);
+            return recordDate.getDate() === day;
+        });
 
-    // ✅ Salary calculation based on present days only
+        if (attendanceRecord) {
+            const status = attendanceRecord.status?.toLowerCase();
+            const workingHours = parseFloat(attendanceRecord.workingHours) || 0;
+
+            // Calculate actual present days and leaves for working days
+            if (!isSunday && !isHoliday && !isTechOffDay) {
+                if (status === 'present' || status === 'presentlate') {
+                    actualPresentDays++;
+                    totalPresentDays++;
+                }
+                else if (status === 'approved' || status === 'leaveapproved') {
+                    actualLeaves++;
+                    totalPresentDays++; // Leaves also count as present days
+                }
+                else if (!status && workingHours >= 8.45) {
+                    // No status but worked full day
+                    actualPresentDays++;
+                    totalPresentDays++;
+                }
+                else if (!status && workingHours >= 4) {
+                    // No status but worked half day
+                    actualPresentDays += 0.5;
+                    actualLeaves += 0.5;
+                    totalPresentDays++; // Half day still counts as 1 present day
+                }
+                else if (status === 'firsthalfp' || status === 'secondhalfp') {
+                    // Half day present
+                    actualPresentDays += 0.5;
+                    actualLeaves += 0.5;
+                    totalPresentDays++; // Half day still counts as 1 present day
+                }
+                else if (status === 'firsthalfapproved' || status === 'secondhalfapproved') {
+                    // Half day leave
+                    actualPresentDays += 0.5;
+                    actualLeaves += 0.5;
+                    totalPresentDays++; // Half day leave still counts as 1 present day
+                }
+                else if (status === 'absent') {
+                    // Absent - don't add to totalPresentDays (already not included)
+                }
+            }
+        } else {
+            // No attendance record found for working day = absent
+            // Don't add to totalPresentDays (already not included for working days)
+        }
+    }
+
+    // ✅ Handle leaves - allow one paid leave, rest are LOP
+    const paidLeaves = Math.min(actualLeaves, 1);
+    const lossOfPayDays = Math.max(actualLeaves - paidLeaves, 0);
+
+    // ✅ Effective payable days (for salary calculation)
+    const effectivePaidDays = totalPresentDays; // Use totalPresentDays for salary calculation
+
+    // ✅ Salary calculation
     const annualCTC = parseInt(String(employee.ctc).replace(/,/g, ""), 10);
     const monthlyGross = annualCTC / 12;
-    const dailyRate = monthlyGross / 30; // always divide by 30 (standard salary basis)
+    const dailyRate = monthlyGross / 30;
 
     const proRatedGross = Math.round(dailyRate * effectivePaidDays);
     const lopAmount = Math.round(dailyRate * lossOfPayDays);
@@ -72,6 +170,16 @@ export function generatePayslip(employee) {
     const totalDeductions = deductions.reduce((a, b) => a + b.amount, 0);
     const netPay = grossEarnings - totalDeductions;
 
+    // ✅ Salary cycle display
+    let salaryCycle;
+    if (monthIndex === dojMonth && year === dojYear) {
+        // Joining month: 5th to end of month
+        salaryCycle = `${monthName} ${dojDay} - ${monthName} ${endDay}`;
+    } else {
+        // Normal month: 1st to end of month
+        salaryCycle = `${monthName} 1 - ${monthName} ${endDay}`;
+    }
+
     // ✅ Return structured payslip
     return {
         company: {
@@ -83,17 +191,17 @@ export function generatePayslip(employee) {
             name: employee.name,
             code: employee.employeeCode,
             designation: employee.designation,
-            department: employee.deportment,
+            department: employee.department,
             dateOfJoining: new Date(employee.dateOfJoining).toLocaleDateString(),
-            account: employee.accountDetails.accountNumber,
-            ifsc: employee.accountDetails.ifscCode,
-            bank: employee.accountDetails.branch,
+            account: employee.accountDetails?.accountNumber || "N/A",
+            ifsc: employee.accountDetails?.ifscCode || "N/A",
+            bank: employee.accountDetails?.branch || "N/A",
         },
         month: monthName,
         year,
-        salaryCycle: `${previousMonthName} 25 - ${monthName} 25`,
-        totalWorkingDays,
-        totalPresentDays,
+        salaryCycle,
+        totalWorkingDays, // All calendar days
+        totalPresentDays, // Includes Sundays, holidays, tech Tuesdays + actual present
         paidLeaves,
         lossOfPayDays,
         earnings,
@@ -101,5 +209,11 @@ export function generatePayslip(employee) {
         grossEarnings,
         totalDeductions,
         netPay,
+        // Additional info for debugging
+        startDay,
+        endDay,
+        isJoiningMonth: (monthIndex === dojMonth && year === dojYear),
+        actualLeaves,
+        actualPresentDays
     };
 }

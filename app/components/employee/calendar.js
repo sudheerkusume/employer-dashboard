@@ -251,7 +251,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     const HALF_DAY_HOURS = 4.00; // 4 hours
 
     // Helper function to calculate working hours from check-in/check-out
-    const calculateWorkingHours = (checkIn, checkOut, date) => {
+    const calculateWorkingHours = (checkIn, checkOut, date, status) => {
         if (!checkIn || !checkOut) return 0;
 
         const [inH, inM] = checkIn.split(':').map(Number);
@@ -261,13 +261,20 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
         let diffMinutes = Math.max(0, end - start);
 
-        // Adjust for lunch break based on day
+        // Handle half-day approved leaves
+        if (status === 'firsthalfapproved') {
+            // First half: check-in 9:00-9:45, check-out 13:30+
+            return 4.0; // 4 hours for first half
+        } else if (status === 'secondhalfapproved') {
+            // Second half: check-in 13:00-13:45, check-out 18:30+
+            return 4.0; // 4 hours for second half
+        }
+
+        // Adjust for lunch break based on day for full days
         const day = getDay(new Date(date));
         if (day !== 6) { // Not Saturday
-            // Subtract 1 hour lunch break for normal days
             diffMinutes = Math.max(0, diffMinutes - 60);
         } else {
-            // Saturday: Subtract 30 minutes lunch break
             diffMinutes = Math.max(0, diffMinutes - 30);
         }
 
@@ -315,7 +322,11 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             if (isTuesday) tuesdaysCount++;
         });
 
-        const displayWorkingDays = totalCalendarDays;
+        // Calculate actual working days (excluding Sundays, holidays, and tech Tuesdays)
+        let actualWorkingDays = totalCalendarDays - sundaysCount - holidaysCount;
+        if (profile?.department === "tech") {
+            actualWorkingDays -= tuesdaysCount;
+        }
 
         // Initialize counters
         let totalWorked = 0;
@@ -485,7 +496,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
         return {
             totalWorked: parseFloat(totalWorked.toFixed(2)),
-            totalWorkingDays: displayWorkingDays,
+            totalWorkingDays: actualWorkingDays, // Use actual working days instead of displayWorkingDays
             totalCalendarDays,
             holidaysCount,
             sundaysCount,
@@ -533,12 +544,11 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         return isBefore(currentMonthEnd, doj);
     }, [profile?.dateOfJoining, currentMonth]);
 
-    // Check if we should show summary (only after 30th/31st of current month)
-    const shouldShowSummary = useMemo(() => {
+    // Check if current month is the current actual month
+    const isCurrentMonth = useMemo(() => {
         const today = new Date();
-        const currentDay = getDate(today);
-        return currentDay >= 30; // Show summary only on 30th, 31st of the month
-    }, []);
+        return currentMonth === today.getMonth() && today.getFullYear() === 2025;
+    }, [currentMonth]);
 
     // Get previous month data for display
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -551,7 +561,8 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         totalCalendarDays: prevTotalCalendarDays,
         holidaysCount: prevHolidaysCount,
         sundaysCount: prevSundaysCount,
-        tuesdaysCount: prevTuesdaysCount
+        tuesdaysCount: prevTuesdaysCount,
+        totalWorkingDays: prevTotalWorkingDays
     } = calculateAttendanceByMonthIndex(profile, previousMonth, previousYear);
 
     // Withdraw leave service
@@ -817,28 +828,13 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         );
     })();
 
-    // No Data Available Component
-    const NoDataAvailable = () => (
-        <div className="flex-1 flex items-center justify-center">
-            <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="text-6xl mb-4">📅</div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Data Available</h3>
-                <p className="text-gray-500">
-                    {profile?.dateOfJoining
-                        ? `Attendance data is only available from your date of joining: ${format(new Date(profile.dateOfJoining), 'MMM dd, yyyy')}`
-                        : 'No attendance data available for this period'
-                    }
-                </p>
-            </div>
-        </div>
-    );
-
     return (
-        <div className="flex flex-col md:flex-row max-w-full text-gray-700 gap-4">
+        <div className="flex flex-col md:flex-row w-full text-gray-700 gap-4">
             {serviceCall && <Loading />}
 
             {/* Left Calendar Section */}
-            <Calendar
+           <div className="w-full bg-white shadow-lg">
+             <Calendar
                 profile={profile}
                 onCheckIn={onCheckIn}
                 onCheckOut={onCheckOut}
@@ -862,47 +858,124 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     setShowARModal(true);
                 }}
             />
+           </div>
 
             {/* Right Side: Summary & Leaves Section */}
-            <aside className="w-full md:w-80 bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
+            <aside className="w-full bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
                 {/* Month Header */}
                 <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
-                        {shouldShowSummary ? `${monthNames[previousMonth]} Summary` : `${monthNames[currentMonth]} Summary`}
+                        {isCurrentMonth ? `${monthNames[currentMonth]} (In Progress)` : `${monthNames[currentMonth]} Summary`}
                     </h3>
-                    {!isMonthBeforeJoining && <button
-                        onClick={() => {
-                            if (isMonthBeforeJoining) {
-                                setRootContext(prev => ({
-                                    ...prev,
-                                    toast: {
-                                        show: true,
-                                        dismiss: true,
-                                        type: 'error',
-                                        title: 'Error',
-                                        message: 'Cannot apply AR for dates before your date of joining.'
-                                    },
-                                }));
-                                return;
-                            }
-                            setShowARModal(true);
-                        }}
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                    >
-                        Apply AR
-                    </button>}
+                    {!isMonthBeforeJoining && isCurrentMonth && (
+                        <button
+                            onClick={() => setShowARModal(true)}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        >
+                            Apply AR
+                        </button>
+                    )}
                 </div>
 
                 {isMonthBeforeJoining ? (
                     <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center p-4">
+                        <div className="text-center p-1">
                             <div className="text-4xl mb-2">📅</div>
                             <p className="text-gray-500 text-sm">
                                 No data available before {profile?.dateOfJoining ? format(new Date(profile.dateOfJoining), 'MMM dd, yyyy') : 'date of joining'}
                             </p>
                         </div>
                     </div>
+                ) : isCurrentMonth ? (
+                    // Current Month - Show "Month in Progress" message
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                            <div className="text-4xl mb-3">📊</div>
+                            <h4 className="text-lg font-semibold text-blue-700 mb-2">Month in Progress</h4>
+                            <p className="text-sm text-gray-600">
+                                Attendance summary will be available after the month ends.
+                            </p>
+                        </div>
+
+                        {/* Yesterday block for current month */}
+                        {YesterdayBlock}
+
+                        {/* Pending Requests for current month */}
+                        <h4 className="mt-2 mb-2 font-medium w-full">Pending Requests</h4>
+                        <div className="overflow-y-auto max-h-56 space-y-2 w-full">
+                            {/* Pending Leaves */}
+                            {monthLeaves.length === 0 ? (
+                                <p className="text-gray-400 italic text-sm">No pending leaves.</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {monthLeaves.map((leave, index) => (
+                                        <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
+                                            <div className="text-sm">
+                                                <div className="font-medium text-gray-600 capitalize">{leave.leaveType}</div>
+                                                <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
+                                            </div>
+                                            {leave.status !== 'approved' && leave.status !== 'rejected' && (
+                                                <button
+                                                    disabled={loadingLeave === leave.startDate}
+                                                    onClick={() => handleWithdraw(
+                                                        profile._id,
+                                                        leave.startDate,
+                                                        leave.endDate,
+                                                        eachDayOfInterval({
+                                                            start: parseISO(leave.startDate),
+                                                            end: parseISO(leave.endDate)
+                                                        }).map(d => format(d, 'yyyy-MM-dd'))
+                                                    )}
+                                                    className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+                                                        }`}
+                                                >
+                                                    {loadingLeave === leave.startDate ? 'Withdrawing...' : 'Withdraw'}
+                                                </button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            {/* Pending Regularizations */}
+                            {(() => {
+                                const pendingAR = [];
+                                Object.keys(profile.attendance || {}).forEach(m => {
+                                    (profile.attendance[m] || []).forEach(it => {
+                                        if (it.status === 'pendingRegularization' && !isBeforeDateOfJoining(it.date)) {
+                                            pendingAR.push(it);
+                                        }
+                                    });
+                                });
+
+                                if (pendingAR.length === 0) return null;
+
+                                return (
+                                    <div className="w-full">
+                                        <h5 className="text-sm font-medium mt-4 mb-2">Pending Regularizations</h5>
+                                        <ul className="space-y-2">
+                                            {pendingAR.map((ar, idx) => (
+                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
+                                                    <div className="text-sm">
+                                                        <div className="font-medium">{formatDateTime(ar.date, 'DD-MM-YYYY')}</div>
+                                                        <div className="text-xs text-gray-500">{ar.checkIn || '—'} - {ar.checkOut || '—'}</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => withdrawAR(profile._id, ar.date, ar.date, [ar.date])}
+                                                        className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
+                                                    >
+                                                        Withdraw
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
                 ) : (
+                    // Previous Month - Show Full Summary
                     <>
                         {/* Simplified Summary Section - Only Present, Absent, and Loss of Pay */}
                         <div className="space-y-3 mb-4">
@@ -910,7 +983,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                                 <p className="text-sm font-medium text-gray-700">Total Present Days</p>
                                 <p className="text-2xl font-bold text-green-700">
-                                    {shouldShowSummary ? prevPresentDays : presentDays}
+                                    {presentDays}
                                 </p>
                                 <p className="text-xs text-gray-600 mt-1">
                                     Includes full days, half days, and approved leaves
@@ -921,7 +994,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             <div className="bg-red-50 p-3 rounded-lg border border-red-200">
                                 <p className="text-sm font-medium text-gray-700">Total Absent Days</p>
                                 <p className="text-2xl font-bold text-red-700">
-                                    {shouldShowSummary ? prevAbsentDays : absentDays}
+                                    {absentDays}
                                 </p>
                                 <p className="text-xs text-gray-600 mt-1">
                                     Days marked as absent
@@ -929,11 +1002,11 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             </div>
 
                             {/* Loss of Pay */}
-                            {(shouldShowSummary ? prevLossOfPay : lossOfPay) > 0 && (
+                            {lossOfPay > 0 && (
                                 <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
                                     <p className="text-sm font-medium text-gray-700">Loss of Pay</p>
                                     <p className="text-lg font-bold text-orange-700">
-                                        {shouldShowSummary ? prevLossOfPay : lossOfPay} days
+                                        {lossOfPay} days
                                     </p>
                                     <p className="text-xs text-gray-600 mt-1">
                                         From late/early penalties (every 3 = 1 day)
@@ -945,11 +1018,12 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-medium text-gray-700">Month Overview</p>
                                 <div className="text-xs text-gray-600 mt-1 space-y-1">
-                                    <p>• Total Days: {shouldShowSummary ? prevTotalCalendarDays : totalCalendarDays}</p>
-                                    <p>• Holidays: {shouldShowSummary ? prevHolidaysCount : holidaysCount}</p>
-                                    <p>• Sundays: {shouldShowSummary ? prevSundaysCount : sundaysCount}</p>
+                                    <p>• Total Days: {totalCalendarDays}</p>
+                                    <p>• Working Days: {totalWorkingDays}</p>
+                                    <p>• Holidays: {holidaysCount}</p>
+                                    <p>• Sundays: {sundaysCount}</p>
                                     {profile?.department === "tech" && (
-                                        <p>• Tuesdays Off: {shouldShowSummary ? prevTuesdaysCount : tuesdaysCount}</p>
+                                        <p>• Tuesdays Off: {tuesdaysCount}</p>
                                     )}
                                 </div>
                             </div>

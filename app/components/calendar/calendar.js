@@ -14,6 +14,7 @@ import { Mutated } from '../config/useswrfetch';
 import Loading from '../common/loading';
 import RootContext from '../config/rootcontext';
 import ComboBox from '../common/form/combobox';
+import { CalendarDaysIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/20/solid';
 
 const categoryColors = {
     present: "#A8DCAB",
@@ -187,6 +188,8 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
 const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const radius = size / 2;
     const center = radius;
+    // ... (getColors function remains the same)
+
     const getColors = () => {
         switch (status) {
             case 'present':
@@ -227,18 +230,12 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const colors = getColors();
     const stroke = isToday && !status ? '#374151' : 'none';
 
-    // Only firstHalfApproved and secondHalfApproved statuses get diagonal split
-    const isDiagonalSplit = [
-        'firstHalfApproved',
-        'secondHalfApproved',
-        'firstHalfApproved_present',
-        'firstHalfApproved_absent',
-        'secondHalfApproved_present',
-        'secondHalfApproved_absent'
-    ].includes(status);
-
-    // All other statuses get vertical split
-    const isVerticalSplit = !isDiagonalSplit && status;
+    // *** MODIFIED LOGIC START ***
+    // Now, all statuses (full day or half day) fall under vertical split logic 
+    // if a status is present.
+    const isVerticalSplit = !!status;
+    // The previous diagonal split logic has been removed.
+    // *** MODIFIED LOGIC END ***
 
     return (
         <svg width={size} height={size} className="cursor-pointer">
@@ -274,22 +271,8 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                     </defs>
 
                     <g clipPath="url(#circleClip)">
-                        {isDiagonalSplit ? (
-                            // Diagonal split ONLY for approved half leaves
-                            <>
-                                {/* Top-left to bottom-right diagonal - First half */}
-                                <path
-                                    d={`M 0 0 L ${size} ${size} L 0 ${size} Z`}
-                                    fill={colors.left}
-                                />
-                                {/* Top-left to bottom-right diagonal - Second half */}
-                                <path
-                                    d={`M 0 0 L ${size} 0 L ${size} ${size} Z`}
-                                    fill={colors.right}
-                                />
-                            </>
-                        ) : isVerticalSplit ? (
-                            // Vertical split for ALL other statuses
+                        {isVerticalSplit ? (
+                            // Vertical split for ALL statuses (including former diagonal ones)
                             <>
                                 {/* Left semicircle */}
                                 <path
@@ -800,42 +783,41 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         <div className=" p-2 sm:p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
             {/* Check-in/Check-out Buttons */}
             {serviceCall && <Loading />}
-            <div className="flex justify-between gap-2 mb-3">
+            <div className="flex flex-col md:flex-row justify-between gap-2 mb-3">
+                {/* Login / Logout buttons */}
                 <button
                     onClick={onCheckIn}
                     disabled={isCheckInDisabled}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled
+                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
                 >
-                    {isCheckedIn ? 'Already Checked In' :
-                        isBefore9AM() ? 'Check In (After 9 AM)' :
-                            isTodayTuesdayOff ? 'Check In (Tuesday Off)' :
-                                isTodaySunday ? 'Check In (Sunday Holiday)' :
-                                    isTodayHoliday ? 'Check In (Holiday)' : 'Check In'}
+                    {"Login"}
                 </button>
+
                 <button
                     onClick={onCheckOut}
                     disabled={isCheckOutDisabled}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckOutDisabled ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckOutDisabled
+                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
                 >
-                    {isCheckOutDisabled ?
-                        (isTodayTuesdayOff ? 'Check Out (Tuesday Off)' :
-                            isTodaySunday ? 'Check Out (Sunday Holiday)' :
-                                isTodayHoliday ? 'Check Out (Holiday)' : 'Check Out') : 'Check Out'}
+                    {"Logout"}
                 </button>
-            </div>
-            {/* Go to Calendar and Leave buttons */}
-            <div className="flex justify-between gap-2 mb-3">
                 <button
                     onClick={handleOpenLeaveModal}
-                    className="px-2 py-1 cursor-pointer text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2"
                 >
-                    Apply for Leave
+                    <ClipboardDocumentCheckIcon className="w-5 h-5" />
+                    Leave
                 </button>
                 <button
                     onClick={onGoToCalendar}
-                    className="px-2 py-1 cursor-pointer text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
                 >
-                    Go to Calendar
+                    <CalendarDaysIcon className="w-5 h-5" />
                 </button>
             </div>
 
@@ -910,6 +892,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     const isTuesday = getDay(day) === 2;
                     const isTechOffDay = profile?.department === "tech" && isTuesday;
+                    const isSunday = isSundayHoliday(day);
+                    const isHolidayDay = isHoliday(day);
 
                     let status = att?.status || null;
 
@@ -924,18 +908,12 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     if (isBeforeJoining) {
                         status = null;
                     } else if (!att && isCurrentMonth) {
-                        const isSunday = isSundayHoliday(day);
-                        const isHolidayDay = isHoliday(day);
-
                         if (isHolidayDay) status = "holiday";
                         else if (isSunday) status = "sunday";
                     }
 
                     // For future dates in current month, show appropriate status
                     if (!att && isFutureDate && isCurrentMonth && !isBeforeJoining) {
-                        const isSunday = isSundayHoliday(day);
-                        const isHolidayDay = isHoliday(day);
-
                         if (isSunday) status = "sunday";
                         else if (isHolidayDay) status = "holiday";
                         else status = null; // Future working days show as transparent
@@ -944,18 +922,30 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isLeaveApplied = att?.status === "leaveApplied";
                     const isLeaveApproved = att?.status === "leaveApproved";
 
-                    const dayTextColor = isBeforeJoining || !isCurrentMonth
-                        ? "text-gray-300"
-                        : isLeaveApplied
-                            ? "text-gray-600"
-                            : isLeaveApproved
-                                ? "text-white"
-                                : "text-gray-900";
+                    // Determine if it's a working day (not Sunday, holiday, or tech Tuesday off)
+                    const isWorkingDay = !isSunday && !isHolidayDay && !isTechOffDay;
+
+                    // Determine text color
+                    let dayTextColor = "text-gray-900"; // Default
+
+                    if (isBeforeJoining || !isCurrentMonth) {
+                        dayTextColor = "text-gray-300";
+                    } else if (isLeaveApplied) {
+                        dayTextColor = "text-gray-600";
+                    } else if (isLeaveApproved) {
+                        dayTextColor = "text-white";
+                    } else if (isTodayDate && isWorkingDay) {
+                        // Today is green only if it's a working day (not Sunday, holiday, or tech Tuesday off)
+                        dayTextColor = "text-[#48a84dff] font-bold";
+                    } else if (status === 'sunday' || status === 'holiday') {
+                        dayTextColor = "text-gray-900"; // Keep normal color for off days
+                    }
 
                     const dayBgColor = isLeaveApproved ? "bg-[#e8d15dff] rounded-full" : "";
 
-                    const offDayBgColor =
-                        isBeforeJoining || !isCurrentMonth ? "" : isTechOffDay ? "bg-gray-100" : "";
+                    // Light gray background for ALL Tuesdays in current month for tech department
+                    // This includes past, present, and future Tuesdays
+                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining && isTechOffDay ? "bg-[#d5d7d9ff]" : "";
 
                     return (
                         <div
@@ -975,7 +965,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                             }}
                             className={`relative w-10 h-10 flex items-center justify-center rounded-full transition 
                     ${dayBgColor} 
-                    ${offDayBgColor} 
+                    ${tuesdayBgColor} 
                     ${isBeforeJoining || !isCurrentMonth
                                     ? "cursor-not-allowed hover:ring-0"
                                     : "cursor-pointer hover:ring-2 hover:ring-gray-300"
@@ -988,7 +978,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                             ? "Checked In"
                                             : status === "approved"
                                                 ? "Leave Approved"
-                                                : "Today"
+                                                : isTechOffDay
+                                                    ? "Off Day (Tuesday)"
+                                                    : "Today"
                                         : status === "sunday"
                                             ? profile.department === "tech" && getDay(day) === 2
                                                 ? "Off Day (Tuesday)"
@@ -1008,10 +1000,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                 status && <SplitCircle status={status} isToday={false} size={40} />}
 
                             <span
-                                className={`absolute text-xs font-bold ${isTodayDate
-                                    ? "text-[#48a84dff] font-bold"
-                                    : dayTextColor
-                                    }`}
+                                className={`absolute text-xs font-bold ${dayTextColor}`}
                             >
                                 {format(day, "d")}
                             </span>

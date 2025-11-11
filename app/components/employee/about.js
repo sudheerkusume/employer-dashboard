@@ -469,7 +469,16 @@ export default function AboutMe({ profile }) {
             mutated()
             if (!res.ok) {
                 console.error("Error deleting experience:", data.error);
-                alert(data.error || "Failed to delete experience");
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to delete experience",
+                    },
+                }));
                 return;
             }
 
@@ -477,7 +486,16 @@ export default function AboutMe({ profile }) {
 
         } catch (err) {
             console.error("❌ Failed to delete experience:", err);
-            alert("Something went wrong while deleting experience");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Something went wrong while deleting experience",
+                },
+            }));
         }
     };
 
@@ -503,14 +521,32 @@ export default function AboutMe({ profile }) {
             mutated();
             if (!res.ok) {
                 console.error("Error deleting experience document:", data.error);
-                alert(data.error || "Failed to delete experience document");
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to delete experience document",
+                    },
+                }));
                 return;
             }
             console.log("✅ Experience document deleted successfully");
 
         } catch (err) {
             console.error("❌ Failed to delete experience document:", err);
-            alert("Something went wrong while deleting experience document");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Something went wrong while deleting experience document",
+                },
+            }));
         }
     };
 
@@ -529,14 +565,32 @@ export default function AboutMe({ profile }) {
             mutated()
             if (!res.ok) {
                 console.error("Error deleting education:", data.error);
-                alert(data.error || "Failed to delete education");
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to delete education",
+                    },
+                }));
                 return;
             }
             console.log("✅ Education entry deleted successfully");
 
         } catch (err) {
             console.error("❌ Failed to delete education:", err);
-            alert("Something went wrong while deleting education");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Something went wrong while deleting education",
+                },
+            }));
         }
     };
 
@@ -562,14 +616,32 @@ export default function AboutMe({ profile }) {
             mutated()
             if (!res.ok) {
                 console.error("Error deleting education document:", data.error);
-                alert(data.error || "Failed to delete education document");
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to delete education document",
+                    },
+                }));
                 return;
             }
             console.log("✅ Education document deleted successfully");
 
         } catch (err) {
             console.error("❌ Failed to delete education document:", err);
-            alert("Something went wrong while deleting education document");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Something went wrong while deleting education document",
+                },
+            }));
         }
     };
 

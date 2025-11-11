@@ -105,7 +105,16 @@ export default function EmployeeProfile({ employeesData }) {
 
         // Check file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert("Please select an image smaller than 5MB");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "warning",
+                    title: "Warning",
+                    message: "Please select an image smaller than 5MB",
+                },
+            }));
             return;
         }
 
@@ -200,7 +209,16 @@ export default function EmployeeProfile({ employeesData }) {
             }, 'image/jpeg', 0.95);
         } catch (err) {
             console.error("Cropping failed:", err);
-            alert("Failed to crop image. Please try again.");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Failed to crop image. Please try again.",
+                },
+            }));
         }
     };
 
@@ -273,12 +291,6 @@ export default function EmployeeProfile({ employeesData }) {
         });
     };
 
-    // Custom crop style for solid lines
-    const cropStyle = {
-        border: '2px solid #f59e0b',
-        background: 'rgba(245, 158, 11, 0.1)',
-    };
-
     /** ─── Save Employee Header ───────────────────────────── **/
     const handleSaveHeader = async () => {
         setServiceCall(true);
@@ -313,12 +325,30 @@ export default function EmployeeProfile({ employeesData }) {
                 mutated();
             } else {
                 console.error(data.error || "Update failed");
-                alert(data.error || "Failed to update profile");
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to update profile",
+                    },
+                }));
             }
         } catch (err) {
             console.error("Error updating profile:", err);
             setServiceCall(false);
-            alert("Error updating profile. Please try again.");
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "Error updating profile. Please try again.",
+                },
+            }));
         }
     };
 

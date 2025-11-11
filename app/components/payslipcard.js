@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { generatePDF } from "./payslippdf";
 
-export default function PayslipCard({ payslip }) {
+export default function PayslipCard({ payslip, profile }) {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const today = new Date();
@@ -15,15 +15,24 @@ export default function PayslipCard({ payslip }) {
     const payslipMonth = payslipDate.getMonth();
     const payslipYear = payslipDate.getFullYear();
 
+    // Get date of joining
+    const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
+
+    // Check if payslip is for a month after date of joining
+    const isAfterJoining = dateOfJoining ?
+        (payslipYear > dateOfJoining.getFullYear()) ||
+        (payslipYear === dateOfJoining.getFullYear() && payslipMonth >= dateOfJoining.getMonth())
+        : true;
+
     // Determine if payslip is for last month
     const isPreviousMonth =
         (currentMonth === payslipMonth + 1 && currentYear === payslipYear) ||
         (currentMonth === 0 && payslipMonth === 11 && currentYear === payslipYear + 1);
 
     // ✅ Show payslip if:
-    // - It’s NOT the immediate previous month → always show
-    // - If it IS the immediate previous month → show only if today >= 6
-    const shouldShow = !isPreviousMonth || (isPreviousMonth && currentDay >= 6);
+    // 1. It's after date of joining
+    // 2. AND (It's NOT the immediate previous month OR it IS the immediate previous month AND today >= 5)
+    const shouldShow = isAfterJoining && (!isPreviousMonth || (isPreviousMonth && currentDay >= 5));
 
     if (!shouldShow) return null; // hide this payslip
 

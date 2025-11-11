@@ -1,15 +1,16 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import { Listbox } from '@headlessui/react';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
+import RootContext from '../config/rootcontext';
 
 const categoryColors = {
-    birthday: '#dc2626',
-    training: '#e0193a',
-    meeting: '#facc15',
-    holiday: '#4ade80',
-    general: '#38bdf8',
+    birthday: '#FDA4AF',     // Soft pink
+    training: '#7DD3FC',     // Soft sky
+    meeting: '#FCD34D',      // Soft amber
+    holiday: '#86EFAC',      // Soft green
+    general: '#93C5FD',      // Soft blue
 };
 
 export default function EventDrawer({ mode, profile, mutated, show, onClose, editData, categories }) {
@@ -23,7 +24,7 @@ export default function EventDrawer({ mode, profile, mutated, show, onClose, edi
     const [error, setError] = useState(false);
     const [loading, setLoading] = useState(false);
     const allCategories = categories.filter(cat => cat !== 'view all');
-
+    const { setRootContext } = useContext(RootContext)
     // Convert ISO date to YYYY-MM-DD
     const formatDateForInput = (isoString) => {
         if (!isoString) return '';
@@ -77,10 +78,28 @@ export default function EventDrawer({ mode, profile, mutated, show, onClose, edi
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to save event');
             mutated()
-            alert(mode === "update" ? 'Event updated successfully!' : 'Event created successfully!');
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "success",
+                    title: "Success",
+                    message: `${mode === "update" ? 'Event updated successfully!' : 'Event created successfully!'}`,
+                },
+            }));
             onClose();
         } catch (err) {
-            alert(err.message);
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: err.message || `Something Went Wrong`,
+                },
+            }));
         } finally {
             setLoading(false);
         }
@@ -138,6 +157,7 @@ export default function EventDrawer({ mode, profile, mutated, show, onClose, edi
                                 <Listbox.Label className="block text-sm font-medium text-gray-500">
                                     Label
                                 </Listbox.Label>
+
                                 <div className="relative mt-1">
                                     <Listbox.Button
                                         className={`relative w-full cursor-default rounded border bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm focus:outline-none ${error && !form.type ? 'border-red-500' : 'border-gray-300'
@@ -150,7 +170,7 @@ export default function EventDrawer({ mode, profile, mutated, show, onClose, edi
                                                     style={{ backgroundColor: categoryColors[form.type] }}
                                                 />
                                             )}
-                                            {form.type || 'Select Event Label'}
+                                            <span>{form.type || 'Select Event Label'}</span>
                                         </span>
                                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                                             <ChevronUpDownIcon
@@ -166,30 +186,32 @@ export default function EventDrawer({ mode, profile, mutated, show, onClose, edi
                                                 key={idx}
                                                 value={cat}
                                                 className={({ active }) =>
-                                                    `relative cursor-pointer items-center select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
+                                                    `relative cursor-pointer select-none py-2 px-3 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
                                                     }`
                                                 }
                                             >
                                                 {({ selected }) => (
-                                                    <p className="items-center">
-                                                        <span
-                                                            className="absolute left-2 top-2 h-3 w-3 rounded-full"
-                                                            style={{ backgroundColor: categoryColors[cat] }}
-                                                        />
-                                                        <span className={selected ? 'font-medium' : 'font-normal'}>
-                                                            {cat}
-                                                        </span>
-                                                        {selected && (
-                                                            <span className="absolute inset-y-0 right-2 flex items-center pl-3 text-yellow-600">
-                                                                <CheckIcon className="h-5 w-5" />
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <span
+                                                                className="h-3 w-3 rounded-full"
+                                                                style={{ backgroundColor: categoryColors[cat] }}
+                                                            />
+                                                            <span className={selected ? 'font-semibold' : 'font-normal'}>
+                                                                {cat}
                                                             </span>
+                                                        </div>
+
+                                                        {selected && (
+                                                            <CheckIcon className="h-5 w-5 text-yellow-600" />
                                                         )}
-                                                    </p>
+                                                    </div>
                                                 )}
                                             </Listbox.Option>
                                         ))}
                                     </Listbox.Options>
                                 </div>
+
                                 {error && !form.type && (
                                     <p className="text-red-500 text-xs mt-1">This field is required</p>
                                 )}
