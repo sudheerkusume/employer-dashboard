@@ -554,7 +554,7 @@ export default function EmployeeProfile({ employeesData }) {
             {/* Enhanced Crop Modal with ReactCrop */}
             {cropping && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
-                    <div className="bg-white rounded-lg w-full max-w-6xl h-full max-h-[95vh] overflow-hidden flex flex-col">
+                    <div className="bg-white rounded-lg w-full max-w-6xl h-full max-h-[95vh] overflow-y-auto scroll-y-auto flex flex-col">
                         {/* Header */}
                         <div className="flex justify-between items-center p-3 sm:p-4 border-b bg-yellow-50">
                             <h3 className="text-lg font-semibold text-yellow-900">Crop Profile Picture</h3>
@@ -567,7 +567,7 @@ export default function EmployeeProfile({ employeesData }) {
                         </div>
 
                         {/* Main Content - Responsive flex layout */}
-                        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto scroll-y-auto">
                             {/* Crop Area - Takes priority on mobile, side-by-side on desktop */}
                             <div className="flex-1 flex flex-col min-h-0">
                                 <div className="p-2 sm:p-4 border-b lg:border-b-0 lg:border-r bg-yellow-50 shrink-0">
@@ -578,7 +578,7 @@ export default function EmployeeProfile({ employeesData }) {
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex-1 p-2 sm:p-4 flex items-center justify-center bg-gray-900 min-h-[300px] sm:min-h-[400px] overflow-auto">
+                                <div className="flex-1 p-2 sm:p-4 flex items-center justify-center bg-gray-900 min-h-[300px] sm:min-h-[400px] overflow-y-auto scroll-y-auto">
                                     <div className="relative max-w-full max-h-full">
                                         <ReactCrop
                                             crop={crop}
@@ -643,7 +643,7 @@ export default function EmployeeProfile({ employeesData }) {
                                 </div>
 
                                 {/* Controls Section - Scrollable on small screens */}
-                                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+                                <div className="flex-1 overflow-y-auto scroll-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
                                     {/* Aspect Ratio Selection */}
                                     <div>
                                         <label className="text-sm font-medium text-yellow-900 mb-2 block">
