@@ -185,7 +185,7 @@ export default function AboutMe({ profile }) {
             });
 
             const data = await res.json();
-            if (es.status) {
+            if (res.status) {
                 setServiceCall(false);
             }
 
@@ -220,16 +220,6 @@ export default function AboutMe({ profile }) {
         } catch (err) {
             // 🔹 Handle network or unexpected error
             setServiceCall(false);
-            setRootContext((prevContext) => ({
-                ...prevContext,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Failed",
-                    message: "Something went wrong while updating profile",
-                },
-            }));
             return false;
         }
     };
