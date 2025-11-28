@@ -9,7 +9,6 @@ const inter = Inter({
 
 export const metadata = {
   title: "RealBeez Holding Pvt Limited - Complete Real Estate Solutions | Property Sales, Leasing & Consultancy",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   description: "RealBeez offers comprehensive real estate services including property sales, leasing, legal verification, property valuation, consultancy, and property management. Your trusted partner for all real estate needs.",
   keywords: "real estate, property sales, property leasing, legal verification, property valuation, real estate consultancy, property management, RealBeez, real estate solutions, property services",
   authors: [{ name: "RealBeez Holding Pvt Limited Team" }],
