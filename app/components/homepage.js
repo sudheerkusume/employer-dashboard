@@ -117,30 +117,11 @@ export default function HomePage() {
 
             {/* Main content with gradient overlay */}
             <main className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10 text-center px-4">
-                {!loading && <div className="bg-gradient-to-r from-black/70 via-black/50 to-transparent p-6 rounded-2xl shadow-lg">
+                {!loading && <div className="bg-gradient-to-r from-black/70 via-black/50 to-transparent p-10 rounded-2xl shadow-lg">
                     {/* Coming Soon text */}
                     <p className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
                         Coming Soon
-                    </p>
-                    {/* Timer */}
-                    <div className="mt-6 flex gap-6 text-center bg-white/70 rounded-lg px-4 py-2 text-xl font-bold">
-                        <div className="text-[#D79A2F]">
-                            <div className="text-2xl">{timeLeft.days}</div>
-                            <div className="text-sm">Days</div>
-                        </div>
-                        <div className="text-[#3D3D3D]">
-                            <div className="text-2xl">{timeLeft.hours}</div>
-                            <div className="text-sm">Hours</div>
-                        </div>
-                        <div className="text-[#3D3D3D]">
-                            <div className="text-2xl">{timeLeft.minutes}</div>
-                            <div className="text-sm">Minutes</div>
-                        </div>
-                        <div className="text-[#D79A2F]">
-                            <div className="text-2xl">{timeLeft.seconds}</div>
-                            <div className="text-sm">Seconds</div>
-                        </div>
-                    </div>
+                    </p>                   
                 </div>}
             </main>
 
