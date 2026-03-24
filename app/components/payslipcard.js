@@ -36,6 +36,25 @@ export default function PayslipCard({ payslip, profile }) {
 
     if (!shouldShow) return null; // hide this payslip
 
+    // Format present days: remove .0, show .5 as .5, no trailing zeros after decimal
+    const formatPresentDays = (days) => {
+        if (days === undefined || days === null) return "0";
+
+        // Check if it's a whole number
+        if (Number.isInteger(days)) {
+            return days.toString();
+        }
+
+        // Handle decimal values
+        const decimalPart = days.toString().split('.')[1];
+        if (decimalPart && decimalPart === "0") {
+            return Math.floor(days).toString();
+        }
+
+        // Return as is for .5, .25, etc.
+        return days.toString();
+    };
+
     const handleDownload = async () => {
         setIsDownloading(true);
         try {
@@ -57,7 +76,7 @@ export default function PayslipCard({ payslip, profile }) {
                     Net Pay: ₹{payslip.netPay.toLocaleString("en-IN")}
                 </p>
                 <p className="text-sm text-gray-500">
-                    Present Days: {payslip.totalPresentDays}
+                    Present Days: {formatPresentDays(payslip.totalPresentDays)}
                 </p>
             </div>
             <button
