@@ -34,6 +34,14 @@ export function generatePayslip(employee, targetMonth, targetYear) {
     // Get attendance for the specific month
     const monthAttendance = employee?.attendance?.[monthName] || [];
 
+    // Create a map of dates that have attendance records for faster lookup
+    const attendanceDateMap = new Map();
+    monthAttendance.forEach(record => {
+        const recordDate = new Date(record.date);
+        const dayKey = recordDate.getDate();
+        attendanceDateMap.set(dayKey, record);
+    });
+
     // ✅ Special handling for joining month
     let startDay = 1;
     let endDay = new Date(year, monthIndex + 1, 0).getDate(); // Last day of month
@@ -43,116 +51,205 @@ export function generatePayslip(employee, targetMonth, targetYear) {
         startDay = dojDay;
     }
 
-    // Filter attendance for the relevant period
-    const relevantAttendance = monthAttendance.filter(record => {
-        const recordDate = new Date(record.date);
-        const recordDay = recordDate.getDate();
-        return recordDay >= startDay && recordDay <= endDay;
-    });
-
-    // ✅ Total working days includes ALL calendar days in the period
-    const totalWorkingDays = endDay - startDay + 1;
-
     // ✅ Define holidays for the year
     const holidays = [
-        `${year}-01-01`, `${year}-01-26`, `${year}-03-25`, `${year}-08-15`,
-        `${year}-10-02`, `${year}-10-18`, `${year}-10-20`, `${year}-12-25`
+        `${year}-01-01`, // New Year
+        `${year}-01-26`, // Republic Day
+        `${year}-03-25`, // Holi
+        `${year}-08-15`, // Independence Day
+        `${year}-10-02`, // Gandhi Jayanti
+        `${year}-10-18`, // Dussehra
+        `${year}-10-20`, // Diwali
+        `${year}-12-25`  // Christmas
     ];
 
-    // ✅ Calculate Total Present Days (includes actual present + Sundays + holidays + tech Tuesdays)
-    let totalPresentDays = 0;
-    let actualPresentDays = 0;
-    let actualLeaves = 0;
+    // ✅ Function to calculate working hours from check-in and check-out
+    const calculateWorkingHours = (checkIn, checkOut) => {
+        if (!checkIn || !checkOut) return 0;
 
-    for (let day = startDay; day <= endDay; day++) {
-        const currentDate = new Date(year, monthIndex, day);
-        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        const [inHour, inMinute] = checkIn.split(':').map(Number);
+        const [outHour, outMinute] = checkOut.split(':').map(Number);
 
-        const isSunday = currentDate.getDay() === 0;
-        const isHoliday = holidays.includes(dateStr);
-        const isTuesday = currentDate.getDay() === 2;
-        const isTechOffDay = employee?.department === "tech" && isTuesday;
+        const inTime = inHour * 60 + inMinute;
+        const outTime = outHour * 60 + outMinute;
 
-        // ✅ Automatically count Sundays, holidays, and tech Tuesdays as present
-        if (isSunday || isHoliday || isTechOffDay) {
-            totalPresentDays++;
+        let diffMinutes = outTime - inTime;
+
+        // Subtract 1 hour lunch break if worked more than 6 hours
+        if (diffMinutes > 360) {
+            diffMinutes -= 60;
         }
 
-        // Find attendance record for this date
-        const attendanceRecord = relevantAttendance.find(record => {
-            const recordDate = new Date(record.date);
-            return recordDate.getDate() === day;
-        });
+        const hours = diffMinutes / 60;
+        return Math.round(hours * 100) / 100;
+    };
 
-        if (attendanceRecord) {
-            const status = attendanceRecord.status?.toLowerCase();
-            const workingHours = parseFloat(attendanceRecord.workingHours) || 0;
+    // ✅ Function to check if a day is absent
+    const isAbsent = (attendanceRecord) => {
+        if (!attendanceRecord) return true;
 
-            // Calculate actual present days and leaves for working days
-            if (!isSunday && !isHoliday && !isTechOffDay) {
-                if (status === 'present' || status === 'presentlate') {
-                    actualPresentDays++;
-                    totalPresentDays++;
-                }
-                else if (status === 'approved' || status === 'leaveapproved') {
-                    actualLeaves++;
-                    totalPresentDays++; // Leaves also count as present days
-                }
-                else if (!status && workingHours >= 8.45) {
-                    // No status but worked full day
-                    actualPresentDays++;
-                    totalPresentDays++;
-                }
-                else if (!status && workingHours >= 4) {
-                    // No status but worked half day
-                    actualPresentDays += 0.5;
-                    actualLeaves += 0.5;
-                    totalPresentDays++; // Half day still counts as 1 present day
-                }
-                else if (status === 'firsthalfp' || status === 'secondhalfp') {
-                    // Half day present
-                    actualPresentDays += 0.5;
-                    actualLeaves += 0.5;
-                    totalPresentDays++; // Half day still counts as 1 present day
-                }
-                else if (status === 'firsthalfapproved' || status === 'secondhalfapproved') {
-                    // Half day leave
-                    actualPresentDays += 0.5;
-                    actualLeaves += 0.5;
-                    totalPresentDays++; // Half day leave still counts as 1 present day
-                }
-                else if (status === 'absent') {
-                    // Absent - don't add to totalPresentDays (already not included)
-                }
+        const status = attendanceRecord.status?.toLowerCase();
+        const checkIn = attendanceRecord.checkIn;
+        const checkOut = attendanceRecord.checkOut;
+
+        // Check if status is explicitly 'absent'
+        if (status === 'absent') return true;
+
+        // Check if there's no check-in and no check-out
+        const hasNoCheckInOut = (!checkIn || checkIn === '') && (!checkOut || checkOut === '');
+
+        // Parse working hours if available
+        let workingHours = 0;
+        if (attendanceRecord.workingHours) {
+            const hoursMatch = attendanceRecord.workingHours.match(/[\d.]+/);
+            if (hoursMatch) {
+                workingHours = parseFloat(hoursMatch[0]);
             }
+        }
+
+        // If no check-in/out AND working hours is 0 or '0 hrs', it's absent
+        if (hasNoCheckInOut && (workingHours === 0 || attendanceRecord.workingHours === '0 hrs')) {
+            return true;
+        }
+
+        // If status is empty/undefined and no check-in/out, it's absent
+        if ((!status || status === '') && hasNoCheckInOut) {
+            return true;
+        }
+
+        return false;
+    };
+
+    // ✅ Function to calculate actual working hours from attendance record
+    const getWorkingHours = (attendanceRecord) => {
+        if (!attendanceRecord) return 0;
+
+        const checkIn = attendanceRecord.checkIn;
+        const checkOut = attendanceRecord.checkOut;
+
+        // Calculate from check-in/check-out if available
+        if (checkIn && checkOut && checkIn !== '' && checkOut !== '') {
+            return calculateWorkingHours(checkIn, checkOut);
+        }
+
+        // Parse from workingHours string
+        if (attendanceRecord.workingHours) {
+            const hoursMatch = attendanceRecord.workingHours.match(/[\d.]+/);
+            if (hoursMatch) {
+                return parseFloat(hoursMatch[0]);
+            }
+        }
+
+        return 0;
+    };
+
+    // ✅ Calculate attendance metrics
+    let totalPresentDays = 0; // Total days counted as present (including half days)
+    let lossOfPayDays = 0; // Total days with loss of pay (full + half day absents)
+    let fullDayAbsents = 0;
+    let halfDayAbsents = 0;
+    let fullDayPresents = 0;
+    let halfDayPresents = 0;
+    let autoPresentDays = 0;
+
+    // Loop through ALL calendar days from startDay to endDay
+    for (let day = startDay; day <= endDay; day++) {
+        const currentDateObj = new Date(year, monthIndex, day);
+        const dateStr = format(currentDateObj, 'yyyy-MM-dd');
+
+        const dayOfWeek = currentDateObj.getDay();
+        const isSunday = dayOfWeek === 0;
+        const isSaturday = dayOfWeek === 6;
+        const isHoliday = holidays.includes(dateStr);
+        const isTechOffDay = employee?.department?.toLowerCase() === "tech" && isSaturday;
+
+        // Automatically count Sundays, holidays, and tech Saturdays as present (no LOP)
+        if (isSunday || isHoliday || isTechOffDay) {
+            totalPresentDays++;
+            autoPresentDays++;
+            continue;
+        }
+
+        // Check if attendance record exists for this date using the map
+        const attendanceRecord = attendanceDateMap.get(day);
+
+        // Check if absent using the improved function
+        if (isAbsent(attendanceRecord)) {
+            // Full day absent
+            fullDayAbsents++;
+            lossOfPayDays++;
+            continue;
+        }
+
+        // If not absent, get working hours
+        const workingHours = getWorkingHours(attendanceRecord);
+
+        // Check if present with working hours
+        if (workingHours >= 6) {
+            // Full day present
+            fullDayPresents++;
+            totalPresentDays++;
+        } else if (workingHours >= 4 && workingHours < 6) {
+            // Half day present - counts as present but LOP for half day
+            halfDayPresents++;
+            totalPresentDays += 0.5;
+            lossOfPayDays += 0.5; // Half day absent = 0.5 day LOP
+            halfDayAbsents += 0.5;
+        } else if (workingHours > 0 && workingHours < 4) {
+            // Less than 4 hours - treat as half day present with LOP
+            halfDayPresents += 0.5;
+            totalPresentDays += 0.5;
+            lossOfPayDays += 0.5; // Half day absent = 0.5 day LOP
+            halfDayAbsents += 0.5;
         } else {
-            // No attendance record found for working day = absent
-            // Don't add to totalPresentDays (already not included for working days)
+            // If working hours is 0 but not marked as absent, check status
+            const status = attendanceRecord?.status?.toLowerCase();
+            if (status === 'approved' || status === 'leaveapproved') {
+                // Approved leave - counts as present but LOP for full day
+                fullDayAbsents++;
+                lossOfPayDays++;
+            } else {
+                // Default to absent if something is wrong
+                fullDayAbsents++;
+                lossOfPayDays++;
+            }
         }
     }
 
-    // ✅ Handle leaves - allow one paid leave, rest are LOP
-    const paidLeaves = Math.min(actualLeaves, 1);
-    const lossOfPayDays = Math.max(actualLeaves - paidLeaves, 0);
+    // All absents count as loss of pay (no paid leaves)
+    const finalLossOfPayDays = lossOfPayDays;
 
-    // ✅ Effective payable days (for salary calculation)
-    const effectivePaidDays = totalPresentDays; // Use totalPresentDays for salary calculation
-
-    // ✅ Salary calculation
+    // ✅ Salary calculation based on CTC structure
     const annualCTC = parseInt(String(employee.ctc).replace(/,/g, ""), 10);
     const monthlyGross = annualCTC / 12;
+
+    // Calculate daily rate (based on 30 days per month)
     const dailyRate = monthlyGross / 30;
+    const halfDayRate = dailyRate / 2;
 
-    const proRatedGross = Math.round(dailyRate * effectivePaidDays);
-    const lopAmount = Math.round(dailyRate * lossOfPayDays);
+    // Calculate salary after Loss of Pay (for both full and half days)
+    let lopAmount = 0;
+    let fullDayLopAmount = Math.round(dailyRate * Math.floor(finalLossOfPayDays));
+    let halfDayLopAmount = Math.round(halfDayRate * (finalLossOfPayDays % 1));
+    lopAmount = fullDayLopAmount + halfDayLopAmount;
 
-    // ✅ Salary breakup
+    const proRatedGross = Math.round(monthlyGross - lopAmount);
+
+    // ✅ Salary breakup based on percentages
+    const basicSalary = Math.round(proRatedGross * 0.4); // 40% of Gross
+    const hra = Math.round(basicSalary * 0.4); // 40% of Basic (16% of Gross)
+    const conveyanceAllowance = 1600; // Fixed as per tax rules
+    const medicalAllowance = 0;
+
+    // Special Allowance = Remaining amount after all other components
+    const specialAllowance = proRatedGross - (basicSalary + hra + conveyanceAllowance + medicalAllowance);
+
     const earnings = [
-        { name: "Basic Salary", amount: Math.round(proRatedGross * 0.4) },
-        { name: "House Rent Allowance (HRA)", amount: Math.round(proRatedGross * 0.2) },
-        { name: "Special Allowance", amount: Math.round(proRatedGross * 0.368) },
-        { name: "Conveyance Allowance", amount: Math.round(proRatedGross * 0.032) },
-        { name: "Medical Allowance", amount: 0 },
+        { name: "Basic Salary", amount: basicSalary },
+        { name: "House Rent Allowance (HRA)", amount: hra },
+        { name: "Special Allowance", amount: specialAllowance },
+        { name: "Conveyance Allowance", amount: conveyanceAllowance },
+        { name: "Medical Allowance", amount: medicalAllowance },
     ];
 
     const grossEarnings = earnings.reduce((a, b) => a + b.amount, 0);
@@ -160,9 +257,10 @@ export function generatePayslip(employee, targetMonth, targetYear) {
     // ✅ Deductions
     const deductions = [{ name: "Professional Tax (PT)", amount: 200 }];
 
-    if (lossOfPayDays > 0) {
+    if (finalLossOfPayDays > 0) {
+        let lopDescription = `Loss of Pay (${finalLossOfPayDays.toFixed(1)} day${finalLossOfPayDays > 1 ? "s" : ""})`;
         deductions.push({
-            name: `Loss of Pay (${lossOfPayDays} day${lossOfPayDays > 1 ? "s" : ""})`,
+            name: lopDescription,
             amount: lopAmount,
         });
     }
@@ -170,20 +268,21 @@ export function generatePayslip(employee, targetMonth, targetYear) {
     const totalDeductions = deductions.reduce((a, b) => a + b.amount, 0);
     const netPay = grossEarnings - totalDeductions;
 
+    // ✅ Total working days (calendar days in the period)
+    const totalWorkingDays = endDay - startDay + 1;
+
     // ✅ Salary cycle display
     let salaryCycle;
     if (monthIndex === dojMonth && year === dojYear) {
-        // Joining month: 5th to end of month
         salaryCycle = `${monthName} ${dojDay} - ${monthName} ${endDay}`;
     } else {
-        // Normal month: 1st to end of month
         salaryCycle = `${monthName} 1 - ${monthName} ${endDay}`;
     }
 
-    // ✅ Return structured payslip
+    // ✅ Return structured payslip with detailed attendance info
     return {
         company: {
-            name: "REAL BEEZ ESTATES PVT LTD",
+            name: "REAL BEEZ PROJECTS PVT LTD",
             address:
                 "2nd Floor, YS RAO Towers, Madhapur Rd, Sri Rama Colony, Jubilee Hills, Hyderabad, Telangana 500033",
         },
@@ -200,20 +299,24 @@ export function generatePayslip(employee, targetMonth, targetYear) {
         month: monthName,
         year,
         salaryCycle,
-        totalWorkingDays, // All calendar days
-        totalPresentDays, // Includes Sundays, holidays, tech Tuesdays + actual present
-        paidLeaves,
-        lossOfPayDays,
+        totalWorkingDays,
+        totalPresentDays: typeof totalPresentDays === 'number' ? totalPresentDays.toFixed(1) : totalPresentDays,
+        paidLeaves: 0,
+        lossOfPayDays: finalLossOfPayDays.toFixed(1),
         earnings,
         deductions,
         grossEarnings,
         totalDeductions,
         netPay,
-        // Additional info for debugging
-        startDay,
-        endDay,
-        isJoiningMonth: (monthIndex === dojMonth && year === dojYear),
-        actualLeaves,
-        actualPresentDays
+        // Detailed attendance breakdown (for debugging/info)
+        attendanceBreakdown: {
+            fullDayPresents: fullDayPresents,
+            halfDayPresents: halfDayPresents,
+            fullDayAbsents: fullDayAbsents,
+            halfDayAbsents: halfDayAbsents,
+            autoPresentDays: autoPresentDays,
+            totalAbsentDays: lossOfPayDays,
+            finalLossOfPayDays: finalLossOfPayDays
+        }
     };
 }
