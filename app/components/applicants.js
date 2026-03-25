@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // ======================
@@ -740,7 +740,7 @@ export default function ApplicationManagement() {
                     pinCode: app.pinCode || '',
                     panNumber: app.panNumber || '',
                     aadharNumber: app.aadharNumber || '',
-                    emergencyContacts: app.emergencyContacts?.length ? app.emergencyContacts : [{ name: '', location: '', phone: '', relationship: '' }],
+                    emergencyContacts: app.emergencyContacts?.length ? app.emergencyContacts.map(item => ({ name: item.name || "", location: item.location || '', phone: item.phone || '', relationship: item.relationship || '' })) : [{ name: '', location: '', phone: '', relationship: '' }],
                     previousCompany: app.previousCompany || '',
                     previousDesignation: app.previousDesignation || '',
                     educationalQualification: app.educationalQualification || '',
@@ -1021,6 +1021,125 @@ export default function ApplicationManagement() {
         }
     };
 
+    const [selectedApplication, setSelectedApplication] = useState(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+    // Add this function to open the details modal
+    const handleViewDetails = (app) => {
+        setSelectedApplication(app);
+        setShowDetailsModal(true);
+    };
+
+    // Add this component inside the component (or outside as a separate function)
+    const DetailsModal = ({ application, onClose }) => {
+        if (!application) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center rounded-t-lg">
+                        <h2 className="text-xl font-bold text-gray-900">Application Details</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                        {/* Personal Details */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
+                                <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
+                                <p><strong>Date of Birth:</strong> {application.dob ? new Date(application.dob).toLocaleDateString() : 'Not provided'}</p>
+                                <p><strong>Father's/Husband's Name:</strong> {application.fatherName || 'Not provided'}</p>
+                                <p><strong>Blood Group:</strong> {application.bloodGroup || 'Not provided'}</p>
+                                <p><strong>Address:</strong> {application.address || 'Not provided'}</p>
+                                <p><strong>Contact Number:</strong> {application.contactNo || 'Not provided'}</p>
+                                <p><strong>Email ID:</strong> {application.email || 'Not provided'}</p>
+                                <p><strong>Pin Code:</strong> {application.pinCode || 'Not provided'}</p>
+                                <p><strong>PAN Number:</strong> {application.panNumber || 'Not provided'}</p>
+                                <p><strong>Aadhar Number:</strong> {application.aadharNumber || 'Not provided'}</p>
+                            </div>
+                        </div>
+                        {/* Emergency Contacts */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Emergency Contact Details</h3>
+                            {application.emergencyContacts && application.emergencyContacts.map((contact, idx) => (
+                                <div key={idx} className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="font-semibold">Contact {idx + 1}</p>
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        <p><strong>Name:</strong> {contact.name}</p>
+                                        <p><strong>Location:</strong> {contact.location}</p>
+                                        <p><strong>Phone:</strong> {contact.phone}</p>
+                                        <p><strong>Relationship:</strong> {contact.relationship}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Previous Employment */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Previous Employment Details</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <p><strong>Company Name:</strong> {application.previousCompany || 'Not provided'}</p>
+                                <p><strong>Designation:</strong> {application.previousDesignation || 'Not provided'}</p>
+                                <p><strong>Educational Qualification:</strong> {application.educationalQualification || 'Not provided'}</p>
+                            </div>
+                        </div>
+                        {/* Legal Cases */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Legal Cases</h3>
+                            <p><strong>Any Legal Cases Pending:</strong> {application.legalCasesPending === 'yes' ? 'Yes' : application.legalCasesPending === 'no' ? 'No' : 'Not provided'}</p>
+                        </div>
+                        {/* Bank Details */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Bank Account Details</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <p><strong>Name as per Bank:</strong> {application.nameAsPerBank || 'Not provided'}</p>
+                                <p><strong>Bank Name:</strong> {application.bankName || 'Not provided'}</p>
+                                <p><strong>Account Number:</strong> {application.accountNo ? `XXXX${application.accountNo.slice(-4)}` : 'Not provided'}</p>
+                                <p><strong>IFSC Code:</strong> {application.ifscCode || 'Not provided'}</p>
+                                <p><strong>Branch:</strong> {application.branch || 'Not provided'}</p>
+                                <p><strong>City:</strong> {application.bankCity || 'Not provided'}</p>
+                            </div>
+                        </div>
+                        {/* Declaration */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Declaration</h3>
+                            <p><strong>Note:</strong> {application.declarationNote || 'Not provided'}</p>
+                            <p className="mt-2"><strong>Declaration Accepted:</strong> {application.declaration ? 'Yes' : 'No'}</p>
+                        </div>
+                        {/* Digital Signatures */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Digital Signatures</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p><strong>Applicant Signature:</strong></p>
+                                    {application.applicantSignature && application.applicantSignature !== '[SIGNATURE]' ? (
+                                        <img src={application.applicantSignature} alt="Applicant Signature" className="mt-2 max-h-24 border rounded shadow-sm" />
+                                    ) : (
+                                        <p className="text-gray-500">Not provided</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <p><strong>Referrer Signature:</strong></p>
+                                    {application.referrerSignature && application.referrerSignature !== '[SIGNATURE]' ? (
+                                        <img src={application.referrerSignature} alt="Referrer Signature" className="mt-2 max-h-24 border rounded shadow-sm" />
+                                    ) : (
+                                        <p className="text-gray-500">Not provided</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end">
+                        <button onClick={onClose} className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const PreviewSection = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -1155,7 +1274,6 @@ export default function ApplicationManagement() {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLIED DATE</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                     </tr>
@@ -1182,13 +1300,13 @@ export default function ApplicationManagement() {
                                                     <div className="text-sm text-gray-900">{app.bankName}</div>
                                                     <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4)}</div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(app.status)}`}>{app.status?.toUpperCase()}</span>
-                                                </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3">Edit</button>
-                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                                    <td className="px-6 py-4 text-sm">
+                                                        <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye /></button>
+                                                        <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit /></button>
+                                                        <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash /></button>
+                                                    </td>
                                                 </td>
                                             </tr>
                                         ))
@@ -1361,6 +1479,9 @@ export default function ApplicationManagement() {
                     </form>
                 </div>
                 {showPreview && <PreviewSection />}
+                {showDetailsModal && (
+                    <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />
+                )}
             </div>
             <style jsx>{`
                 @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
