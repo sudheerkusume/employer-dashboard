@@ -48,9 +48,9 @@ const applicationSchema = Joi.object({
     declarationNote: Joi.string().allow(""),
     declaration: Joi.boolean().valid(true).required(),
 
-    // Digital Signatures
-    applicantSignature: Joi.string().optional(),
-    referrerSignature: Joi.string().optional(),
+    // Digital Signatures - allow empty strings
+    applicantSignature: Joi.string().allow("").optional(),
+    referrerSignature: Joi.string().allow("").optional(),
     // Metadata
     status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
     appliedAt: Joi.date().default(Date.now),
@@ -101,9 +101,9 @@ const updateApplicationSchema = Joi.object({
     declarationNote: Joi.string().allow(""),
     declaration: Joi.boolean().valid(true).required(),
 
-    // Digital Signatures
-    applicantSignature: Joi.string().optional(),
-    referrerSignature: Joi.string().optional(),
+    // Digital Signatures - allow empty strings
+    applicantSignature: Joi.string().allow("").optional(),
+    referrerSignature: Joi.string().allow("").optional(),
 
     // Metadata
     status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
