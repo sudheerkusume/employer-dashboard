@@ -1,7 +1,7 @@
 // app/page.js
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 
 // Memoized InputField component with validation
 const InputField = memo(({
@@ -12,7 +12,7 @@ const InputField = memo(({
     placeholder = '',
     value,
     onChange,
-    validation = 'none', // 'none', 'mobile', 'email', 'name', 'pincode', 'ifsc', 'accountNo', 'city'
+    validation = 'none',
     maxLength,
     pattern,
     errorMessage
@@ -32,7 +32,6 @@ const InputField = memo(({
 
         switch (validation) {
             case 'mobile':
-                // Only 10 digits, no letters or special chars
                 const mobileRegex = /^[0-9]{10}$/;
                 if (!mobileRegex.test(value)) {
                     setError('Please enter a valid 10-digit mobile number');
@@ -42,7 +41,6 @@ const InputField = memo(({
                 return true;
 
             case 'email':
-                // Standard email validation
                 const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
                 if (!emailRegex.test(value)) {
                     setError('Please enter a valid email address');
@@ -52,7 +50,6 @@ const InputField = memo(({
                 return true;
 
             case 'name':
-                // Only letters, spaces, and hyphens (no numbers or special chars except hyphen)
                 const nameRegex = /^[A-Za-z\s\-]+$/;
                 if (!nameRegex.test(value)) {
                     setError('Name should only contain letters, spaces, and hyphens');
@@ -66,7 +63,6 @@ const InputField = memo(({
                 return true;
 
             case 'pincode':
-                // Exactly 6 digits
                 const pincodeRegex = /^[0-9]{6}$/;
                 if (!pincodeRegex.test(value)) {
                     setError('Please enter a valid 6-digit pincode');
@@ -76,7 +72,6 @@ const InputField = memo(({
                 return true;
 
             case 'ifsc':
-                // IFSC format: 4 letters, 0, then 6 alphanumeric
                 const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
                 if (!ifscRegex.test(value)) {
                     setError('Please enter a valid IFSC code (e.g., SBIN0012345)');
@@ -86,7 +81,6 @@ const InputField = memo(({
                 return true;
 
             case 'accountNo':
-                // 9-18 digits only
                 const accountRegex = /^[0-9]{9,18}$/;
                 if (!accountRegex.test(value)) {
                     setError('Account number should be 9-18 digits only');
@@ -95,12 +89,33 @@ const InputField = memo(({
                 setError('');
                 return true;
 
-            case 'city':
-                // Letters, spaces, and hyphens only
-                const cityRegex = /^[A-Za-z\s\-]+$/;
-                if (!cityRegex.test(value)) {
-                    setError('City name should only contain letters, spaces, and hyphens');
+            case 'aadhar':
+                const aadharRegex = /^[0-9]{12}$/;
+                if (!aadharRegex.test(value)) {
+                    setError('Please enter a valid 12-digit Aadhar number');
                     return false;
+                }
+                setError('');
+                return true;
+
+            case 'pan':
+                const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+                if (!panRegex.test(value)) {
+                    setError('Please enter a valid PAN card number (e.g., ABCDE1234F)');
+                    return false;
+                }
+                setError('');
+                return true;
+
+            case 'dob':
+                if (value) {
+                    const dobDate = new Date(value);
+                    const today = new Date();
+                    const age = today.getFullYear() - dobDate.getFullYear();
+                    if (age < 18) {
+                        setError('Age must be 18 years or above');
+                        return false;
+                    }
                 }
                 setError('');
                 return true;
@@ -114,40 +129,30 @@ const InputField = memo(({
     const handleChange = (e) => {
         let newValue = e.target.value;
 
-        // Apply input masking based on validation type
         switch (validation) {
             case 'mobile':
-                // Only allow digits
-                newValue = newValue.replace(/[^0-9]/g, '');
-                if (maxLength && newValue.length > maxLength) newValue = newValue.slice(0, maxLength);
-                break;
-
             case 'pincode':
-                // Only allow digits
-                newValue = newValue.replace(/[^0-9]/g, '');
-                if (maxLength && newValue.length > maxLength) newValue = newValue.slice(0, maxLength);
-                break;
-
             case 'accountNo':
-                // Only allow digits
+            case 'aadhar':
                 newValue = newValue.replace(/[^0-9]/g, '');
                 if (maxLength && newValue.length > maxLength) newValue = newValue.slice(0, maxLength);
                 break;
 
             case 'ifsc':
-                // Convert to uppercase and only allow alphanumeric
+                newValue = newValue.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (maxLength && newValue.length > maxLength) newValue = newValue.slice(0, maxLength);
+                break;
+
+            case 'pan':
                 newValue = newValue.toUpperCase().replace(/[^A-Z0-9]/g, '');
                 if (maxLength && newValue.length > maxLength) newValue = newValue.slice(0, maxLength);
                 break;
 
             case 'name':
-            case 'city':
-                // Only allow letters, spaces, and hyphens
                 newValue = newValue.replace(/[^A-Za-z\s\-]/g, '');
                 break;
         }
 
-        // Create a synthetic event with the cleaned value
         const syntheticEvent = {
             target: {
                 name,
@@ -159,7 +164,6 @@ const InputField = memo(({
 
         onChange(syntheticEvent);
 
-        // Validate on change
         if (required || newValue) {
             validateField(newValue);
         }
@@ -201,6 +205,506 @@ const InputField = memo(({
 
 InputField.displayName = 'InputField';
 
+// Radio Button Component
+const RadioGroup = memo(({ label, name, options, value, onChange, required = true }) => {
+    const [error, setError] = useState('');
+
+    const handleChange = (e) => {
+        const syntheticEvent = {
+            target: {
+                name,
+                value: e.target.value,
+                type: 'radio'
+            }
+        };
+        onChange(syntheticEvent);
+        if (required && !e.target.value) {
+            setError(`${label} is required`);
+        } else {
+            setError('');
+        }
+    };
+
+    return (
+        <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div className="flex gap-4">
+                {options.map((option) => (
+                    <label key={option.value} className="flex items-center space-x-2">
+                        <input
+                            type="radio"
+                            name={name}
+                            value={option.value}
+                            checked={value === option.value}
+                            onChange={handleChange}
+                            className="w-4 h-4 text-yellow-600 focus:ring-yellow-500"
+                        />
+                        <span className="text-sm text-gray-700">{option.label}</span>
+                    </label>
+                ))}
+            </div>
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+    );
+});
+
+RadioGroup.displayName = 'RadioGroup';
+
+// TextArea Component
+const TextArea = memo(({ label, name, value, onChange, required = false, placeholder = '', rows = 4 }) => {
+    const [error, setError] = useState('');
+
+    const handleChange = (e) => {
+        const syntheticEvent = {
+            target: {
+                name,
+                value: e.target.value,
+                type: 'textarea'
+            }
+        };
+        onChange(syntheticEvent);
+
+        if (required && !e.target.value) {
+            setError(`${label} is required`);
+        } else {
+            setError('');
+        }
+    };
+
+    const handleBlur = (e) => {
+        if (required && !value) {
+            setError(`${label} is required`);
+        }
+    };
+
+    return (
+        <div className="mb-4">
+            <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <textarea
+                id={name}
+                name={name}
+                value={value}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder={placeholder}
+                rows={rows}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none
+                    ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+            />
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+    );
+});
+
+TextArea.displayName = 'TextArea';
+
+// Reusable Checkbox Component
+const Checkbox = memo(({ label, name, checked, onChange, required = false, description = '' }) => {
+    const [error, setError] = useState('');
+
+    const handleChange = (e) => {
+        const syntheticEvent = {
+            target: {
+                name,
+                checked: e.target.checked,
+                type: 'checkbox'
+            }
+        };
+        onChange(syntheticEvent);
+
+        if (required && !e.target.checked) {
+            setError(`${label} is required`);
+        } else {
+            setError('');
+        }
+    };
+
+    const handleBlur = () => {
+        if (required && !checked) {
+            setError(`${label} is required`);
+        }
+    };
+
+    return (
+        <div className="mb-4">
+            <label className="flex items-start space-x-3 cursor-pointer">
+                <input
+                    type="checkbox"
+                    name={name}
+                    checked={checked}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required={required}
+                    className="mt-1 w-5 h-5 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                />
+                <div className="flex-1">
+                    <span className="text-gray-700 text-sm">
+                        {label} {required && <span className="text-red-500">*</span>}
+                    </span>
+                    {description && (
+                        <p className="text-xs text-gray-500 mt-1">{description}</p>
+                    )}
+                </div>
+            </label>
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+    );
+});
+
+Checkbox.displayName = 'Checkbox';
+
+// Digital Signature Component
+const DigitalSignature = memo(({ label, name, value, onChange, required = false }) => {
+    const [signatureMethod, setSignatureMethod] = useState('draw');
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [error, setError] = useState('');
+    const canvasRef = useRef(null);
+    const ctxRef = useRef(null);
+    const fileInputRef = useRef(null);
+
+    // Initialize canvas when in draw mode
+    useEffect(() => {
+        if (signatureMethod === 'draw' && canvasRef.current) {
+            const canvas = canvasRef.current;
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 200;
+
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#000000';
+            ctxRef.current = ctx;
+
+            // Clear canvas
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // If there's existing signature data from upload mode, load it
+            if (value && value.startsWith('data:image')) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = value;
+            }
+        }
+    }, [signatureMethod, value]);
+
+    const startDrawing = (e) => {
+        if (!canvasRef.current) return;
+        e.preventDefault();
+        setIsDrawing(true);
+        const { offsetX, offsetY } = getCoordinates(e);
+        ctxRef.current.beginPath();
+        ctxRef.current.moveTo(offsetX, offsetY);
+    };
+
+    const draw = (e) => {
+        if (!isDrawing || !canvasRef.current) return;
+        e.preventDefault();
+        const { offsetX, offsetY } = getCoordinates(e);
+        ctxRef.current.lineTo(offsetX, offsetY);
+        ctxRef.current.stroke();
+    };
+
+    const stopDrawing = () => {
+        if (!canvasRef.current) return;
+        setIsDrawing(false);
+        ctxRef.current.beginPath();
+        // Save canvas data
+        const canvasData = canvasRef.current.toDataURL();
+        const syntheticEvent = {
+            target: {
+                name,
+                value: canvasData,
+                type: 'signature'
+            }
+        };
+        onChange(syntheticEvent);
+    };
+
+    const getCoordinates = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { offsetX: 0, offsetY: 0 };
+
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        let clientX, clientY;
+
+        if (e.touches) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        const offsetX = (clientX - rect.left) * scaleX;
+        const offsetY = (clientY - rect.top) * scaleY;
+
+        // Clamp values to canvas boundaries
+        return {
+            offsetX: Math.max(0, Math.min(offsetX, canvas.width)),
+            offsetY: Math.max(0, Math.min(offsetY, canvas.height))
+        };
+    };
+
+    const clearSignature = () => {
+        if (signatureMethod === 'draw' && canvasRef.current) {
+            // Clear canvas
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+
+            // Clear the value in form data
+            const syntheticEvent = {
+                target: {
+                    name,
+                    value: '',
+                    type: 'signature'
+                }
+            };
+            onChange(syntheticEvent);
+        } else if (signatureMethod === 'upload') {
+            // Clear uploaded file
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            const syntheticEvent = {
+                target: {
+                    name,
+                    value: '',
+                    type: 'signature'
+                }
+            };
+            onChange(syntheticEvent);
+        }
+        setError('');
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                setError('File size should be less than 2MB');
+                return;
+            }
+
+            // Check file type
+            if (!file.type.startsWith('image/')) {
+                setError('Please upload an image file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const syntheticEvent = {
+                    target: {
+                        name,
+                        value: event.target.result,
+                        type: 'signature'
+                    }
+                };
+                onChange(syntheticEvent);
+                setError('');
+            };
+            reader.onerror = () => {
+                setError('Failed to read file');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleMethodToggle = (method) => {
+        if (method === 'draw') {
+            setSignatureMethod('draw');
+            // If there's existing uploaded signature, keep it in state but canvas will load it
+        } else if (method === 'upload') {
+            setSignatureMethod('upload');
+        }
+    };
+
+    const handleBlur = () => {
+        if (required && !value) {
+            setError(`${label} is required`);
+        }
+    };
+
+    return (
+        <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+
+            <div className="flex gap-4 mb-3">
+                <button
+                    type="button"
+                    onClick={() => handleMethodToggle('draw')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition ${signatureMethod === 'draw'
+                            ? 'bg-yellow-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                >
+                    ✍️ Draw Signature
+                </button>
+                <button
+                    type="button"
+                    onClick={() => handleMethodToggle('upload')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition ${signatureMethod === 'upload'
+                            ? 'bg-yellow-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                >
+                    📁 Upload Signature
+                </button>
+            </div>
+
+            {signatureMethod === 'draw' ? (
+                <div>
+                    <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner">
+                        <canvas
+                            ref={canvasRef}
+                            className="w-full cursor-crosshair"
+                            style={{ height: '200px', width: '100%' }}
+                            onMouseDown={startDrawing}
+                            onMouseMove={draw}
+                            onMouseUp={stopDrawing}
+                            onMouseLeave={stopDrawing}
+                            onTouchStart={startDrawing}
+                            onTouchMove={draw}
+                            onTouchEnd={stopDrawing}
+                        />
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                        <button
+                            type="button"
+                            onClick={clearSignature}
+                            className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-sm"
+                        >
+                            🗑️ Clear
+                        </button>
+                        <p className="text-xs text-gray-500 self-center ml-2">
+                            Draw your signature using mouse or touch
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 hover:border-yellow-500 hover:bg-yellow-50 transition text-center"
+                    >
+                        📂 Click to upload signature image
+                    </button>
+                    {value && value.startsWith('data:image') && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-sm font-medium text-gray-700 mb-2">Signature Preview:</p>
+                            <img src={value} alt="Signature preview" className="max-h-32 border rounded shadow-sm" />
+                            <button
+                                type="button"
+                                onClick={clearSignature}
+                                className="mt-2 px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
+                    {!value && (
+                        <p className="text-xs text-gray-500 mt-2">
+                            Upload a clear image of your signature (JPG, PNG, max 2MB)
+                        </p>
+                    )}
+                </div>
+            )}
+            {error && (
+                <p className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                    ⚠️ {error}
+                </p>
+            )}
+        </div>
+    );
+});
+
+DigitalSignature.displayName = 'DigitalSignature';
+
+// Emergency Contact Component
+const EmergencyContact = memo(({ index, contact, onChange, onRemove, canRemove }) => {
+    return (
+        <div className="border border-gray-200 rounded-lg p-4 mb-4 relative">
+            {canRemove && (
+                <button
+                    type="button"
+                    onClick={() => onRemove(index)}
+                    className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            )}
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Emergency Contact {index + 1}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InputField
+                    label="Name"
+                    name={`emergencyName_${index}`}
+                    placeholder="Emergency contact person name"
+                    value={contact.name}
+                    onChange={(e) => onChange(index, 'name', e.target.value)}
+                    validation="name"
+                    required={index === 0}
+                />
+                <InputField
+                    label="Location"
+                    name={`emergencyLocation_${index}`}
+                    placeholder="City/Area"
+                    value={contact.location}
+                    onChange={(e) => onChange(index, 'location', e.target.value)}
+                    required={index === 0}
+                />
+                <InputField
+                    label="Phone Number"
+                    name={`emergencyPhone_${index}`}
+                    type="tel"
+                    placeholder="9876543210"
+                    value={contact.phone}
+                    onChange={(e) => onChange(index, 'phone', e.target.value)}
+                    validation="mobile"
+                    required={index === 0}
+                    maxLength={10}
+                />
+                <InputField
+                    label="Relationship"
+                    name={`emergencyRelationship_${index}`}
+                    placeholder="e.g., Father, Mother, Spouse"
+                    value={contact.relationship}
+                    onChange={(e) => onChange(index, 'relationship', e.target.value)}
+                    required={index === 0}
+                />
+            </div>
+        </div>
+    );
+});
+
+EmergencyContact.displayName = 'EmergencyContact';
+
 export default function ApplicationManagement() {
     const [applications, setApplications] = useState([]);
     const [currentView, setCurrentView] = useState('list');
@@ -209,17 +713,40 @@ export default function ApplicationManagement() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState(null);
-    const [activeTab, setActiveTab] = useState('basic');
+    const [activeTab, setActiveTab] = useState('personal');
+    const [showPreview, setShowPreview] = useState(false);
 
     const [formData, setFormData] = useState({
-        // Personal Information
+        // Personal Details
+        applicationId: '',
         fullName: '',
-        email: '',
-        phone: '',
+        dob: '',
+        fatherName: '',
+        bloodGroup: '',
         address: '',
-        city: '',
-        state: '',
-        pincode: '',
+        contactNo: '',
+        email: '',
+        pinCode: '',
+        panNumber: '',
+        aadharNumber: '',
+
+        // Emergency Contact Details (Array)
+        emergencyContacts: [
+            {
+                name: '',
+                location: '',
+                phone: '',
+                relationship: ''
+            }
+        ],
+
+        // Previous Employment Details
+        previousCompany: '',
+        previousDesignation: '',
+        educationalQualification: '',
+
+        // Legal Cases
+        legalCasesPending: '',
 
         // Bank Account Details
         nameAsPerBank: '',
@@ -229,18 +756,18 @@ export default function ApplicationManagement() {
         branch: '',
         bankCity: '',
 
-        // Referrer Information
-        referrerName: '',
-        referrerSignature: '',
-
         // Declaration
+        declarationNote: '',
         declaration: false,
+
+        // Digital Signatures
+        referrerSignature: '',
+        applicantSignature: '',
 
         // Status
         status: 'pending',
     });
 
-    // Fetch applications on component mount
     useEffect(() => {
         fetchApplications();
     }, []);
@@ -266,7 +793,6 @@ export default function ApplicationManagement() {
         setTimeout(() => setNotification(null), 3000);
     };
 
-    // Stable handleChange function that doesn't cause re-renders
     const handleChange = useCallback((e) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({
@@ -275,24 +801,66 @@ export default function ApplicationManagement() {
         }));
     }, []);
 
+    const handleEmergencyContactChange = (index, field, value) => {
+        setFormData(prev => {
+            const updatedContacts = [...prev.emergencyContacts];
+            updatedContacts[index] = {
+                ...updatedContacts[index],
+                [field]: value
+            };
+            return {
+                ...prev,
+                emergencyContacts: updatedContacts
+            };
+        });
+    };
+
+    const addEmergencyContact = () => {
+        if (formData.emergencyContacts.length < 5) {
+            setFormData(prev => ({
+                ...prev,
+                emergencyContacts: [
+                    ...prev.emergencyContacts,
+                    {
+                        name: '',
+                        location: '',
+                        phone: '',
+                        relationship: ''
+                    }
+                ]
+            }));
+        } else {
+            showNotification('error', 'Maximum 5 emergency contacts allowed');
+        }
+    };
+
+    const removeEmergencyContact = (index) => {
+        if (formData.emergencyContacts.length > 1) {
+            setFormData(prev => ({
+                ...prev,
+                emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index)
+            }));
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Validate all required fields before submission
         const requiredFields = [
             { field: 'fullName', label: 'Full Name' },
-            { field: 'email', label: 'Email Address' },
-            { field: 'phone', label: 'Phone Number' },
+            { field: 'dob', label: 'Date of Birth' },
+            { field: 'fatherName', label: "Father's/Husband's Name" },
             { field: 'address', label: 'Address' },
-            { field: 'city', label: 'City' },
-            { field: 'state', label: 'State' },
-            { field: 'pincode', label: 'Pincode' },
+            { field: 'contactNo', label: 'Contact Number' },
+            { field: 'email', label: 'Email ID' },
+            { field: 'pinCode', label: 'Pin Code' },
+            { field: 'panNumber', label: 'PAN Number' },
+            { field: 'aadharNumber', label: 'Aadhar Number' },
             { field: 'nameAsPerBank', label: 'Name as per Bank' },
             { field: 'bankName', label: 'Bank Name' },
             { field: 'accountNo', label: 'Account Number' },
             { field: 'ifscCode', label: 'IFSC Code' },
-            { field: 'branch', label: 'Branch' },
-            { field: 'bankCity', label: 'Bank City' },
         ];
 
         for (const req of requiredFields) {
@@ -302,9 +870,36 @@ export default function ApplicationManagement() {
             }
         }
 
+        // Validate at least one emergency contact with required fields
+        const hasValidEmergencyContact = formData.emergencyContacts.some(contact =>
+            contact.name && contact.location && contact.phone && contact.relationship
+        );
+
+        if (!hasValidEmergencyContact) {
+            showNotification('error', 'At least one complete emergency contact is required');
+            return;
+        }
+
+        // Validate legal cases radio button
+        if (!formData.legalCasesPending) {
+            showNotification('error', 'Please select if any legal cases are pending');
+            return;
+        }
+
         // Validate declaration
         if (!formData.declaration) {
             showNotification('error', 'Please accept the declaration');
+            return;
+        }
+
+        // Validate signatures
+        if (!formData.applicantSignature) {
+            showNotification('error', 'Applicant signature is required');
+            return;
+        }
+
+        if (!formData.referrerSignature) {
+            showNotification('error', 'Referrer signature is required');
             return;
         }
 
@@ -319,23 +914,7 @@ export default function ApplicationManagement() {
                 method = 'PUT';
                 body = {
                     applicationId: currentApplication._id,
-                    fullName: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone,
-                    address: formData.address,
-                    city: formData.city,
-                    state: formData.state,
-                    pincode: formData.pincode,
-                    nameAsPerBank: formData.nameAsPerBank,
-                    bankName: formData.bankName,
-                    accountNo: formData.accountNo,
-                    ifscCode: formData.ifscCode,
-                    branch: formData.branch,
-                    bankCity: formData.bankCity,
-                    referrerName: formData.referrerName,
-                    referrerSignature: formData.referrerSignature,
-                    declaration: formData.declaration,
-                    status: formData.status,
+                    ...formData,
                 };
             }
 
@@ -352,6 +931,7 @@ export default function ApplicationManagement() {
             if (data.success) {
                 showNotification('success', currentView === 'edit' ? 'Application updated successfully!' : 'Application submitted successfully!');
                 setCurrentView('list');
+                setShowPreview(false);
                 resetForm();
                 fetchApplications();
             } else {
@@ -375,26 +955,39 @@ export default function ApplicationManagement() {
                 const app = data.application;
                 setCurrentApplication(app);
                 setFormData({
-                    fullName: app.personalInfo?.fullName || '',
-                    email: app.personalInfo?.email || '',
-                    phone: app.personalInfo?.phone || '',
-                    address: app.personalInfo?.address || '',
-                    city: app.personalInfo?.city || '',
-                    state: app.personalInfo?.state || '',
-                    pincode: app.personalInfo?.pincode || '',
-                    nameAsPerBank: app.bankDetails?.nameAsPerBank || '',
-                    bankName: app.bankDetails?.bankName || '',
-                    accountNo: app.bankDetails?.accountNo || '',
-                    ifscCode: app.bankDetails?.ifscCode || '',
-                    branch: app.bankDetails?.branch || '',
-                    bankCity: app.bankDetails?.bankCity || '',
-                    referrerName: app.referrerInfo?.referrerName || '',
-                    referrerSignature: app.referrerInfo?.referrerSignature || '',
+                    applicationId: app.applicationId || '',
+                    fullName: app.fullName || '',
+                    dob: app.dob ? app.dob.split('T')[0] : '',
+                    fatherName: app.fatherName || '',
+                    bloodGroup: app.bloodGroup || '',
+                    address: app.address || '',
+                    contactNo: app.contactNo || '',
+                    email: app.email || '',
+                    pinCode: app.pinCode || '',
+                    panNumber: app.panNumber || '',
+                    aadharNumber: app.aadharNumber || '',
+                    emergencyContacts: app.emergencyContacts && app.emergencyContacts.length > 0
+                        ? app.emergencyContacts
+                        : [{ name: '', location: '', phone: '', relationship: '' }],
+                    previousCompany: app.previousCompany || '',
+                    previousDesignation: app.previousDesignation || '',
+                    educationalQualification: app.educationalQualification || '',
+                    legalCasesPending: app.legalCasesPending || '',
+                    nameAsPerBank: app.nameAsPerBank || '',
+                    bankName: app.bankName || '',
+                    accountNo: app.accountNo || '',
+                    ifscCode: app.ifscCode || '',
+                    branch: app.branch || '',
+                    bankCity: app.bankCity || '',
+                    declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
+                    referrerSignature: app.referrerSignature || '',
+                    applicantSignature: app.applicantSignature || '',
                     status: app.status || 'pending',
                 });
                 setCurrentView('edit');
-                setActiveTab('basic');
+                setActiveTab('personal');
+                setShowPreview(false);
             } else {
                 showNotification('error', 'Failed to load application details');
             }
@@ -457,29 +1050,39 @@ export default function ApplicationManagement() {
 
     const resetForm = () => {
         setFormData({
+            applicationId: '',
             fullName: '',
-            email: '',
-            phone: '',
+            dob: '',
+            fatherName: '',
+            bloodGroup: '',
             address: '',
-            city: '',
-            state: '',
-            pincode: '',
+            contactNo: '',
+            email: '',
+            pinCode: '',
+            panNumber: '',
+            aadharNumber: '',
+            emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
+            previousCompany: '',
+            previousDesignation: '',
+            educationalQualification: '',
+            legalCasesPending: '',
             nameAsPerBank: '',
             bankName: '',
             accountNo: '',
             ifscCode: '',
             branch: '',
             bankCity: '',
-            referrerName: '',
-            referrerSignature: '',
+            declarationNote: '',
             declaration: false,
+            referrerSignature: '',
+            applicantSignature: '',
             status: 'pending',
         });
         setCurrentApplication(null);
-        setActiveTab('basic');
+        setActiveTab('personal');
+        setShowPreview(false);
     };
 
-    // Memoized filtered applications
     const filteredApplications = useMemo(() => {
         let filtered = applications;
 
@@ -489,9 +1092,9 @@ export default function ApplicationManagement() {
 
         if (searchTerm) {
             filtered = filtered.filter(app =>
-                app.personalInfo?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                app.personalInfo?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                app.personalInfo?.phone?.includes(searchTerm)
+                app.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                app.contactNo?.includes(searchTerm)
             );
         }
 
@@ -506,6 +1109,108 @@ export default function ApplicationManagement() {
             default: return 'text-gray-600 bg-gray-100';
         }
     };
+
+    // Preview Component
+    const PreviewSection = () => (
+        <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Application Preview</h3>
+
+            {/* Personal Details */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                    <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
+                    <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
+                    <p><strong>Father's/Husband's Name:</strong> {formData.fatherName || 'Not provided'}</p>
+                    <p><strong>Blood Group:</strong> {formData.bloodGroup || 'Not provided'}</p>
+                    <p><strong>Address:</strong> {formData.address || 'Not provided'}</p>
+                    <p><strong>Contact No:</strong> {formData.contactNo || 'Not provided'}</p>
+                    <p><strong>Email ID:</strong> {formData.email || 'Not provided'}</p>
+                    <p><strong>Pin Code:</strong> {formData.pinCode || 'Not provided'}</p>
+                    <p><strong>PAN Number:</strong> {formData.panNumber || 'Not provided'}</p>
+                    <p><strong>Aadhar Number:</strong> {formData.aadharNumber || 'Not provided'}</p>
+                </div>
+            </div>
+
+            {/* Emergency Contact Details */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Emergency Contact Details</h4>
+                {formData.emergencyContacts.map((contact, idx) => (
+                    contact.name && contact.location && contact.phone && (
+                        <div key={idx} className="mb-4 p-3 bg-white rounded border border-gray-200">
+                            <p className="font-semibold">Contact {idx + 1}</p>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                <p><strong>Name:</strong> {contact.name}</p>
+                                <p><strong>Location:</strong> {contact.location}</p>
+                                <p><strong>Phone:</strong> {contact.phone}</p>
+                                <p><strong>Relationship:</strong> {contact.relationship}</p>
+                            </div>
+                        </div>
+                    )
+                ))}
+            </div>
+
+            {/* Previous Employment Details */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Previous Employment Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <p><strong>Company Name:</strong> {formData.previousCompany || 'Not provided'}</p>
+                    <p><strong>Designation:</strong> {formData.previousDesignation || 'Not provided'}</p>
+                    <p><strong>Educational Qualification:</strong> {formData.educationalQualification || 'Not provided'}</p>
+                </div>
+            </div>
+
+            {/* Legal Cases */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Legal Cases</h4>
+                <p><strong>Any Legal Cases Pending:</strong> {formData.legalCasesPending === 'yes' ? 'Yes' : formData.legalCasesPending === 'no' ? 'No' : 'Not provided'}</p>
+            </div>
+
+            {/* Bank Account Details */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Bank Account Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <p><strong>Name as per Bank:</strong> {formData.nameAsPerBank || 'Not provided'}</p>
+                    <p><strong>Bank Name:</strong> {formData.bankName || 'Not provided'}</p>
+                    <p><strong>Account Number:</strong> {formData.accountNo ? `XXXX${formData.accountNo.slice(-4)}` : 'Not provided'}</p>
+                    <p><strong>IFSC Code:</strong> {formData.ifscCode || 'Not provided'}</p>
+                    <p><strong>Branch:</strong> {formData.branch || 'Not provided'}</p>
+                    <p><strong>City:</strong> {formData.bankCity || 'Not provided'}</p>
+                </div>
+            </div>
+
+            {/* Declaration */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Declaration</h4>
+                <p><strong>Note:</strong> {formData.declarationNote || 'Not provided'}</p>
+                <p className="mt-2"><strong>Declaration Accepted:</strong> {formData.declaration ? 'Yes' : 'No'}</p>
+            </div>
+
+            {/* Digital Signatures */}
+            <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Digital Signatures</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p><strong>Applicant Signature:</strong></p>
+                        {formData.applicantSignature ? (
+                            <img src={formData.applicantSignature} alt="Applicant Signature" className="mt-2 max-h-24 border rounded" />
+                        ) : (
+                            <p className="text-gray-500">Not provided</p>
+                        )}
+                    </div>
+                    <div>
+                        <p><strong>Referrer Signature:</strong></p>
+                        {formData.referrerSignature ? (
+                            <img src={formData.referrerSignature} alt="Referrer Signature" className="mt-2 max-h-24 border rounded" />
+                        ) : (
+                            <p className="text-gray-500">Not provided</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     // List View Screen
     if (currentView === 'list') {
@@ -591,7 +1296,7 @@ export default function ApplicationManagement() {
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {app.personalInfo?.fullName}
+                                                            {app.fullName}
                                                         </div>
                                                         <div className="text-sm text-gray-500">
                                                             ID: {app._id?.slice(-6)}
@@ -599,12 +1304,12 @@ export default function ApplicationManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">{app.personalInfo?.email}</div>
-                                                    <div className="text-sm text-gray-500">{app.personalInfo?.phone}</div>
+                                                    <div className="text-sm text-gray-900">{app.email}</div>
+                                                    <div className="text-sm text-gray-500">{app.contactNo}</div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">{app.bankDetails?.bankName}</div>
-                                                    <div className="text-sm text-gray-500">XXXX{app.bankDetails?.accountNo?.slice(-4)}</div>
+                                                    <div className="text-sm text-gray-900">{app.bankName}</div>
+                                                    <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4)}</div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
@@ -730,20 +1435,22 @@ export default function ApplicationManagement() {
                 <div className="bg-white text-gray-800 rounded-lg shadow-sm overflow-hidden">
                     {/* Tabs */}
                     <div className="border-b border-gray-200 bg-gray-50">
-                        <nav className="flex gap-1 px-6">
-                            {['basic', 'bank', 'referrer', 'declaration'].map((tab) => (
+                        <nav className="flex gap-1 px-6 overflow-x-auto">
+                            {['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'].map((tab) => (
                                 <button
                                     key={tab}
                                     type="button"
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-3 text-sm font-medium transition border-b-2 ${activeTab === tab
+                                    className={`px-4 py-3 text-sm font-medium transition border-b-2 whitespace-nowrap ${activeTab === tab
                                         ? 'border-yellow-600 text-yellow-600'
                                         : 'border-transparent text-gray-500 hover:text-gray-700'
                                         }`}
                                 >
-                                    {tab === 'basic' && 'Basic Info'}
+                                    {tab === 'personal' && 'Personal Details'}
+                                    {tab === 'emergency' && 'Emergency Contact'}
+                                    {tab === 'employment' && 'Employment Details'}
                                     {tab === 'bank' && 'Bank Details'}
-                                    {tab === 'referrer' && 'Referrer Info'}
+                                    {tab === 'signatures' && 'Signatures'}
                                     {tab === 'declaration' && 'Declaration'}
                                 </button>
                             ))}
@@ -751,11 +1458,19 @@ export default function ApplicationManagement() {
                     </div>
 
                     <form id="application-form" onSubmit={handleSubmit} className="p-6">
-                        {/* Basic Information Tab */}
-                        {activeTab === 'basic' && (
+                        {/* Personal Information Tab */}
+                        {activeTab === 'personal' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField
+                                        label="Application ID"
+                                        name="applicationId"
+                                        placeholder="Auto-generated or manual ID"
+                                        value={formData.applicationId}
+                                        onChange={handleChange}
+                                        required={false}
+                                    />
                                     <InputField
                                         label="Full Name"
                                         name="fullName"
@@ -767,7 +1482,53 @@ export default function ApplicationManagement() {
                                         maxLength={100}
                                     />
                                     <InputField
-                                        label="Email Address"
+                                        label="Date of Birth"
+                                        name="dob"
+                                        type="date"
+                                        value={formData.dob}
+                                        onChange={handleChange}
+                                        validation="dob"
+                                        required={true}
+                                    />
+                                    <InputField
+                                        label="Father's/Husband's Name"
+                                        name="fatherName"
+                                        placeholder="Father's or husband's name"
+                                        value={formData.fatherName}
+                                        onChange={handleChange}
+                                        validation="name"
+                                        required={true}
+                                    />
+                                    <InputField
+                                        label="Blood Group"
+                                        name="bloodGroup"
+                                        placeholder="e.g., A+, B+, O+"
+                                        value={formData.bloodGroup}
+                                        onChange={handleChange}
+                                        required={false}
+                                    />
+                                    <InputField
+                                        label="Address"
+                                        name="address"
+                                        placeholder="Complete address"
+                                        value={formData.address}
+                                        onChange={handleChange}
+                                        required={true}
+                                        maxLength={200}
+                                    />
+                                    <InputField
+                                        label="Contact Number"
+                                        name="contactNo"
+                                        type="tel"
+                                        placeholder="9876543210"
+                                        value={formData.contactNo}
+                                        onChange={handleChange}
+                                        validation="mobile"
+                                        required={true}
+                                        maxLength={10}
+                                    />
+                                    <InputField
+                                        label="Email ID"
                                         name="email"
                                         type="email"
                                         placeholder="you@example.com"
@@ -777,52 +1538,111 @@ export default function ApplicationManagement() {
                                         required={true}
                                     />
                                     <InputField
-                                        label="Phone Number"
-                                        name="phone"
-                                        type="tel"
-                                        placeholder="9876543210"
-                                        value={formData.phone}
-                                        onChange={handleChange}
-                                        validation="mobile"
-                                        required={true}
-                                        maxLength={10}
-                                    />
-                                    <InputField
-                                        label="Address"
-                                        name="address"
-                                        placeholder="Street address"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        required={true}
-                                        maxLength={200}
-                                    />
-                                    <InputField
-                                        label="City"
-                                        name="city"
-                                        placeholder="City"
-                                        value={formData.city}
-                                        onChange={handleChange}
-                                        validation="city"
-                                        required={true}
-                                    />
-                                    <InputField
-                                        label="State"
-                                        name="state"
-                                        placeholder="State"
-                                        value={formData.state}
-                                        onChange={handleChange}
-                                        validation="city"
-                                        required={true}
-                                    />
-                                    <InputField
-                                        label="Pincode"
-                                        name="pincode"
+                                        label="Pin Code"
+                                        name="pinCode"
                                         placeholder="Pincode"
-                                        value={formData.pincode}
+                                        value={formData.pinCode}
                                         onChange={handleChange}
                                         validation="pincode"
                                         required={true}
                                         maxLength={6}
+                                    />
+                                    <InputField
+                                        label="PAN Number"
+                                        name="panNumber"
+                                        placeholder="ABCDE1234F"
+                                        value={formData.panNumber}
+                                        onChange={handleChange}
+                                        validation="pan"
+                                        required={true}
+                                        maxLength={10}
+                                    />
+                                    <InputField
+                                        label="Aadhar Number"
+                                        name="aadharNumber"
+                                        placeholder="123456789012"
+                                        value={formData.aadharNumber}
+                                        onChange={handleChange}
+                                        validation="aadhar"
+                                        required={true}
+                                        maxLength={12}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Emergency Contact Tab */}
+                        {activeTab === 'emergency' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Emergency Contact Details</h3>
+                                    {formData.emergencyContacts.length < 5 && (
+                                        <button
+                                            type="button"
+                                            onClick={addEmergencyContact}
+                                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                                        >
+                                            + Add More Contact
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">At least one complete emergency contact is required. You can add up to 5 contacts.</p>
+
+                                {formData.emergencyContacts.map((contact, index) => (
+                                    <EmergencyContact
+                                        key={index}
+                                        index={index}
+                                        contact={contact}
+                                        onChange={handleEmergencyContactChange}
+                                        onRemove={removeEmergencyContact}
+                                        canRemove={formData.emergencyContacts.length > 1}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Employment Details Tab */}
+                        {activeTab === 'employment' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Employment Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField
+                                        label="Company Name"
+                                        name="previousCompany"
+                                        placeholder="Previous company name"
+                                        value={formData.previousCompany}
+                                        onChange={handleChange}
+                                        required={false}
+                                    />
+                                    <InputField
+                                        label="Designation"
+                                        name="previousDesignation"
+                                        placeholder="Job title/designation"
+                                        value={formData.previousDesignation}
+                                        onChange={handleChange}
+                                        required={false}
+                                    />
+                                    <InputField
+                                        label="Educational Qualification"
+                                        name="educationalQualification"
+                                        placeholder="Highest educational qualification"
+                                        value={formData.educationalQualification}
+                                        onChange={handleChange}
+                                        required={false}
+                                    />
+                                </div>
+
+                                <div className="mt-6">
+                                    <RadioGroup
+                                        label="Any Legal Cases Pending Till Date"
+                                        name="legalCasesPending"
+                                        options={[
+                                            { value: 'yes', label: 'Yes' },
+                                            { value: 'no', label: 'No' }
+                                        ]}
+                                        value={formData.legalCasesPending}
+                                        onChange={handleChange}
+                                        required={true}
                                     />
                                 </div>
                             </div>
@@ -853,7 +1673,6 @@ export default function ApplicationManagement() {
                                         placeholder="Name of the bank"
                                         value={formData.bankName}
                                         onChange={handleChange}
-                                        validation="name"
                                         required={true}
                                     />
                                     <InputField
@@ -890,79 +1709,83 @@ export default function ApplicationManagement() {
                                         placeholder="Bank branch city"
                                         value={formData.bankCity}
                                         onChange={handleChange}
-                                        validation="city"
+                                        validation="name"
                                         required={true}
                                     />
                                 </div>
                             </div>
                         )}
 
-                        {/* Referrer Info Tab */}
-                        {activeTab === 'referrer' && (
+                        {/* Signatures Tab */}
+                        {activeTab === 'signatures' && (
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Referrer Information</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <InputField
-                                        label="Referrer Name"
-                                        name="referrerName"
-                                        required={true}
-                                        placeholder="Name of the referrer"
-                                        value={formData.referrerName}
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signatures</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <DigitalSignature
+                                        label="Applicant Signature"
+                                        name="applicantSignature"
+                                        value={formData.applicantSignature}
                                         onChange={handleChange}
-                                        validation="name"
+                                        required={true}
                                     />
-                                    <InputField
+                                    <DigitalSignature
                                         label="Referrer Signature"
                                         name="referrerSignature"
-                                        required={false}
-                                        placeholder="Signature or confirmation"
                                         value={formData.referrerSignature}
                                         onChange={handleChange}
+                                        required={true}
                                     />
-                                </div>
-                                <div className="mt-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-                                    <p className="text-sm text-gray-500 text-center">
-                                        ⚡ Referrer Signature: By signing above, you confirm that you have referred this applicant
-                                    </p>
                                 </div>
                             </div>
                         )}
 
-                        {/* Declaration Tab */}
+                        {/* Declaration Tab - Last */}
                         {activeTab === 'declaration' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Declaration</h3>
-                                <div className="bg-gray-50 p-6 rounded-lg">
-                                    <label className="flex items-start space-x-3 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            name="declaration"
-                                            checked={formData.declaration}
-                                            onChange={handleChange}
-                                            required
-                                            className="mt-1 w-5 h-5 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-                                        />
-                                        <span className="text-gray-700 text-sm leading-relaxed">
-                                            I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information.
-                                        </span>
-                                    </label>
+                                <TextArea
+                                    label="Declaration Note"
+                                    name="declarationNote"
+                                    placeholder="Enter any additional declaration notes here..."
+                                    value={formData.declarationNote}
+                                    onChange={handleChange}
+                                    required={false}
+                                    rows={5}
+                                />
+                                <Checkbox
+                                    label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information."
+                                    name="declaration"
+                                    checked={formData.declaration}
+                                    onChange={handleChange}
+                                    required={true}
+                                    description="Please read and accept the declaration to proceed."
+                                />
+
+                                {/* Buttons at the bottom of Declaration tab only */}
+                                <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPreview(!showPreview)}
+                                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                                    >
+                                        {showPreview ? 'Hide Preview' : 'Show Preview'}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className={`px-6 py-2 bg-yellow-600 text-white rounded-lg transition ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-700'
+                                            }`}
+                                    >
+                                        {isLoading ? 'Saving...' : currentView === 'add' ? 'Create Application' : 'Update Application'}
+                                    </button>
                                 </div>
                             </div>
                         )}
-
-                        {/* Submit Button */}
-                        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className={`px-6 py-2 bg-yellow-600 text-white rounded-lg transition ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-700'
-                                    }`}
-                            >
-                                {isLoading ? 'Saving...' : currentView === 'add' ? 'Create Application' : 'Update Application'}
-                            </button>
-                        </div>
                     </form>
                 </div>
+
+                {/* Preview Section - Shows only when showPreview is true */}
+                {showPreview && <PreviewSection />}
             </div>
 
             <style jsx>{`

@@ -5,14 +5,36 @@ import Joi from "joi";
 
 // --- Joi Schema for Application Form ---
 const applicationSchema = Joi.object({
-    // Personal Information
+    // Personal Details
+    applicationId: Joi.string().allow(""),
     fullName: Joi.string().min(2).max(100).required(),
-    email: Joi.string().email().required(),
-    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    dob: Joi.date().required(),
+    fatherName: Joi.string().min(2).max(100).required(),
+    bloodGroup: Joi.string().allow(""),
     address: Joi.string().min(5).max(200).required(),
-    city: Joi.string().min(2).max(50).required(),
-    state: Joi.string().min(2).max(50).required(),
-    pincode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    contactNo: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    email: Joi.string().email().required(),
+    pinCode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    panNumber: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).required(),
+    aadharNumber: Joi.string().pattern(/^[0-9]{12}$/).required(),
+
+    // Emergency Contact Details
+    emergencyContacts: Joi.array().items(
+        Joi.object({
+            name: Joi.string().min(2).max(100).required(),
+            location: Joi.string().min(2).max(100).required(),
+            phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+            relationship: Joi.string().min(2).max(50).required(),
+        })
+    ).min(1).required(),
+
+    // Previous Employment Details
+    previousCompany: Joi.string().allow(""),
+    previousDesignation: Joi.string().allow(""),
+    educationalQualification: Joi.string().allow(""),
+
+    // Legal Cases
+    legalCasesPending: Joi.string().valid("yes", "no").required(),
 
     // Bank Account Details
     nameAsPerBank: Joi.string().min(3).max(100).required(),
@@ -22,12 +44,13 @@ const applicationSchema = Joi.object({
     branch: Joi.string().min(2).max(100).required(),
     bankCity: Joi.string().min(2).max(50).required(),
 
-    // Referrer Information
-    referrerName: Joi.string().min(2).max(100).allow(""),
-    referrerSignature: Joi.string().min(2).max(100).allow(""),
-
     // Declaration
+    declarationNote: Joi.string().allow(""),
     declaration: Joi.boolean().valid(true).required(),
+
+    // Digital Signatures
+    applicantSignature: Joi.string().required(),
+    referrerSignature: Joi.string().required(),
 
     // Metadata
     status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
@@ -36,14 +59,36 @@ const applicationSchema = Joi.object({
 
 const updateApplicationSchema = Joi.object({
     applicationId: Joi.string().required(),
-    // Personal Information
+    // Personal Details
+    applicationId: Joi.string().allow(""),
     fullName: Joi.string().min(2).max(100).required(),
-    email: Joi.string().email().required(),
-    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    dob: Joi.date().required(),
+    fatherName: Joi.string().min(2).max(100).required(),
+    bloodGroup: Joi.string().allow(""),
     address: Joi.string().min(5).max(200).required(),
-    city: Joi.string().min(2).max(50).required(),
-    state: Joi.string().min(2).max(50).required(),
-    pincode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    contactNo: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    email: Joi.string().email().required(),
+    pinCode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    panNumber: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).required(),
+    aadharNumber: Joi.string().pattern(/^[0-9]{12}$/).required(),
+
+    // Emergency Contact Details
+    emergencyContacts: Joi.array().items(
+        Joi.object({
+            name: Joi.string().min(2).max(100).required(),
+            location: Joi.string().min(2).max(100).required(),
+            phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+            relationship: Joi.string().min(2).max(50).required(),
+        })
+    ).min(1).required(),
+
+    // Previous Employment Details
+    previousCompany: Joi.string().allow(""),
+    previousDesignation: Joi.string().allow(""),
+    educationalQualification: Joi.string().allow(""),
+
+    // Legal Cases
+    legalCasesPending: Joi.string().valid("yes", "no").required(),
 
     // Bank Account Details
     nameAsPerBank: Joi.string().min(3).max(100).required(),
@@ -53,12 +98,13 @@ const updateApplicationSchema = Joi.object({
     branch: Joi.string().min(2).max(100).required(),
     bankCity: Joi.string().min(2).max(50).required(),
 
-    // Referrer Information
-    referrerName: Joi.string().min(2).max(100).allow(""),
-    referrerSignature: Joi.string().min(2).max(100).allow(""),
-
     // Declaration
+    declarationNote: Joi.string().allow(""),
     declaration: Joi.boolean().valid(true).required(),
+
+    // Digital Signatures
+    applicantSignature: Joi.string().required(),
+    referrerSignature: Joi.string().required(),
 
     // Metadata
     status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
@@ -78,6 +124,7 @@ export async function POST(req) {
         // Validate the incoming data
         const { error, value } = applicationSchema.validate(body);
         if (error) {
+            console.error("Validation error:", error.details[0].message);
             return Response.json({
                 error: error.details[0].message,
                 success: false
@@ -85,22 +132,32 @@ export async function POST(req) {
         }
 
         const {
+            applicationId: customAppId,
             fullName,
-            email,
-            phone,
+            dob,
+            fatherName,
+            bloodGroup,
             address,
-            city,
-            state,
-            pincode,
+            contactNo,
+            email,
+            pinCode,
+            panNumber,
+            aadharNumber,
+            emergencyContacts,
+            previousCompany,
+            previousDesignation,
+            educationalQualification,
+            legalCasesPending,
             nameAsPerBank,
             bankName,
             accountNo,
             ifscCode,
             branch,
             bankCity,
-            referrerName,
-            referrerSignature,
+            declarationNote,
             declaration,
+            applicantSignature,
+            referrerSignature,
             status,
             appliedAt,
         } = value;
@@ -110,7 +167,7 @@ export async function POST(req) {
         const applications = db.collection("marketing_applications");
 
         // Check if email already exists
-        const existingApplication = await applications.findOne({ "personalInfo.email": email });
+        const existingApplication = await applications.findOne({ email: email });
         if (existingApplication) {
             return Response.json({
                 error: "An application with this email already exists",
@@ -119,7 +176,7 @@ export async function POST(req) {
         }
 
         // Check if phone already exists
-        const existingPhone = await applications.findOne({ "personalInfo.phone": phone });
+        const existingPhone = await applications.findOne({ contactNo: contactNo });
         if (existingPhone) {
             return Response.json({
                 error: "An application with this phone number already exists",
@@ -127,31 +184,59 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
+        // Check if PAN already exists
+        const existingPan = await applications.findOne({ panNumber: panNumber });
+        if (existingPan) {
+            return Response.json({
+                error: "An application with this PAN number already exists",
+                success: false
+            }, { status: 409 });
+        }
+
+        // Check if Aadhar already exists
+        const existingAadhar = await applications.findOne({ aadharNumber: aadharNumber });
+        if (existingAadhar) {
+            return Response.json({
+                error: "An application with this Aadhar number already exists",
+                success: false
+            }, { status: 409 });
+        }
+
+        // Generate application ID if not provided
+        const generatedAppId = customAppId || `APP${new Date().getFullYear()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
         // Create new application document
         const newApplication = {
             _id: new ObjectId(),
-            personalInfo: {
-                fullName,
-                email,
-                phone,
-                address,
-                city,
-                state,
-                pincode,
-            },
-            bankDetails: {
-                nameAsPerBank,
-                bankName,
-                accountNo,
-                ifscCode,
-                branch,
-                bankCity,
-            },
-            referrerInfo: {
-                referrerName: referrerName || "",
-                referrerSignature: referrerSignature || "",
-            },
-            declaration: declaration,
+            applicationId: generatedAppId,
+            fullName,
+            dob: new Date(dob).toISOString(),
+            fatherName,
+            bloodGroup: bloodGroup || "",
+            address,
+            contactNo,
+            email,
+            pinCode,
+            panNumber,
+            aadharNumber,
+            emergencyContacts: emergencyContacts.map(contact => ({
+                ...contact,
+                _id: new ObjectId()
+            })),
+            previousCompany: previousCompany || "",
+            previousDesignation: previousDesignation || "",
+            educationalQualification: educationalQualification || "",
+            legalCasesPending,
+            nameAsPerBank,
+            bankName,
+            accountNo,
+            ifscCode,
+            branch,
+            bankCity,
+            declarationNote: declarationNote || "",
+            declaration,
+            applicantSignature,
+            referrerSignature,
             status: status || "pending",
             appliedAt: appliedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -160,13 +245,14 @@ export async function POST(req) {
 
         await applications.insertOne(newApplication);
 
-        // Remove sensitive bank account number from response
+        // Remove sensitive data from response
         const responseData = {
             ...newApplication,
-            bankDetails: {
-                ...newApplication.bankDetails,
-                accountNo: "****" + newApplication.bankDetails.accountNo.slice(-4),
-            },
+            accountNo: "****" + newApplication.accountNo.slice(-4),
+            aadharNumber: "****" + newApplication.aadharNumber.slice(-4),
+            panNumber: "****" + newApplication.panNumber.slice(-4),
+            applicantSignature: "[SIGNATURE]",
+            referrerSignature: "[SIGNATURE]",
         };
 
         return Response.json({
@@ -222,8 +308,8 @@ export async function GET(req) {
 
         // Build filter query
         const filter = {};
-        if (email) filter["personalInfo.email"] = email;
-        if (phone) filter["personalInfo.phone"] = phone;
+        if (email) filter.email = email;
+        if (phone) filter.contactNo = phone;
         if (status) filter.status = status;
 
         // Fetch applications with pagination
@@ -238,13 +324,14 @@ export async function GET(req) {
             .limit(limit)
             .toArray();
 
-        // Mask bank account numbers in list results only
+        // Mask sensitive data in list results only
         const maskedResults = results.map(app => ({
             ...app,
-            bankDetails: {
-                ...app.bankDetails,
-                accountNo: "****" + app.bankDetails.accountNo.slice(-4),
-            },
+            accountNo: "****" + app.accountNo.slice(-4),
+            aadharNumber: "****" + app.aadharNumber.slice(-4),
+            panNumber: "****" + app.panNumber.slice(-4),
+            applicantSignature: "[SIGNATURE]",
+            referrerSignature: "[SIGNATURE]",
         }));
 
         return Response.json({
@@ -344,21 +431,30 @@ export async function PUT(req) {
             const {
                 applicationId,
                 fullName,
-                email,
-                phone,
+                dob,
+                fatherName,
+                bloodGroup,
                 address,
-                city,
-                state,
-                pincode,
+                contactNo,
+                email,
+                pinCode,
+                panNumber,
+                aadharNumber,
+                emergencyContacts,
+                previousCompany,
+                previousDesignation,
+                educationalQualification,
+                legalCasesPending,
                 nameAsPerBank,
                 bankName,
                 accountNo,
                 ifscCode,
                 branch,
                 bankCity,
-                referrerName,
-                referrerSignature,
+                declarationNote,
                 declaration,
+                applicantSignature,
+                referrerSignature,
                 status,
             } = value;
 
@@ -379,9 +475,9 @@ export async function PUT(req) {
             }
 
             // Check if email already exists for another application
-            if (email !== application.personalInfo.email) {
+            if (email !== application.email) {
                 const existingEmail = await applications.findOne({
-                    "personalInfo.email": email,
+                    email: email,
                     _id: { $ne: new ObjectId(applicationId) }
                 });
                 if (existingEmail) {
@@ -393,9 +489,9 @@ export async function PUT(req) {
             }
 
             // Check if phone already exists for another application
-            if (phone !== application.personalInfo.phone) {
+            if (contactNo !== application.contactNo) {
                 const existingPhone = await applications.findOne({
-                    "personalInfo.phone": phone,
+                    contactNo: contactNo,
                     _id: { $ne: new ObjectId(applicationId) }
                 });
                 if (existingPhone) {
@@ -406,30 +502,64 @@ export async function PUT(req) {
                 }
             }
 
+            // Check if PAN already exists for another application
+            if (panNumber !== application.panNumber) {
+                const existingPan = await applications.findOne({
+                    panNumber: panNumber,
+                    _id: { $ne: new ObjectId(applicationId) }
+                });
+                if (existingPan) {
+                    return Response.json({
+                        error: "An application with this PAN number already exists",
+                        success: false
+                    }, { status: 409 });
+                }
+            }
+
+            // Check if Aadhar already exists for another application
+            if (aadharNumber !== application.aadharNumber) {
+                const existingAadhar = await applications.findOne({
+                    aadharNumber: aadharNumber,
+                    _id: { $ne: new ObjectId(applicationId) }
+                });
+                if (existingAadhar) {
+                    return Response.json({
+                        error: "An application with this Aadhar number already exists",
+                        success: false
+                    }, { status: 409 });
+                }
+            }
+
             // Update full application
             const updateData = {
-                personalInfo: {
-                    fullName,
-                    email,
-                    phone,
-                    address,
-                    city,
-                    state,
-                    pincode,
-                },
-                bankDetails: {
-                    nameAsPerBank,
-                    bankName,
-                    accountNo,
-                    ifscCode,
-                    branch,
-                    bankCity,
-                },
-                referrerInfo: {
-                    referrerName: referrerName || "",
-                    referrerSignature: referrerSignature || "",
-                },
-                declaration: declaration,
+                fullName,
+                dob: new Date(dob).toISOString(),
+                fatherName,
+                bloodGroup: bloodGroup || "",
+                address,
+                contactNo,
+                email,
+                pinCode,
+                panNumber,
+                aadharNumber,
+                emergencyContacts: emergencyContacts.map(contact => ({
+                    ...contact,
+                    _id: contact._id || new ObjectId()
+                })),
+                previousCompany: previousCompany || "",
+                previousDesignation: previousDesignation || "",
+                educationalQualification: educationalQualification || "",
+                legalCasesPending,
+                nameAsPerBank,
+                bankName,
+                accountNo,
+                ifscCode,
+                branch,
+                bankCity,
+                declarationNote: declarationNote || "",
+                declaration,
+                applicantSignature,
+                referrerSignature,
                 status: status || application.status,
                 updatedAt: new Date().toISOString(),
             };
