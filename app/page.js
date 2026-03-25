@@ -1,56 +1,67 @@
-'use client';
+// 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import ApplicationForm from "./components/applicants";
 
-export default function HomePage() {
-  const router = useRouter();
-  const [role, setRole] = useState(null);
+// import { useEffect, useState } from 'react';
+// import { useRouter } from 'next/navigation';
 
-  useEffect(() => {
-    // Get role from localStorage
-    const user_details =
-      typeof window !== "undefined" &&
-      JSON.parse(localStorage.getItem("user_details"));
-    const storedRole = user_details?.role;
-    if (storedRole) setRole(storedRole);
-  }, []);
+// export default function HomePage() {
+//   const router = useRouter();
+//   const [role, setRole] = useState(null);
 
-  const handleGoToDashboard = () => {
-    if (!role) return;
-    switch (role) {
-      case 'employee':
-        router.push('/dashboard/employee');
-        break;
-      case 'manager':
-        router.push('/dashboard/manager');
-        break;
-      case 'admin':
-        router.push('/dashboard/admin');
-        break;
-      default:
-        router.push('/dashboard'); // fallback
-    }
-  };
+//   useEffect(() => {
+//     // Get role from localStorage
+//     const user_details =
+//       typeof window !== "undefined" &&
+//       JSON.parse(localStorage.getItem("user_details"));
+//     const storedRole = user_details?.role;
+//     if (storedRole) setRole(storedRole);
+//   }, []);
 
-  if (!role) return <div className='min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-red-300'>Loading...</div>;
+//   const handleGoToDashboard = () => {
+//     if (!role) return;
+//     switch (role) {
+//       case 'employee':
+//         router.push('/dashboard/employee');
+//         break;
+//       case 'manager':
+//         router.push('/dashboard/manager');
+//         break;
+//       case 'admin':
+//         router.push('/dashboard/admin');
+//         break;
+//       default:
+//         router.push('/dashboard'); // fallback
+//     }
+//   };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <h1 className="text-3xl font-bold mb-4 text-gray-800">
-        {role === 'employee' && 'Welcome, Employee!'}
-        {role === 'manager' && 'Welcome, Manager!'}
-        {role === 'admin' && 'Welcome, Admin!'}
-      </h1>
-      <p className="text-gray-600 mb-6 text-center">
-        You have successfully logged in. Click the button below to go to your dashboard.
-      </p>
-      <button
-        onClick={handleGoToDashboard}
-        className="px-6 py-3 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700 transition"
-      >
-        Go to Dashboard
-      </button>
-    </div>
-  );
+//   if (!role) return <div className='min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-red-300'>Loading...</div>;
+
+//   return (
+//     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+//       <h1 className="text-3xl font-bold mb-4 text-gray-800">
+//         {role === 'employee' && 'Welcome, Employee!'}
+//         {role === 'manager' && 'Welcome, Manager!'}
+//         {role === 'admin' && 'Welcome, Admin!'}
+//       </h1>
+//       <p className="text-gray-600 mb-6 text-center">
+//         You have successfully logged in. Click the button below to go to your dashboard.
+//       </p>
+//       <button
+//         onClick={handleGoToDashboard}
+//         className="px-6 py-3 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700 transition"
+//       >
+//         Go to Dashboard
+//       </button>
+//     </div>
+//   );
+// }
+
+
+export const runtime = "edge";
+
+export default async function Page() {
+  return <ApplicationForm />
 }
+
+
