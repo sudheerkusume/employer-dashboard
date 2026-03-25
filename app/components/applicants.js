@@ -1323,8 +1323,8 @@ export default function ApplicationManagement() {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signatures</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} required />
-                                    <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} required />
+                                    <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} />
+                                    <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} />
                                 </div>
                             </div>
                         )}
