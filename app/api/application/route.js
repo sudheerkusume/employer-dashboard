@@ -49,9 +49,8 @@ const applicationSchema = Joi.object({
     declaration: Joi.boolean().valid(true).required(),
 
     // Digital Signatures
-    applicantSignature: Joi.string().required(),
-    referrerSignature: Joi.string().required(),
-
+    applicantSignature: Joi.string().optional(),
+    referrerSignature: Joi.string().optional(),
     // Metadata
     status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
     appliedAt: Joi.date().default(Date.now),
