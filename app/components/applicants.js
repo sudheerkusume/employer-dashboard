@@ -899,7 +899,40 @@ export default function ApplicationManagement() {
         });
     };
 
-    // Map Excel row to formData structure
+    // Helper: parse various date formats to YYYY-MM-DD
+    const parseDate = (dateStr) => {
+        if (!dateStr) return '';
+        // Try to convert to Date object
+        let date;
+        // Already YYYY-MM-DD (ISO)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            date = new Date(dateStr);
+        }
+        // DD-MM-YYYY
+        else if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+            const [day, month, year] = dateStr.split('-');
+            date = new Date(`${year}-${month}-${day}`);
+        }
+        // DD/MM/YYYY
+        else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+            const [day, month, year] = dateStr.split('/');
+            date = new Date(`${year}-${month}-${day}`);
+        }
+        // MM/DD/YYYY (unlikely, but handle)
+        else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+            const [month, day, year] = dateStr.split('/');
+            date = new Date(`${year}-${month}-${day}`);
+        }
+        // Try default parsing
+        else {
+            date = new Date(dateStr);
+        }
+        // Check if valid
+        if (isNaN(date.getTime())) return '';
+        // Format as YYYY-MM-DD
+        return date.toISOString().split('T')[0];
+    };
+
     const mapExcelRowToFormData = (row) => {
         const getStr = (key) => (row[key] ? String(row[key]).trim() : '');
         let emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
@@ -917,7 +950,7 @@ export default function ApplicationManagement() {
         return {
             applicationId: getStr('Application ID'),
             fullName: getStr('Full Name'),
-            dob: getStr('Date of Birth'),
+            dob: parseDate(getStr('Date of Birth')), // ✅ use date parser
             fatherName: getStr("Father's/Husband's Name"),
             bloodGroup: getStr('Blood Group'),
             address: getStr('Address'),
