@@ -515,6 +515,7 @@ export default function ApplicationManagement() {
         declaration: false,
         referrerSignature: '',
         applicantSignature: '',
+        referredBy: "",
         status: 'pending',
     });
 
@@ -759,6 +760,7 @@ export default function ApplicationManagement() {
                     ifscCode: app.ifscCode || '',
                     branch: app.branch || '',
                     bankCity: app.bankCity || '',
+                    referredBy: app.referredBy || '',
                     declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
                     referrerSignature: app.referrerSignature || '',
@@ -805,7 +807,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', status: 'pending',
         });
         setCurrentApplication(null);
         setActiveTab('personal');
@@ -974,6 +976,7 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
+            referredBy: '',
             status: getStr('Status') || 'pending',
         };
     };
@@ -982,6 +985,7 @@ export default function ApplicationManagement() {
     const handleDownloadTemplate = () => {
         const templateData = [{
             'Application ID': 'APP2024001',
+            "Referred By": '',
             'Full Name': 'John Doe',
             'Date of Birth': '1990-01-01',
             "Father's/Husband's Name": 'Robert Doe',
@@ -1003,6 +1007,8 @@ export default function ApplicationManagement() {
             'IFSC Code': 'SBIN0012345',
             'Branch': 'Main Branch',
             'Bank City': 'City',
+            'Applicant Signature': '',
+            'Referrer Signature': '',
             'Declaration Note': 'I confirm that all information is correct.',
             'Declaration Accepted': 'Yes',
             'Status': 'pending'
@@ -1055,6 +1061,7 @@ export default function ApplicationManagement() {
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
+                                <p><strong>Referred By:</strong> {application.referredBy || 'Not provided'}</p>
                                 <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
                                 <p><strong>Date of Birth:</strong> {application.dob ? new Date(application.dob).toLocaleDateString() : 'Not provided'}</p>
                                 <p><strong>Father's/Husband's Name:</strong> {application.fatherName || 'Not provided'}</p>
@@ -1155,6 +1162,7 @@ export default function ApplicationManagement() {
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                            <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
                             <p><strong>Father's/Husband's Name:</strong> {formData.fatherName || 'Not provided'}</p>
@@ -1393,6 +1401,7 @@ export default function ApplicationManagement() {
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
+                                    <InputField label="Referred By" name="referredBy" placeholder="Enter Refer Name" value={formData.referredBy} onChange={handleChange} required={false} />
                                     <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
                                     <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required />
                                     <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required />

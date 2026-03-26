@@ -1,4 +1,6 @@
-'use client';
+// app/layout.js
+'use client'
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { useState, useEffect } from "react";
@@ -6,6 +8,7 @@ import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 import Head from "next/head";
+import MLMNavbar from "./components/mlm/navbar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,6 +58,7 @@ export default function RootLayout({ children }) {
     }
   }, [pathname, router]);
 
+
   return (
     <html lang="en">
       <Head>
@@ -63,6 +67,7 @@ export default function RootLayout({ children }) {
       </Head>
       <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
+          <MLMNavbar />
           {children}
           {rootContext?.toast?.show && <Toast />}
         </RootContext.Provider>
