@@ -21,10 +21,10 @@ const applicationSchema = Joi.object({
     // Emergency Contact Details
     emergencyContacts: Joi.array().items(
         Joi.object({
-            name: Joi.string().min(2).max(100).required(),
-            location: Joi.string().min(2).max(100).required(),
-            phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
-            relationship: Joi.string().min(2).max(50).required(),
+            name: Joi.string().allow("").optional(),
+            location: Joi.string().allow("").optional(),
+            phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+            relationship: Joi.string().allow("").optional(),
         })
     ).optional(),
 
@@ -68,7 +68,7 @@ const updateApplicationSchema = Joi.object({
     dob: Joi.date().optional(),
     fatherName: Joi.string().min(2).max(100).optional(),
     bloodGroup: Joi.string().allow("").optional(),
-    address: Joi.string().min(5).max(200).optional(),
+    address: Joi.string().allow("").optional(),
     contactNo: Joi.string().pattern(/^[0-9]{10}$/).optional(),
     email: Joi.string().email().optional(),
     pinCode: Joi.string().pattern(/^[0-9]{6}$/).optional(),
@@ -78,10 +78,10 @@ const updateApplicationSchema = Joi.object({
     // Emergency Contact Details
     emergencyContacts: Joi.array().items(
         Joi.object({
-            name: Joi.string().min(2).max(100).required(),
-            location: Joi.string().min(2).max(100).required(),
-            phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
-            relationship: Joi.string().min(2).max(50).required(),
+            name: Joi.string().allow("").optional(),
+            location: Joi.string().allow("").optional(),
+            phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+            relationship: Joi.string().allow("").optional(),
         })
     ).optional(),
 
