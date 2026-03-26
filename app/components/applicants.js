@@ -1137,11 +1137,6 @@ export default function ApplicationManagement() {
                             </div>
                         </div>
                     </div>
-                    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end">
-                        <button onClick={onClose} className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition">
-                            Close
-                        </button>
-                    </div>
                 </div>
             </div>
         );
@@ -1317,13 +1312,13 @@ export default function ApplicationManagement() {
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details">
-                                                        <Eye size={24} />
+                                                        <Eye size={22} />
                                                     </button>
                                                     <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit">
-                                                        <Edit size={24} />
+                                                        <Edit size={22} />
                                                     </button>
                                                     <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800" aria-label="Delete">
-                                                        <Trash size={24} />
+                                                        <Trash size={22} />
                                                     </button>
                                                 </td>
                                             </tr>
