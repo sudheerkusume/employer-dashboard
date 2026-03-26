@@ -1035,7 +1035,7 @@ export default function ApplicationManagement() {
         if (!application) return null;
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                     <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center rounded-t-lg">
                         <h2 className="text-xl font-bold text-gray-900">Application Details</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100">
@@ -1302,11 +1302,9 @@ export default function ApplicationManagement() {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <td className="px-6 py-4 text-sm">
-                                                        <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye /></button>
-                                                        <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit /></button>
-                                                        <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash /></button>
-                                                    </td>
+                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye size={10} /></button>
+                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit size={10} /></button>
+                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash size={10} /></button>
                                                 </td>
                                             </tr>
                                         ))
