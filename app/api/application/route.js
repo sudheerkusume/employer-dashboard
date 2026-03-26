@@ -57,7 +57,7 @@ const applicationSchema = Joi.object({
 });
 
 const updateApplicationSchema = Joi.object({
-    applicationId: Joi.string().required(),
+    id: Joi.string().required(),
     // Personal Details
     applicationId: Joi.string().allow(""),
     fullName: Joi.string().min(2).max(100).required(),
@@ -361,7 +361,7 @@ export async function PUT(req) {
         const body = await req.json();
 
         // Check if it's a status update or full application update
-        if (body.applicationId && body.status && !body.fullName) {
+        if (body.id && body.status && !body.fullName) {
             // Status update
             const { error, value } = updateStatusSchema.validate(body);
             if (error) {
@@ -371,7 +371,7 @@ export async function PUT(req) {
                 }, { status: 400 });
             }
 
-            const { applicationId, status, remarks } = value;
+            const { id, status, remarks } = value;
 
             const client = await clientPromise;
             const db = client.db(process.env.MONGODB_DBNAME);
@@ -379,7 +379,7 @@ export async function PUT(req) {
 
             // Check if application exists
             const application = await applications.findOne({
-                _id: new ObjectId(applicationId)
+                _id: new ObjectId(id)
             });
 
             if (!application) {
@@ -391,7 +391,7 @@ export async function PUT(req) {
 
             // Update application status
             const updateResult = await applications.updateOne(
-                { _id: new ObjectId(applicationId) },
+                { _id: new ObjectId(id) },
                 {
                     $set: {
                         status: status,
@@ -412,7 +412,7 @@ export async function PUT(req) {
             return Response.json({
                 success: true,
                 message: "Application status updated successfully",
-                applicationId: applicationId,
+                applicationId: id,
                 status: status,
                 remarks: remarks,
             });
@@ -428,6 +428,7 @@ export async function PUT(req) {
             }
 
             const {
+                id,
                 applicationId,
                 fullName,
                 dob,
@@ -463,7 +464,7 @@ export async function PUT(req) {
 
             // Check if application exists
             const application = await applications.findOne({
-                _id: new ObjectId(applicationId)
+                _id: new ObjectId(id)
             });
 
             if (!application) {
@@ -477,7 +478,7 @@ export async function PUT(req) {
             if (email !== application.email) {
                 const existingEmail = await applications.findOne({
                     email: email,
-                    _id: { $ne: new ObjectId(applicationId) }
+                    _id: { $ne: new ObjectId(id) }
                 });
                 if (existingEmail) {
                     return Response.json({
@@ -491,7 +492,7 @@ export async function PUT(req) {
             if (contactNo !== application.contactNo) {
                 const existingPhone = await applications.findOne({
                     contactNo: contactNo,
-                    _id: { $ne: new ObjectId(applicationId) }
+                    _id: { $ne: new ObjectId(id) }
                 });
                 if (existingPhone) {
                     return Response.json({
@@ -505,7 +506,7 @@ export async function PUT(req) {
             if (panNumber !== application.panNumber) {
                 const existingPan = await applications.findOne({
                     panNumber: panNumber,
-                    _id: { $ne: new ObjectId(applicationId) }
+                    _id: { $ne: new ObjectId(id) }
                 });
                 if (existingPan) {
                     return Response.json({
@@ -519,7 +520,7 @@ export async function PUT(req) {
             if (aadharNumber !== application.aadharNumber) {
                 const existingAadhar = await applications.findOne({
                     aadharNumber: aadharNumber,
-                    _id: { $ne: new ObjectId(applicationId) }
+                    _id: { $ne: new ObjectId(id) }
                 });
                 if (existingAadhar) {
                     return Response.json({
@@ -541,10 +542,7 @@ export async function PUT(req) {
                 pinCode,
                 panNumber,
                 aadharNumber,
-                emergencyContacts: emergencyContacts.map(contact => ({
-                    ...contact,
-                    _id: contact._id || new ObjectId()
-                })),
+                emergencyContacts,
                 previousCompany: previousCompany || "",
                 previousDesignation: previousDesignation || "",
                 educationalQualification: educationalQualification || "",
@@ -564,7 +562,7 @@ export async function PUT(req) {
             };
 
             const updateResult = await applications.updateOne(
-                { _id: new ObjectId(applicationId) },
+                { _id: new ObjectId(id) },
                 { $set: updateData }
             );
 

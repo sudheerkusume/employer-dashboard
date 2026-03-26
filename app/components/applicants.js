@@ -702,7 +702,7 @@ export default function ApplicationManagement() {
         try {
             const url = '/api/application';
             const method = currentView === 'edit' ? 'PUT' : 'POST';
-            const body = currentView === 'edit' ? { applicationId: currentApplication._id, ...formData } : { ...formData };
+            const body = currentView === 'edit' ? { id: currentApplication._id, ...formData } : { ...formData };
             const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await response.json();
             if (data.success) {
