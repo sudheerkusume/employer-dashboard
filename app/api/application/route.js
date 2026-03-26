@@ -456,13 +456,19 @@ export async function GET(req) {
 }
 
 // ✅ PUT: Update application (full update or status update)
+// ✅ PUT: Update application (status update or partial update)
 export async function PUT(req) {
     try {
         const body = await req.json();
 
+        // Connect to DB once at the start
+        const client = await clientPromise;
+        const db = client.db(process.env.MONGODB_DBNAME);
+        const applications = db.collection("marketing_applications");
+
         // Check if it's a status update or full application update
         if (body.id && body.status && !body.fullName) {
-            // Status update
+            // ---------- STATUS UPDATE ----------
             const { error, value } = updateStatusSchema.validate(body);
             if (error) {
                 return Response.json({
@@ -472,10 +478,6 @@ export async function PUT(req) {
             }
 
             const { id, status, remarks } = value;
-
-            const client = await clientPromise;
-            const db = client.db(process.env.MONGODB_DBNAME);
-            const applications = db.collection("marketing_applications");
 
             // Check if application exists
             const application = await applications.findOne({
@@ -522,7 +524,6 @@ export async function PUT(req) {
                         mlmUserCode: mlmUserCode,
                     });
                 } catch (mlmError) {
-                    // Log error and inform admin
                     console.error("MLM creation failed:", mlmError);
                     return Response.json({
                         error: `Application approved but MLM member creation failed: ${mlmError.message}`,
@@ -540,15 +541,18 @@ export async function PUT(req) {
             });
         }
         else {
-            // Full application update
+            // ---------- PARTIAL APPLICATION UPDATE ----------
             const { error, value } = updateApplicationSchema.validate(body);
             if (error) {
-                return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
+                return Response.json({
+                    error: error.details[0].message,
+                    success: false
+                }, { status: 400 });
             }
 
             const { id, ...updateFields } = value;
 
-            // Remove undefined fields
+            // Remove undefined fields so they are not overwritten with null/empty
             const filteredUpdate = {};
             for (const [key, val] of Object.entries(updateFields)) {
                 if (val !== undefined) {
@@ -574,20 +578,40 @@ export async function PUT(req) {
 
             // Check duplicates only if fields are being changed
             if (filteredUpdate.email) {
-                const existingEmail = await applications.findOne({ email: filteredUpdate.email, _id: { $ne: new ObjectId(id) } });
-                if (existingEmail) return Response.json({ error: "Email already exists", success: false }, { status: 409 });
+                const existingEmail = await applications.findOne({
+                    email: filteredUpdate.email,
+                    _id: { $ne: new ObjectId(id) }
+                });
+                if (existingEmail) {
+                    return Response.json({ error: "Email already exists", success: false }, { status: 409 });
+                }
             }
             if (filteredUpdate.contactNo) {
-                const existingPhone = await applications.findOne({ contactNo: filteredUpdate.contactNo, _id: { $ne: new ObjectId(id) } });
-                if (existingPhone) return Response.json({ error: "Phone already exists", success: false }, { status: 409 });
+                const existingPhone = await applications.findOne({
+                    contactNo: filteredUpdate.contactNo,
+                    _id: { $ne: new ObjectId(id) }
+                });
+                if (existingPhone) {
+                    return Response.json({ error: "Phone already exists", success: false }, { status: 409 });
+                }
             }
             if (filteredUpdate.panNumber) {
-                const existingPan = await applications.findOne({ panNumber: filteredUpdate.panNumber, _id: { $ne: new ObjectId(id) } });
-                if (existingPan) return Response.json({ error: "PAN already exists", success: false }, { status: 409 });
+                const existingPan = await applications.findOne({
+                    panNumber: filteredUpdate.panNumber,
+                    _id: { $ne: new ObjectId(id) }
+                });
+                if (existingPan) {
+                    return Response.json({ error: "PAN already exists", success: false }, { status: 409 });
+                }
             }
             if (filteredUpdate.aadharNumber) {
-                const existingAadhar = await applications.findOne({ aadharNumber: filteredUpdate.aadharNumber, _id: { $ne: new ObjectId(id) } });
-                if (existingAadhar) return Response.json({ error: "Aadhar already exists", success: false }, { status: 409 });
+                const existingAadhar = await applications.findOne({
+                    aadharNumber: filteredUpdate.aadharNumber,
+                    _id: { $ne: new ObjectId(id) }
+                });
+                if (existingAadhar) {
+                    return Response.json({ error: "Aadhar already exists", success: false }, { status: 409 });
+                }
             }
 
             filteredUpdate.updatedAt = new Date().toISOString();
@@ -598,7 +622,10 @@ export async function PUT(req) {
             );
 
             if (updateResult.modifiedCount === 0) {
-                return Response.json({ error: "Failed to update application", success: false }, { status: 400 });
+                return Response.json({
+                    error: "Failed to update application",
+                    success: false
+                }, { status: 400 });
             }
 
             return Response.json({

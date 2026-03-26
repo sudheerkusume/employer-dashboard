@@ -124,15 +124,19 @@ DatePickerDropdown.displayName = 'DatePickerDropdown';
 // ======================
 // InputField Component
 // ======================
-const InputField = memo(({ label, name, type = 'text', required = true, placeholder = '', value, onChange, validation = 'none', maxLength, pattern, errorMessage }) => {
+const InputField = memo(({ label, name, type = 'text', required = false, placeholder = '', value, onChange, validation = 'none', maxLength, pattern, errorMessage }) => {
     const [error, setError] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [touched, setTouched] = useState(false);
     const [hasValue, setHasValue] = useState(false);
 
     const validateField = (val) => {
-        if (!required && !val) { setError(''); return true; }
-        if (required && !val && touched) { setError(`${label} is required`); return false; }
+        // Only required validation for fullName (name field)
+        if (required && !val && touched) {
+            setError(`${label} is required`);
+            return false;
+        }
+        // Format validations only if value provided
         if (val && val.length > 0) {
             switch (validation) {
                 case 'mobile':
@@ -255,7 +259,7 @@ InputField.displayName = 'InputField';
 // ======================
 // Radio Group Component
 // ======================
-const RadioGroup = memo(({ label, name, options, value, onChange, required = true }) => {
+const RadioGroup = memo(({ label, name, options, value, onChange, required = false }) => {
     const [error, setError] = useState('');
     const handleChange = (e) => {
         const syntheticEvent = { target: { name, value: e.target.value, type: 'radio' } };
@@ -454,10 +458,10 @@ const EmergencyContact = memo(({ index, contact, onChange, onRemove, canRemove }
             {canRemove && <button type="button" onClick={() => onRemove(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
             <h4 className="text-md font-semibold text-gray-800 mb-3">Emergency Contact {index + 1}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="Name" name={`emergencyName_${index}`} placeholder="Emergency contact person name" value={contact.name} onChange={(e) => onChange(index, 'name', e.target.value)} validation="name" required={index === 0} />
-                <InputField label="Location" name={`emergencyLocation_${index}`} placeholder="City/Area" value={contact.location} onChange={(e) => onChange(index, 'location', e.target.value)} required={index === 0} />
-                <InputField label="Phone Number" name={`emergencyPhone_${index}`} type="tel" placeholder="9876543210" value={contact.phone} onChange={(e) => onChange(index, 'phone', e.target.value)} validation="mobile" required={index === 0} maxLength={10} />
-                <InputField label="Relationship" name={`emergencyRelationship_${index}`} placeholder="e.g., Father, Mother, Spouse" value={contact.relationship} onChange={(e) => onChange(index, 'relationship', e.target.value)} required={index === 0} />
+                <InputField label="Name" name={`emergencyName_${index}`} placeholder="Emergency contact person name" value={contact.name} onChange={(e) => onChange(index, 'name', e.target.value)} validation="name" required={false} />
+                <InputField label="Location" name={`emergencyLocation_${index}`} placeholder="City/Area" value={contact.location} onChange={(e) => onChange(index, 'location', e.target.value)} required={false} />
+                <InputField label="Phone Number" name={`emergencyPhone_${index}`} type="tel" placeholder="9876543210" value={contact.phone} onChange={(e) => onChange(index, 'phone', e.target.value)} validation="mobile" required={false} maxLength={10} />
+                <InputField label="Relationship" name={`emergencyRelationship_${index}`} placeholder="e.g., Father, Mother, Spouse" value={contact.relationship} onChange={(e) => onChange(index, 'relationship', e.target.value)} required={false} />
             </div>
         </div>
     );
@@ -567,18 +571,11 @@ export default function ApplicationManagement() {
         }
     };
 
-    // Validation functions
+    // Validation functions (only fullName required)
     const validatePersonalTab = useCallback(() => {
         const errors = {};
         if (!formData.fullName) errors.fullName = 'Full Name is required';
-        if (!formData.dob) errors.dob = 'Date of Birth is required';
-        if (!formData.fatherName) errors.fatherName = "Father's/Husband's Name is required";
-        if (!formData.address) errors.address = 'Address is required';
-        if (!formData.contactNo) errors.contactNo = 'Contact Number is required';
-        if (!formData.email) errors.email = 'Email ID is required';
-        if (!formData.pinCode) errors.pinCode = 'Pin Code is required';
-        if (!formData.panNumber) errors.panNumber = 'PAN Number is required';
-        if (!formData.aadharNumber) errors.aadharNumber = 'Aadhar Number is required';
+        // Format validations only if value exists
         if (formData.email && !/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(formData.email)) errors.email = 'Please enter a valid email address';
         if (formData.contactNo && !/^[0-9]{10}$/.test(formData.contactNo)) errors.contactNo = 'Please enter a valid 10-digit mobile number';
         if (formData.pinCode && !/^[0-9]{6}$/.test(formData.pinCode)) errors.pinCode = 'Please enter a valid 6-digit pincode';
@@ -593,12 +590,11 @@ export default function ApplicationManagement() {
             if (age < 18) errors.dob = 'Age must be 18 years or above';
         }
         return errors;
-    }, [formData.fullName, formData.dob, formData.fatherName, formData.address, formData.contactNo, formData.email, formData.pinCode, formData.panNumber, formData.aadharNumber]);
+    }, [formData.fullName, formData.email, formData.contactNo, formData.pinCode, formData.panNumber, formData.aadharNumber, formData.dob]);
 
     const validateEmergencyTab = useCallback(() => {
         const errors = {};
-        const hasValidContact = formData.emergencyContacts.some(contact => contact.name && contact.location && contact.phone && contact.relationship);
-        if (!hasValidContact) errors.emergencyContacts = 'At least one complete emergency contact is required';
+        // No required fields – only format checks on provided values
         formData.emergencyContacts.forEach((contact, idx) => {
             if (contact.phone && !/^[0-9]{10}$/.test(contact.phone)) errors[`emergencyPhone_${idx}`] = 'Please enter a valid 10-digit phone number';
         });
@@ -607,35 +603,28 @@ export default function ApplicationManagement() {
 
     const validateEmploymentTab = useCallback(() => {
         const errors = {};
-        if (!formData.legalCasesPending) errors.legalCasesPending = 'Please select if any legal cases are pending';
+        // No required fields
         return errors;
-    }, [formData.legalCasesPending]);
+    }, []);
 
     const validateBankTab = useCallback(() => {
         const errors = {};
-        if (!formData.nameAsPerBank) errors.nameAsPerBank = 'Name as per Bank is required';
-        if (!formData.bankName) errors.bankName = 'Bank Name is required';
-        if (!formData.accountNo) errors.accountNo = 'Account Number is required';
-        if (!formData.ifscCode) errors.ifscCode = 'IFSC Code is required';
-        if (!formData.branch) errors.branch = 'Branch is required';
-        if (!formData.bankCity) errors.bankCity = 'City is required';
         if (formData.accountNo && !/^[0-9]{9,18}$/.test(formData.accountNo)) errors.accountNo = 'Account number should be 9-18 digits only';
         if (formData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.toUpperCase())) errors.ifscCode = 'Please enter a valid IFSC code';
         return errors;
-    }, [formData.nameAsPerBank, formData.bankName, formData.accountNo, formData.ifscCode, formData.branch, formData.bankCity]);
+    }, [formData.accountNo, formData.ifscCode]);
 
     const validateSignaturesTab = useCallback(() => {
         const errors = {};
-        if (!formData.applicantSignature) errors.applicantSignature = 'Applicant signature is required';
-        if (!formData.referrerSignature) errors.referrerSignature = 'Referrer signature is required';
+        // No required fields
         return errors;
-    }, [formData.applicantSignature, formData.referrerSignature]);
+    }, []);
 
     const validateDeclarationTab = useCallback(() => {
         const errors = {};
-        if (!formData.declaration) errors.declaration = 'Please accept the declaration';
+        // No required fields
         return errors;
-    }, [formData.declaration]);
+    }, []);
 
     const getCurrentTabErrors = useCallback(() => {
         switch (activeTab) {
@@ -659,9 +648,13 @@ export default function ApplicationManagement() {
     }, [getCurrentTabErrors, activeTab]);
 
     const isCurrentTabValid = useCallback(() => {
-        const errors = getCurrentTabErrors();
-        return Object.keys(errors).length === 0;
-    }, [getCurrentTabErrors]);
+        // Only personal tab has required field (fullName), others are always valid (no required fields)
+        if (activeTab === 'personal') {
+            const errors = getCurrentTabErrors();
+            return Object.keys(errors).length === 0;
+        }
+        return true;
+    }, [activeTab, getCurrentTabErrors]);
 
     const handleNextTab = () => {
         if (isCurrentTabValid() && currentTabIndex < tabs.length - 1) {
@@ -678,11 +671,7 @@ export default function ApplicationManagement() {
     };
 
     const handleShowPreview = () => {
-        const allErrors = { ...validatePersonalTab(), ...validateEmergencyTab(), ...validateEmploymentTab(), ...validateBankTab(), ...validateSignaturesTab(), ...validateDeclarationTab() };
-        if (Object.keys(allErrors).length > 0) {
-            showNotification('error', 'Please fill all required fields before preview');
-            return;
-        }
+        // No validation – preview is always allowed
         setShowPreview(true);
     };
 
@@ -690,25 +679,17 @@ export default function ApplicationManagement() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const requiredFields = [
-            'fullName', 'dob', 'fatherName', 'address', 'contactNo', 'email', 'pinCode', 'panNumber', 'aadharNumber',
-            'nameAsPerBank', 'bankName', 'accountNo', 'ifscCode'
-        ];
-        for (const field of requiredFields) {
-            if (!formData[field]) { showNotification('error', `${field.replace(/([A-Z])/g, ' $1').trim()} is required`); return; }
+        // Only require fullName
+        if (!formData.fullName) {
+            showNotification('error', 'Full Name is required');
+            return;
         }
-        const hasValidEmergency = formData.emergencyContacts.some(c => c.name && c.location && c.phone && c.relationship);
-        if (!hasValidEmergency) { showNotification('error', 'At least one complete emergency contact is required'); return; }
-        if (!formData.legalCasesPending) { showNotification('error', 'Please select if any legal cases are pending'); return; }
-        if (!formData.declaration) { showNotification('error', 'Please accept the declaration'); return; }
-        if (!formData.applicantSignature) { showNotification('error', 'Applicant signature is required'); return; }
-        if (!formData.referrerSignature) { showNotification('error', 'Referrer signature is required'); return; }
+        // No other required checks
 
         setIsLoading(true);
         try {
             const url = '/api/application';
             const method = currentView === 'edit' ? 'PUT' : 'POST';
-            // For edit, use applicationId (custom ID) not _id
             const body = currentView === 'edit' ? { id: currentApplication._id, ...formData } : { ...formData };
             const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await response.json();
@@ -880,23 +861,7 @@ export default function ApplicationManagement() {
                 const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName); // skip empty
                 const results = await Promise.allSettled(
                     mappedData.map(async (appData, idx) => {
-                        const missing = [];
-                        if (!appData.fullName) missing.push('Full Name');
-                        if (!appData.dob) missing.push('Date of Birth');
-                        if (!appData.fatherName) missing.push("Father's/Husband's Name");
-                        if (!appData.address) missing.push('Address');
-                        if (!appData.contactNo) missing.push('Contact Number');
-                        if (!appData.email) missing.push('Email ID');
-                        if (!appData.pinCode) missing.push('Pin Code');
-                        if (!appData.panNumber) missing.push('PAN Number');
-                        if (!appData.aadharNumber) missing.push('Aadhar Number');
-                        if (!appData.nameAsPerBank) missing.push('Name as per Bank');
-                        if (!appData.bankName) missing.push('Bank Name');
-                        if (!appData.accountNo) missing.push('Account Number');
-                        if (!appData.ifscCode) missing.push('IFSC Code');
-                        if (missing.length) throw new Error(`Row ${idx + 1}: Missing fields - ${missing.join(', ')}`);
-                        if (!appData.emergencyContacts || appData.emergencyContacts.length === 0)
-                            appData.emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
+                        if (!appData.fullName) throw new Error(`Row ${idx + 1}: Full Name is required`);
                         const response = await fetch('/api/application', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(appData) });
                         const result = await response.json();
                         if (!result.success) throw new Error(result.error || 'Submission failed');
@@ -1403,15 +1368,15 @@ export default function ApplicationManagement() {
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
                                     <InputField label="Referred By" name="referredBy" placeholder="Enter Refer Name" value={formData.referredBy} onChange={handleChange} required={false} />
                                     <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
-                                    <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required />
-                                    <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required />
+                                    <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required={false} />
+                                    <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required={false} />
                                     <InputField label="Blood Group" name="bloodGroup" placeholder="e.g., A+, B+, O+" value={formData.bloodGroup} onChange={handleChange} required={false} />
-                                    <InputField label="Address" name="address" placeholder="Complete address" value={formData.address} onChange={handleChange} required maxLength={200} />
-                                    <InputField label="Contact Number" name="contactNo" type="tel" placeholder="9876543210" value={formData.contactNo} onChange={handleChange} validation="mobile" required maxLength={10} />
-                                    <InputField label="Email ID" name="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} validation="email" required />
-                                    <InputField label="Pin Code" name="pinCode" placeholder="Pincode" value={formData.pinCode} onChange={handleChange} validation="pincode" required maxLength={6} />
-                                    <InputField label="PAN Number" name="panNumber" placeholder="ABCDE1234F" value={formData.panNumber} onChange={handleChange} validation="pan" required maxLength={10} />
-                                    <InputField label="Aadhar Number" name="aadharNumber" placeholder="123456789012" value={formData.aadharNumber} onChange={handleChange} validation="aadhar" required maxLength={12} />
+                                    <InputField label="Address" name="address" placeholder="Complete address" value={formData.address} onChange={handleChange} required={false} maxLength={200} />
+                                    <InputField label="Contact Number" name="contactNo" type="tel" placeholder="9876543210" value={formData.contactNo} onChange={handleChange} validation="mobile" required={false} maxLength={10} />
+                                    <InputField label="Email ID" name="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} validation="email" required={false} />
+                                    <InputField label="Pin Code" name="pinCode" placeholder="Pincode" value={formData.pinCode} onChange={handleChange} validation="pincode" required={false} maxLength={6} />
+                                    <InputField label="PAN Number" name="panNumber" placeholder="ABCDE1234F" value={formData.panNumber} onChange={handleChange} validation="pan" required={false} maxLength={10} />
+                                    <InputField label="Aadhar Number" name="aadharNumber" placeholder="123456789012" value={formData.aadharNumber} onChange={handleChange} validation="aadhar" required={false} maxLength={12} />
                                 </div>
                             </div>
                         )}
@@ -1422,7 +1387,7 @@ export default function ApplicationManagement() {
                                     <h3 className="text-lg font-semibold text-gray-900">Emergency Contact Details</h3>
                                     {formData.emergencyContacts.length < 5 && <button type="button" onClick={addEmergencyContact} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">+ Add More Contact</button>}
                                 </div>
-                                <p className="text-sm text-gray-500 mb-4">At least one complete emergency contact is required. You can add up to 5 contacts.</p>
+                                <p className="text-sm text-gray-500 mb-4">You can add up to 5 contacts (optional).</p>
                                 {formData.emergencyContacts.map((contact, index) => (
                                     <EmergencyContact key={index} index={index} contact={contact} onChange={handleEmergencyContactChange} onRemove={removeEmergencyContact} canRemove={formData.emergencyContacts.length > 1} />
                                 ))}
@@ -1438,7 +1403,7 @@ export default function ApplicationManagement() {
                                     <InputField label="Educational Qualification" name="educationalQualification" placeholder="Highest educational qualification" value={formData.educationalQualification} onChange={handleChange} required={false} />
                                 </div>
                                 <div className="mt-6">
-                                    <RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required />
+                                    <RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required={false} />
                                 </div>
                             </div>
                         )}
@@ -1450,12 +1415,12 @@ export default function ApplicationManagement() {
                                     <p className="text-sm text-yellow-800"><span className="font-semibold">Note:</span> Please ensure all bank details are correct. Payments will be processed to the provided bank account.</p>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <InputField label="Name as per Bank" name="nameAsPerBank" placeholder="Name exactly as in bank account" value={formData.nameAsPerBank} onChange={handleChange} validation="name" required />
-                                    <InputField label="Bank Name" name="bankName" placeholder="Name of the bank" value={formData.bankName} onChange={handleChange} required />
-                                    <InputField label="Account Number" name="accountNo" placeholder="Bank account number" value={formData.accountNo} onChange={handleChange} validation="accountNo" required maxLength={18} />
-                                    <InputField label="IFSC Code" name="ifscCode" placeholder="IFSC code (e.g., SBIN0012345)" value={formData.ifscCode} onChange={handleChange} validation="ifsc" required maxLength={11} />
-                                    <InputField label="Branch" name="branch" placeholder="Bank branch name" value={formData.branch} onChange={handleChange} required />
-                                    <InputField label="City" name="bankCity" placeholder="Bank branch city" value={formData.bankCity} onChange={handleChange} validation="name" required />
+                                    <InputField label="Name as per Bank" name="nameAsPerBank" placeholder="Name exactly as in bank account" value={formData.nameAsPerBank} onChange={handleChange} validation="name" required={false} />
+                                    <InputField label="Bank Name" name="bankName" placeholder="Name of the bank" value={formData.bankName} onChange={handleChange} required={false} />
+                                    <InputField label="Account Number" name="accountNo" placeholder="Bank account number" value={formData.accountNo} onChange={handleChange} validation="accountNo" required={false} maxLength={18} />
+                                    <InputField label="IFSC Code" name="ifscCode" placeholder="IFSC code (e.g., SBIN0012345)" value={formData.ifscCode} onChange={handleChange} validation="ifsc" required={false} maxLength={11} />
+                                    <InputField label="Branch" name="branch" placeholder="Bank branch name" value={formData.branch} onChange={handleChange} required={false} />
+                                    <InputField label="City" name="bankCity" placeholder="Bank branch city" value={formData.bankCity} onChange={handleChange} validation="name" required={false} />
                                 </div>
                             </div>
                         )}
@@ -1464,8 +1429,8 @@ export default function ApplicationManagement() {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signatures</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} />
-                                    <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} />
+                                    <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} required={false} />
+                                    <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} required={false} />
                                 </div>
                             </div>
                         )}
@@ -1474,7 +1439,7 @@ export default function ApplicationManagement() {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Declaration</h3>
                                 <TextArea label="Declaration Note" name="declarationNote" placeholder="Enter any additional declaration notes here..." value={formData.declarationNote} onChange={handleChange} required={false} rows={5} />
-                                <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required description="Please read and accept the declaration to proceed." />
+                                <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required={false} description="(Optional) Please read and accept the declaration." />
                             </div>
                         )}
                         {/* Navigation Buttons */}
