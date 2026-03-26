@@ -474,12 +474,15 @@ export default function ApplicationManagement() {
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isTableLoading, setIsTableLoading] = useState(false);
     const [notification, setNotification] = useState(null);
     const [activeTab, setActiveTab] = useState('personal');
     const [showPreview, setShowPreview] = useState(false);
     const [tabErrors, setTabErrors] = useState({});
     const [isImporting, setIsImporting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
     const currentTabIndex = tabs.indexOf(activeTab);
@@ -518,7 +521,7 @@ export default function ApplicationManagement() {
     useEffect(() => { fetchApplications(); }, []);
 
     const fetchApplications = async () => {
-        setIsLoading(true);
+        setIsTableLoading(true);
         try {
             const response = await fetch('/api/application');
             const data = await response.json();
@@ -526,7 +529,9 @@ export default function ApplicationManagement() {
         } catch (error) {
             console.error('Error fetching applications:', error);
             showNotification('error', 'Failed to fetch applications');
-        } finally { setIsLoading(false); }
+        } finally {
+            setIsTableLoading(false);
+        }
     };
 
     const showNotification = (type, message) => {
@@ -702,7 +707,8 @@ export default function ApplicationManagement() {
         try {
             const url = '/api/application';
             const method = currentView === 'edit' ? 'PUT' : 'POST';
-            const body = currentView === 'edit' ? { id: currentApplication._id, ...formData } : { ...formData };
+            // For edit, use applicationId (custom ID) not _id
+            const body = currentView === 'edit' ? { applicationId: currentApplication.applicationId, ...formData } : { ...formData };
             const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await response.json();
             if (data.success) {
@@ -717,7 +723,9 @@ export default function ApplicationManagement() {
         } catch (error) {
             console.error(error);
             showNotification('error', 'Network error. Please try again.');
-        } finally { setIsLoading(false); }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleEdit = async (application) => {
@@ -766,23 +774,28 @@ export default function ApplicationManagement() {
         } catch (error) {
             console.error(error);
             showNotification('error', 'Network error. Please try again.');
-        } finally { setIsLoading(false); }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleDelete = async (applicationId) => {
         if (!confirm('Are you sure you want to delete this application?')) return;
+        setIsTableLoading(true);
         try {
             const response = await fetch(`/api/application?id=${applicationId}`, { method: 'DELETE' });
             const data = await response.json();
             if (data.success) {
                 showNotification('success', 'Application deleted!');
-                fetchApplications();
+                await fetchApplications();
             } else {
                 showNotification('error', data.error || 'Failed to delete');
+                setIsTableLoading(false);
             }
         } catch (error) {
             console.error(error);
             showNotification('error', 'Network error');
+            setIsTableLoading(false);
         }
     };
 
@@ -1021,16 +1034,11 @@ export default function ApplicationManagement() {
         }
     };
 
-    const [selectedApplication, setSelectedApplication] = useState(null);
-    const [showDetailsModal, setShowDetailsModal] = useState(false);
-
-    // Add this function to open the details modal
     const handleViewDetails = (app) => {
         setSelectedApplication(app);
         setShowDetailsModal(true);
     };
 
-    // Add this component inside the component (or outside as a separate function)
     const DetailsModal = ({ application, onClose }) => {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -1265,7 +1273,12 @@ export default function ApplicationManagement() {
                         </button>
                     </div>
                     {/* Table */}
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
+                        {isTableLoading && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-10">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
+                            </div>
+                        )}
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
@@ -1278,10 +1291,12 @@ export default function ApplicationManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {isLoading ? (
-                                        <tr><td colSpan="6" className="px-6 py-4 text-center text-gray-500">Loading...</td></tr>
-                                    ) : filteredApplications.length === 0 ? (
-                                        <tr><td colSpan="6" className="px-6 py-4 text-center text-gray-500">No applications found</td></tr>
+                                    {filteredApplications.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                                                {isTableLoading ? 'Loading...' : 'No applications found'}
+                                            </td>
+                                        </tr>
                                     ) : (
                                         filteredApplications.map((app) => (
                                             <tr key={app._id} className="hover:bg-gray-50">
@@ -1301,9 +1316,15 @@ export default function ApplicationManagement() {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye size={20} /></button>
-                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit size={20} /></button>
-                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash size={20} /></button>
+                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details">
+                                                        <Eye size={24} />
+                                                    </button>
+                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit">
+                                                        <Edit size={24} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800" aria-label="Delete">
+                                                        <Trash size={24} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
@@ -1317,6 +1338,7 @@ export default function ApplicationManagement() {
                     @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                     .animate-slide-in { animation: slide-in 0.3s ease-out; }
                 `}</style>
+                {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
             </div>
         );
     }
