@@ -708,7 +708,7 @@ export default function ApplicationManagement() {
             const url = '/api/application';
             const method = currentView === 'edit' ? 'PUT' : 'POST';
             // For edit, use applicationId (custom ID) not _id
-            const body = currentView === 'edit' ? { applicationId: currentApplication.applicationId, ...formData } : { ...formData };
+            const body = currentView === 'edit' ? { id: currentApplication._id, ...formData } : { ...formData };
             const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await response.json();
             if (data.success) {
@@ -1312,13 +1312,13 @@ export default function ApplicationManagement() {
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details">
-                                                        <Eye size={22} />
+                                                        <Eye size={20} />
                                                     </button>
                                                     <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit">
-                                                        <Edit size={22} />
+                                                        <Edit size={20} />
                                                     </button>
                                                     <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800" aria-label="Delete">
-                                                        <Trash size={22} />
+                                                        <Trash size={20} />
                                                     </button>
                                                 </td>
                                             </tr>
