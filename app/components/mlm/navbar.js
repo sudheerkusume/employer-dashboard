@@ -10,6 +10,7 @@ export default function MLMNavbar() {
     const [userName, setUserName] = useState("");
     const [userCode, setUserCode] = useState("");
     const [userLevel, setUserLevel] = useState("");
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
         // Get MLM user info from localStorage
@@ -21,6 +22,9 @@ export default function MLMNavbar() {
             setUserCode(code);
             setUserName(name || code);
             setUserLevel(level || "");
+            setIsLoggedIn(true);
+        } else {
+            setIsLoggedIn(false);
         }
     }, []);
 
@@ -28,16 +32,24 @@ export default function MLMNavbar() {
         localStorage.removeItem("mlm_user_code");
         localStorage.removeItem("mlm_user_name");
         localStorage.removeItem("mlm_user_level");
+        setIsLoggedIn(false);
+        setUserCode("");
+        setUserName("");
+        setUserLevel("");
         router.push("/");
     };
 
+    // Navigation items only for logged-in users
     const navItems = [
         { path: "/mlm/dashboard", label: "Dashboard", icon: "🏠" },
         { path: "/mlm/tree", label: "Tree", icon: "🌳" },
         { path: "/mlm/commissions", label: "Commissions", icon: "💰" },
-        { path: "/mlm/sales", label: "Record Sale", icon: "💵" },
-        { path: "/mlm/register", label: "Add Member", icon: "👤" }
+        { path: "/mlm/sales", label: "Record Sale", icon: "💵" }
     ];
+
+    if (code === "GM") {
+        navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
+    }
 
     return (
         <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -47,58 +59,73 @@ export default function MLMNavbar() {
                         <Link href="/" className="text-xl font-bold text-[#DAA520]">
                             Real Beez
                         </Link>
-                        <div className="hidden md:flex space-x-1">
+
+                        {/* Desktop Navigation - only when logged in */}
+                        {isLoggedIn && (
+                            <div className="hidden md:flex space-x-1">
+                                {navItems.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        href={item.path}
+                                        className={`px-3 py-2 rounded-md text-sm font-medium transition ${pathname === item.path
+                                            ? "bg-yellow-100 text-yellow-700"
+                                            : "text-gray-600 hover:bg-gray-100"
+                                            }`}
+                                    >
+                                        <span className="mr-1">{item.icon}</span>
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                        {isLoggedIn ? (
+                            <>
+                                <div className="text-right">
+                                    <div className="text-sm font-medium text-gray-700">{userName}</div>
+                                    <div className="text-xs text-gray-500">
+                                        {userCode} {userLevel && `• ${userLevel}`}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md transition"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <Link
+                                href="/mlm/login"
+                                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-sm"
+                            >
+                                Login
+                            </Link>
+                        )}
+                    </div>
+                </div>
+
+                {/* Mobile Navigation - only when logged in */}
+                {isLoggedIn && (
+                    <div className="md:hidden overflow-x-auto pb-2">
+                        <div className="flex space-x-2">
                             {navItems.map((item) => (
                                 <Link
                                     key={item.path}
                                     href={item.path}
-                                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${pathname === item.path
+                                    className={`px-3 py-1 rounded-md text-sm whitespace-nowrap ${pathname === item.path
                                         ? "bg-yellow-100 text-yellow-700"
-                                        : "text-gray-600 hover:bg-gray-100"
+                                        : "text-gray-600"
                                         }`}
                                 >
-                                    <span className="mr-1">{item.icon}</span>
-                                    {item.label}
+                                    {item.icon} {item.label}
                                 </Link>
                             ))}
                         </div>
                     </div>
-
-                    <div className="flex items-center space-x-4">
-                        {userCode && (
-                            <div className="text-right">
-                                <div className="text-sm font-medium text-gray-700">{userName}</div>
-                                <div className="text-xs text-gray-500">
-                                    {userCode} {userLevel && `• ${userLevel}`}
-                                </div>
-                            </div>
-                        )}
-                        <button
-                            onClick={handleLogout}
-                            className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md transition"
-                        >
-                            Logout
-                        </button>
-                    </div>
-                </div>
-
-                {/* Mobile Navigation */}
-                <div className="md:hidden overflow-x-auto pb-2">
-                    <div className="flex space-x-2">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                href={item.path}
-                                className={`px-3 py-1 rounded-md text-sm whitespace-nowrap ${pathname === item.path
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "text-gray-600"
-                                    }`}
-                            >
-                                {item.icon} {item.label}
-                            </Link>
-                        ))}
-                    </div>
-                </div>
+                )}
             </div>
         </nav>
     );

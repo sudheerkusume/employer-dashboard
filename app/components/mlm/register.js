@@ -422,7 +422,7 @@ const DigitalSignature = memo(({ label, name, value, onChange, required = false 
                         <canvas ref={canvasRef} className="w-full cursor-crosshair" style={{ height: '200px', width: '100%' }} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
                     </div>
                     <div className="flex gap-2 mt-3">
-                        <button type="button" onClick={clearSignature} className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">🗑️ Clear</button>
+                        <button type="button" onClick={clearSignature} className="px-4 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Clear</button>
                         <p className="text-xs text-gray-500 self-center ml-2">Draw your signature using mouse or touch</p>
                     </div>
                 </div>

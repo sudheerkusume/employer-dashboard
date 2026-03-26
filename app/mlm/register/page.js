@@ -1,6 +1,6 @@
 export const runtime = "edge";
-import ApplicationManagement from "../../components/applicants";
+import AddMemberPage from "@/app/components/mlm/register";
 
 export default async function Page() {
-    return <ApplicationManagement />
+    return <AddMemberPage />
 }

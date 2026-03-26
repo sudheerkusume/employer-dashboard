@@ -1,6 +1,5 @@
 // app/api/mlm/user/route.js
 import clientPromise from "@/app/components/lib/db";
-import { ObjectId } from "mongodb";
 
 export async function GET(req) {
     try {
@@ -13,7 +12,7 @@ export async function GET(req) {
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const users = db.collection("mlm_users");
+        const users = db.collection("marketing_applications");
 
         const user = await users.findOne({ userCode: code.toUpperCase() });
 

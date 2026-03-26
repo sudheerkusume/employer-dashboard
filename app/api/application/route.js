@@ -456,7 +456,6 @@ export async function GET(req) {
 }
 
 // ✅ PUT: Update application (full update or status update)
-// ✅ PUT: Update application (status update or partial update)
 export async function PUT(req) {
     try {
         const body = await req.json();
