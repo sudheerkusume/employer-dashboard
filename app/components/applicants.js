@@ -1032,7 +1032,6 @@ export default function ApplicationManagement() {
 
     // Add this component inside the component (or outside as a separate function)
     const DetailsModal = ({ application, onClose }) => {
-        if (!application) return null;
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -1302,9 +1301,9 @@ export default function ApplicationManagement() {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye size={10} /></button>
-                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit size={10} /></button>
-                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash size={10} /></button>
+                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3"><Eye size={20} /></button>
+                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3"><Edit size={20} /></button>
+                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800"><Trash size={20} /></button>
                                                 </td>
                                             </tr>
                                         ))
@@ -1477,9 +1476,7 @@ export default function ApplicationManagement() {
                     </form>
                 </div>
                 {showPreview && <PreviewSection />}
-                {showDetailsModal && (
-                    <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />
-                )}
+                {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
             </div>
             <style jsx>{`
                 @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
