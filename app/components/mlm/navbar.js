@@ -46,6 +46,7 @@ export default function MLMNavbar() {
         { path: "/mlm/commissions", label: "Commissions", icon: "💰" },
         { path: "/mlm/sales", label: "Record Sale", icon: "💵" }
     ];
+    const code = localStorage && localStorage.getItem("mlm_user_code");
 
     if (code === "GM") {
         navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
