@@ -1,45 +1,51 @@
-// app/api/mlm/user/route.js
 import clientPromise from "@/app/components/lib/db";
 
 export async function GET(req) {
     try {
         const url = new URL(req.url);
-        const applicationId = url.searchParams.get("applicationId");
+        const identifier = url.searchParams.get("userId"); // could be either appId or userCode
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const users = db.collection("marketing_applications");
+        const applications = db.collection("marketing_applications");
 
-        // If a applicationId is provided, return a single user
-        if (applicationId) {
-            const user = await users.findOne({ applicationId: applicationId.toUpperCase() });
+        // If an identifier is provided, search both fields
+        if (identifier) {
+            const user = await applications.findOne({
+                $or: [
+                    { applicationId: identifier.toUpperCase() },
+                    { mlmUserCode: identifier.toUpperCase() }
+                ]
+            });
 
             if (!user) {
                 return Response.json({ error: "User not found", success: false }, { status: 404 });
             }
 
+            // Return user data for login
             return Response.json({
                 success: true,
                 user: {
+                    userCode: user.mlmUserCode || user.applicationId, // use mlmUserCode if exists, else appId
                     applicationId: user.applicationId,
                     fullName: user.fullName,
-                    level: user.level,
+                    level: user.level || "ME",          // default if not yet approved
                     email: user.email,
                     contactNo: user.contactNo,
                 }
             });
         }
 
-        // No applicationId provided: return all users
-        // Optionally add pagination: limit, skip, etc. (example: limit 50)
-        const allUsers = await users.find({})
+        // No identifier: return all applications (admin list)
+        const allUsers = await applications.find({})
             .project({
                 applicationId: 1,
                 fullName: 1,
                 level: 1,
                 email: 1,
                 contactNo: 1,
-                _id: 1
+                mlmUserCode: 1,
+                _id: 0
             })
             .toArray();
 

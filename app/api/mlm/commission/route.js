@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 
 // Commission distribution function
 async function distributeCommission(db, userCode, amount, saleId) {
-    const users = db.collection("mlm_users");
+    const users = db.collection("marketing_applications");
     const commissions = db.collection("mlm_commissions");
 
     let current = await users.findOne({ userCode });
@@ -141,7 +141,7 @@ export async function POST(req) {
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const users = db.collection("mlm_users");
+        const users = db.collection("marketing_applications");
         const sales = db.collection("mlm_sales");
 
         // Find user

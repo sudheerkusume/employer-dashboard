@@ -2,6 +2,28 @@
 import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
 import Joi from "joi";
+import nodemailer from "nodemailer";
+
+
+// --- Email helper (only used in POST) ---
+async function sendEmail(to, subject, html) {
+    const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || 587,
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD,
+        },
+    });
+
+    await transporter.sendMail({
+        from: `"Real Beez Projects Pvt Ltd" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        html,
+    });
+}
 
 // --- Joi Schema for Application Form ---
 const applicationSchema = Joi.object({
@@ -138,7 +160,7 @@ const PROMOTION_THRESHOLDS = {
 
 async function generateUserCode(db, level) {
     const prefix = level; // e.g., "ME"
-    const lastUser = await db.collection('mlm_users').findOne(
+    const lastUser = await db.collection('marketing_applications').findOne(
         { userCode: { $regex: `^${prefix}-\\d+$` } },
         { sort: { userCode: -1 } }
     );
@@ -151,7 +173,7 @@ async function generateUserCode(db, level) {
 }
 
 async function promoteUserIfNeeded(db, userCode) {
-    const user = await db.collection('mlm_users').findOne({ userCode });
+    const user = await db.collection('marketing_applications').findOne({ userCode });
     if (!user) return false;
 
     const currentLevel = user.level;
@@ -159,12 +181,12 @@ async function promoteUserIfNeeded(db, userCode) {
     if (!threshold || !threshold.next) return false;
 
     // Count direct children that are at the same level as currentLevel
-    const children = await db.collection('mlm_users').find({ sponsorCode: userCode }).toArray();
+    const children = await db.collection('marketing_applications').find({ sponsorCode: userCode }).toArray();
     const count = children.filter(child => child.level === currentLevel).length;
 
     if (count >= threshold.required) {
         // Promote
-        await db.collection('mlm_users').updateOne(
+        await db.collection('marketing_applications').updateOne(
             { userCode },
             { $set: { level: threshold.next, updatedAt: new Date().toISOString() } }
         );
@@ -199,11 +221,11 @@ async function createMlmMemberFromApplication(db, application) {
         _id: appId
     } = application;
 
-    // Validate referrer exists in mlm_users
+    // Validate referrer exists in marketing_applications
     if (!referredBy) {
         throw new Error('ReferredBy is required to create MLM member.');
     }
-    const sponsor = await db.collection('mlm_users').findOne({ userCode: referredBy });
+    const sponsor = await db.collection('marketing_applications').findOne({ userCode: referredBy });
     if (!sponsor) {
         throw new Error(`Referrer code "${referredBy}" not found in MLM network.`);
     }
@@ -239,10 +261,10 @@ async function createMlmMemberFromApplication(db, application) {
         applicationId: appId,
     };
 
-    await db.collection('mlm_users').insertOne(newMlmUser);
+    await db.collection('marketing_applications').insertOne(newMlmUser);
 
     // Update sponsor's children list and count
-    await db.collection('mlm_users').updateOne(
+    await db.collection('marketing_applications').updateOne(
         { userCode: referredBy },
         {
             $push: { children: userCode },
@@ -267,7 +289,7 @@ async function createMlmMemberFromApplication(db, application) {
 // API Routes
 // ======================
 
-// ✅ POST: Submit new application
+// ✅ POST: Submit new application (modified to send email)
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -281,7 +303,7 @@ export async function POST(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const applications = db.collection("marketing_applications");
 
-        // --- Duplicate checks only if field is provided ---
+        // Duplicate checks (unchanged)
         if (value.email) {
             const existingEmail = await applications.findOne({ email: value.email });
             if (existingEmail) {
@@ -307,10 +329,10 @@ export async function POST(req) {
             }
         }
 
-        // Generate application ID if not provided
-        const generatedAppId = value.applicationId || `APP${new Date().getFullYear()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        // Generate application ID
+        const generatedAppId = value.applicationId || `RB${new Date().getFullYear()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
 
-        // Build the document: only include fields that are present
+        // Build document (unchanged)
         const newApplication = {
             _id: new ObjectId(),
             applicationId: generatedAppId,
@@ -346,12 +368,31 @@ export async function POST(req) {
             appliedAt: value.appliedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             remarks: "",
-            mlmUserCode: null,
+            mlmUserCode: generateUserCode(),
         };
 
         await applications.insertOne(newApplication);
 
-        // Mask sensitive data for response
+        // --- Send email (only if email field is present) ---
+        if (newApplication.email) {
+            const emailHtml = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #ca8a04;">Application Received</h2>
+                    <p>Dear ${newApplication.fullName || 'Applicant'},</p>
+                    <p>Thank you for submitting your application. Your application has been successfully received.</p>
+                    <p><strong>Application ID:</strong> ${newApplication.applicationId}</p>
+                    <p><strong>User Code:</strong> ${newApplication.mlmUserCode}</p>
+                    <p>You will receive an email once your application is processed.</p>
+                    <hr />
+                    <p style="font-size: 12px; color: #666;">If you have any questions, please contact support.</p>
+                </div>
+            `;
+            // Send email asynchronously – don't await to avoid blocking response
+            sendEmail(newApplication.email, "Application Received - Real Beez Projects Pvt Ltd", emailHtml)
+                .catch(err => console.error("❌ Failed to send confirmation email:", err));
+        }
+
+        // Mask sensitive data for response (unchanged)
         const responseData = { ...newApplication };
         if (responseData.accountNo) responseData.accountNo = "****" + responseData.accountNo.slice(-4);
         if (responseData.aadharNumber) responseData.aadharNumber = "****" + responseData.aadharNumber.slice(-4);

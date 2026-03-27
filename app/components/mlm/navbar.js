@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function MLMNavbar() {
     const pathname = usePathname();
@@ -54,12 +55,17 @@ export default function MLMNavbar() {
     // }
 
     return (
-        <nav className="bg-white shadow-md sticky top-0 z-50">
+        <nav className="sticky top-0 z-50 bg-gradient-to-b from-yellow-100 to-yellow-50 backdrop-blur-md">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center py-3">
                     <div className="flex items-center space-x-4">
                         <Link href="/" className="text-xl font-bold text-[#DAA520]">
-                            Real Beez
+                            <Image
+                                src="/realbeez.png"
+                                alt="Logo"
+                                width={150}
+                                height={100}
+                            />
                         </Link>
 
                         {/* Desktop Navigation - only when logged in */}

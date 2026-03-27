@@ -22,7 +22,7 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const res = await fetch(`/api/mlm/users?applicationId=${encodeURIComponent(applicationId.toUpperCase())}`);
+            const res = await fetch(`/api/mlm/users?userId=${encodeURIComponent(applicationId.toUpperCase())}`);
             const data = await res.json();
 
             if (data.success) {
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 <div className="absolute -inset-1 bg-white rounded-3xl blur-md"></div>
                 <div className="relative bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
                     <div className="absolute inset-0 rounded-2xl bg-white/5 pointer-events-none"></div>
-                    <div href="/" className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-4">
                         <Image
                             src="/realbeez.png"
                             alt="Logo"
@@ -116,7 +116,7 @@ export default function LoginPage() {
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         <div>
                             <label htmlFor="applicationId" className="block text-sm font-medium text-gray-700">
-                                Application ID
+                                Application ID / User Code
                             </label>
                             <input
                                 id="applicationId"
