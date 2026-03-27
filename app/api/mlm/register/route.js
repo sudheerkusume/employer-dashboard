@@ -41,7 +41,7 @@ const registrationSchema = Joi.object({
 async function generateUserCode(db, level) {
     const prefix = level; // e.g., "ME"
     // Find the highest number for this prefix
-    const lastUser = await db.collection('mlm_users').findOne(
+    const lastUser = await db.collection('marketing_applications').findOne(
         { userCode: { $regex: `^${prefix}-\\d+$` } },
         { sort: { userCode: -1 } }
     );
@@ -55,7 +55,7 @@ async function generateUserCode(db, level) {
 
 // Helper to check and promote a user, recursively up the chain
 async function promoteUserIfNeeded(db, userCode) {
-    const user = await db.collection('mlm_users').findOne({ userCode });
+    const user = await db.collection('marketing_applications').findOne({ userCode });
     if (!user) return false;
 
     const currentLevel = user.level;
@@ -65,12 +65,12 @@ async function promoteUserIfNeeded(db, userCode) {
     // Count direct children that are at the same level as currentLevel (because we need this level's children to promote)
     // Actually promotion requires having 5 direct downlines at the current level.
     // So we need to count children whose level === currentLevel
-    const children = await db.collection('mlm_users').find({ sponsorCode: userCode }).toArray();
+    const children = await db.collection('marketing_applications').find({ sponsorCode: userCode }).toArray();
     const count = children.filter(child => child.level === currentLevel).length;
 
     if (count >= threshold.required) {
         // Promote
-        await db.collection('mlm_users').updateOne(
+        await db.collection('marketing_applications').updateOne(
             { userCode },
             { $set: { level: threshold.next, updatedAt: new Date().toISOString() } }
         );
@@ -119,7 +119,7 @@ export async function POST(req) {
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const users = db.collection('mlm_users');
+        const users = db.collection('marketing_applications');
 
         // Check if sponsor exists
         const sponsor = await users.findOne({ userCode: sponsorCode });
