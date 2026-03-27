@@ -1,9 +1,7 @@
-"use client";
+// app/page.js
+'use client';
 
-import { useState, useEffect, useCallback, memo, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 
 // ======================
@@ -125,15 +123,19 @@ DatePickerDropdown.displayName = 'DatePickerDropdown';
 // ======================
 // InputField Component
 // ======================
-const InputField = memo(({ label, name, type = 'text', required = true, placeholder = '', value, onChange, validation = 'none', maxLength, pattern, errorMessage }) => {
+const InputField = memo(({ label, name, type = 'text', required = false, placeholder = '', value, onChange, validation = 'none', maxLength, pattern, errorMessage }) => {
     const [error, setError] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [touched, setTouched] = useState(false);
     const [hasValue, setHasValue] = useState(false);
 
     const validateField = (val) => {
-        if (!required && !val) { setError(''); return true; }
-        if (required && !val && touched) { setError(`${label} is required`); return false; }
+        // Only required validation for fullName (name field)
+        if (required && !val && touched) {
+            setError(`${label} is required`);
+            return false;
+        }
+        // Format validations only if value provided
         if (val && val.length > 0) {
             switch (validation) {
                 case 'mobile':
@@ -256,7 +258,7 @@ InputField.displayName = 'InputField';
 // ======================
 // Radio Group Component
 // ======================
-const RadioGroup = memo(({ label, name, options, value, onChange, required = true }) => {
+const RadioGroup = memo(({ label, name, options, value, onChange, required = false }) => {
     const [error, setError] = useState('');
     const handleChange = (e) => {
         const syntheticEvent = { target: { name, value: e.target.value, type: 'radio' } };
@@ -265,11 +267,11 @@ const RadioGroup = memo(({ label, name, options, value, onChange, required = tru
         else setError('');
     };
     return (
-        <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
+        <div className="mb-4 flex gap-5 items-center">
+            <label className="block text-sm font-medium text-gray-700">{label} {required && <span className="text-red-500">*</span>}</label>
             <div className="flex gap-4">
                 {options.map(option => (
-                    <label key={option.value} className="flex items-center space-x-2">
+                    <label key={option.value} className="flex gap-2 items-center">
                         <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={handleChange} className="w-4 h-4 text-yellow-600 focus:ring-yellow-500" />
                         <span className="text-sm text-gray-700">{option.label}</span>
                     </label>
@@ -422,7 +424,7 @@ const DigitalSignature = memo(({ label, name, value, onChange, required = false 
                         <canvas ref={canvasRef} className="w-full cursor-crosshair" style={{ height: '200px', width: '100%' }} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
                     </div>
                     <div className="flex gap-2 mt-3">
-                        <button type="button" onClick={clearSignature} className="px-4 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Clear</button>
+                        <button type="button" onClick={clearSignature} className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">🗑️ Clear</button>
                         <p className="text-xs text-gray-500 self-center ml-2">Draw your signature using mouse or touch</p>
                     </div>
                 </div>
@@ -455,30 +457,32 @@ const EmergencyContact = memo(({ index, contact, onChange, onRemove, canRemove }
             {canRemove && <button type="button" onClick={() => onRemove(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
             <h4 className="text-md font-semibold text-gray-800 mb-3">Emergency Contact {index + 1}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="Name" name={`emergencyName_${index}`} placeholder="Emergency contact person name" value={contact.name} onChange={(e) => onChange(index, 'name', e.target.value)} validation="name" required={index === 0} />
-                <InputField label="Location" name={`emergencyLocation_${index}`} placeholder="City/Area" value={contact.location} onChange={(e) => onChange(index, 'location', e.target.value)} required={index === 0} />
-                <InputField label="Phone Number" name={`emergencyPhone_${index}`} type="tel" placeholder="9876543210" value={contact.phone} onChange={(e) => onChange(index, 'phone', e.target.value)} validation="mobile" required={index === 0} maxLength={10} />
-                <InputField label="Relationship" name={`emergencyRelationship_${index}`} placeholder="e.g., Father, Mother, Spouse" value={contact.relationship} onChange={(e) => onChange(index, 'relationship', e.target.value)} required={index === 0} />
+                <InputField label="Name" name={`emergencyName_${index}`} placeholder="Emergency contact person name" value={contact.name} onChange={(e) => onChange(index, 'name', e.target.value)} validation="name" required={false} />
+                <InputField label="Location" name={`emergencyLocation_${index}`} placeholder="City/Area" value={contact.location} onChange={(e) => onChange(index, 'location', e.target.value)} required={false} />
+                <InputField label="Phone Number" name={`emergencyPhone_${index}`} type="tel" placeholder="9876543210" value={contact.phone} onChange={(e) => onChange(index, 'phone', e.target.value)} validation="mobile" required={false} maxLength={10} />
+                <InputField label="Relationship" name={`emergencyRelationship_${index}`} placeholder="e.g., Father, Mother, Spouse" value={contact.relationship} onChange={(e) => onChange(index, 'relationship', e.target.value)} required={false} />
             </div>
         </div>
     );
 });
 EmergencyContact.displayName = 'EmergencyContact';
 
+// ======================
+// Main Application Component
+// ======================
+export default function ApplicationManagement() {
+    const [isLoading, setIsLoading] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const [activeTab, setActiveTab] = useState('personal');
+    const [showPreview, setShowPreview] = useState(false);
+    const [tabErrors, setTabErrors] = useState({});
 
-export default function AddMemberPage() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const sponsorParam = searchParams.get("sponsor");
-
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(null);
-    const [usersList, setUsersList] = useState([]);
-    const [loadingUsers, setLoadingUsers] = useState(true);
+    const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
+    const currentTabIndex = tabs.indexOf(activeTab);
+    const isLastTab = currentTabIndex === tabs.length - 1;
 
     const [formData, setFormData] = useState({
-        referredBy: sponsorParam || '',
+        applicationId: '',
         fullName: '',
         dob: '',
         fatherName: '',
@@ -489,6 +493,11 @@ export default function AddMemberPage() {
         pinCode: '',
         panNumber: '',
         aadharNumber: '',
+        emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
+        previousCompany: '',
+        previousDesignation: '',
+        educationalQualification: '',
+        legalCasesPending: '',
         nameAsPerBank: '',
         bankName: '',
         accountNo: '',
@@ -497,35 +506,21 @@ export default function AddMemberPage() {
         bankCity: '',
         declarationNote: '',
         declaration: false,
+        referrerSignature: '',
+        applicantSignature: '',
+        referredBy: "",
+        status: 'pending',
     });
 
 
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
-        setLoadingUsers(true);
-        try {
-            const res = await fetch('/api/mlm/users');
-            const data = await res.json();
-            if (data.success) {
-                setUsersList(data.users);
-            } else {
-                console.error('Failed to fetch users');
-            }
-        } catch (err) {
-            console.error('Error fetching users:', err);
-        } finally {
-            setLoadingUsers(false);
-        }
+    const showNotification = (type, message) => {
+        setNotification({ type, message });
+        setTimeout(() => setNotification(null), 3000);
     };
-
 
     const handleChange = useCallback((e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     }, []);
 
     const handleEmergencyContactChange = (index, field, value) => {
@@ -537,207 +532,411 @@ export default function AddMemberPage() {
     };
 
     const addEmergencyContact = () => {
-        if (formData.emergencyContacts?.length < 5) {
-            setFormData(prev => ({
-                ...prev,
-                emergencyContacts: [...prev.emergencyContacts, { name: "", location: "", phone: "", relationship: "" }]
-            }));
+        if (formData.emergencyContacts.length < 5) {
+            setFormData(prev => ({ ...prev, emergencyContacts: [...prev.emergencyContacts, { name: '', location: '', phone: '', relationship: '' }] }));
         } else {
-            setError("Maximum 5 emergency contacts allowed");
+            showNotification('error', 'Maximum 5 emergency contacts allowed');
         }
     };
 
     const removeEmergencyContact = (index) => {
-        if (formData.emergencyContacts?.length > 1) {
-            setFormData(prev => ({
-                ...prev,
-                emergencyContacts: prev.emergencyContacts?.filter((_, i) => i !== index)
-            }));
+        if (formData.emergencyContacts.length > 1) {
+            setFormData(prev => ({ ...prev, emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index) }));
         }
     };
+
+    // Validation functions (only fullName required)
+    const validatePersonalTab = useCallback(() => {
+        const errors = {};
+        if (!formData.fullName) errors.fullName = 'Full Name is required';
+        // Format validations only if value exists
+        if (formData.email && !/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(formData.email)) errors.email = 'Please enter a valid email address';
+        if (formData.contactNo && !/^[0-9]{10}$/.test(formData.contactNo)) errors.contactNo = 'Please enter a valid 10-digit mobile number';
+        if (formData.pinCode && !/^[0-9]{6}$/.test(formData.pinCode)) errors.pinCode = 'Please enter a valid 6-digit pincode';
+        if (formData.panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.panNumber.toUpperCase())) errors.panNumber = 'Please enter a valid PAN card number';
+        if (formData.aadharNumber && !/^[0-9]{12}$/.test(formData.aadharNumber)) errors.aadharNumber = 'Please enter a valid 12-digit Aadhar number';
+        if (formData.dob) {
+            const dobDate = new Date(formData.dob);
+            const today = new Date();
+            let age = today.getFullYear() - dobDate.getFullYear();
+            const monthDiff = today.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) age--;
+            if (age < 18) errors.dob = 'Age must be 18 years or above';
+        }
+        return errors;
+    }, [formData.fullName, formData.email, formData.contactNo, formData.pinCode, formData.panNumber, formData.aadharNumber, formData.dob]);
+
+    const validateEmergencyTab = useCallback(() => {
+        const errors = {};
+        // No required fields – only format checks on provided values
+        formData.emergencyContacts.forEach((contact, idx) => {
+            if (contact.phone && !/^[0-9]{10}$/.test(contact.phone)) errors[`emergencyPhone_${idx}`] = 'Please enter a valid 10-digit phone number';
+        });
+        return errors;
+    }, [formData.emergencyContacts]);
+
+    const validateEmploymentTab = useCallback(() => {
+        const errors = {};
+        // No required fields
+        return errors;
+    }, []);
+
+    const validateBankTab = useCallback(() => {
+        const errors = {};
+        if (formData.accountNo && !/^[0-9]{9,18}$/.test(formData.accountNo)) errors.accountNo = 'Account number should be 9-18 digits only';
+        if (formData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.toUpperCase())) errors.ifscCode = 'Please enter a valid IFSC code';
+        return errors;
+    }, [formData.accountNo, formData.ifscCode]);
+
+    const validateSignaturesTab = useCallback(() => {
+        const errors = {};
+        // No required fields
+        return errors;
+    }, []);
+
+    const validateDeclarationTab = useCallback(() => {
+        const errors = {};
+        // No required fields
+        return errors;
+    }, []);
+
+    const getCurrentTabErrors = useCallback(() => {
+        switch (activeTab) {
+            case 'personal': return validatePersonalTab();
+            case 'emergency': return validateEmergencyTab();
+            case 'employment': return validateEmploymentTab();
+            case 'bank': return validateBankTab();
+            case 'signatures': return validateSignaturesTab();
+            case 'declaration': return validateDeclarationTab();
+            default: return {};
+        }
+    }, [activeTab, validatePersonalTab, validateEmergencyTab, validateEmploymentTab, validateBankTab, validateSignaturesTab, validateDeclarationTab]);
+
+    useEffect(() => {
+        const errors = getCurrentTabErrors();
+        setTabErrors(prev => {
+            const currentErrors = prev[activeTab] || {};
+            if (JSON.stringify(currentErrors) !== JSON.stringify(errors)) return { ...prev, [activeTab]: errors };
+            return prev;
+        });
+    }, [getCurrentTabErrors, activeTab]);
+
+    const isCurrentTabValid = useCallback(() => {
+        // Only personal tab has required field (fullName), others are always valid (no required fields)
+        if (activeTab === 'personal') {
+            const errors = getCurrentTabErrors();
+            return Object.keys(errors).length === 0;
+        }
+        return true;
+    }, [activeTab, getCurrentTabErrors]);
+
+    const handleNextTab = () => {
+        if (isCurrentTabValid() && currentTabIndex < tabs.length - 1) {
+            setActiveTab(tabs[currentTabIndex + 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handlePreviousTab = () => {
+        if (currentTabIndex > 0) {
+            setActiveTab(tabs[currentTabIndex - 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handleShowPreview = () => {
+        // No validation – preview is always allowed
+        setShowPreview(true);
+    };
+
+    const handleClosePreview = () => setShowPreview(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
-        setSuccess(null);
+        // Only require fullName
+        if (!formData.fullName) {
+            showNotification('error', 'Full Name is required');
+            return;
+        }
+        // No other required checks
 
-
-        if (!formData.referredBy) {
-            setError('Please select a referrer');
-            return;
-        }
-
-        // Basic validation
-        const required = [
-            "fullName", "dob", "fatherName", "address", "contactNo", "email", "pinCode",
-            "panNumber", "aadharNumber", "nameAsPerBank", "bankName", "accountNo", "ifscCode"
-        ];
-        for (const field of required) {
-            if (!formData[field]) {
-                setError(`${field.replace(/([A-Z])/g, ' $1').trim()} is required`);
-                return;
-            }
-        }
-        const hasValidEmergency = formData.emergencyContacts?.some(c => c.name && c.location && c.phone && c.relationship);
-        if (!hasValidEmergency) {
-            setError("At least one complete emergency contact is required");
-            return;
-        }
-        if (!formData.legalCasesPending) {
-            setError("Please select if any legal cases are pending");
-            return;
-        }
-        if (!formData.declaration) {
-            setError("Please accept the declaration");
-            return;
-        }
-        if (!formData.applicantSignature) {
-            setError("Applicant signature is required");
-            return;
-        }
-        if (!formData.referrerSignature) {
-            setError("Referrer signature is required");
-            return;
-        }
-
-        setLoading(true);
+        setIsLoading(true);
         try {
-            const res = await fetch("/api/application", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            });
-            const data = await res.json();
+            const url = '/api/application';
+            const method = 'POST';
+            const body = { ...formData };
+            const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = await response.json();
             if (data.success) {
-                setSuccess("Application submitted successfully! It will be reviewed by admin.");
-                // Optionally redirect after delay
-                setTimeout(() => router.push("/mlm/dashboard"), 3000);
+                showNotification('success', 'Register Successfully!');
+                setShowPreview(false);
+                resetForm();
             } else {
-                setError(data.error || "Submission failed");
+                showNotification('error', data.error || 'Something went wrong');
             }
-        } catch (err) {
-            console.error(err);
-            setError("Network error. Please try again.");
+        } catch (error) {
+            console.error(error);
+            showNotification('error', 'Network error. Please try again.');
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
-    return (
-        <div className="min-h-screen bg-gray-50 text-gray-900 py-8">
-            <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Add New Member</h1>
+
+    const resetForm = () => {
+        setFormData({
+            applicationId: '', fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
+            emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
+            previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
+            nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', status: 'pending',
+        });
+        setActiveTab('personal');
+        setShowPreview(false);
+    };
+
+
+    const PreviewSection = () => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center rounded-t-lg">
+                    <h2 className="text-xl font-bold text-gray-900">Application Preview</h2>
+                    <button onClick={handleClosePreview} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100"><X size={24} /></button>
                 </div>
-
-                {error && (
-                    <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                        {error}
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    {/* Personal Details */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                            <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
+                            <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
+                            <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
+                            <p><strong>Father's/Husband's Name:</strong> {formData.fatherName || 'Not provided'}</p>
+                            <p><strong>Blood Group:</strong> {formData.bloodGroup || 'Not provided'}</p>
+                            <p><strong>Address:</strong> {formData.address || 'Not provided'}</p>
+                            <p><strong>Contact No:</strong> {formData.contactNo || 'Not provided'}</p>
+                            <p><strong>Email ID:</strong> {formData.email || 'Not provided'}</p>
+                            <p><strong>Pin Code:</strong> {formData.pinCode || 'Not provided'}</p>
+                            <p><strong>PAN Number:</strong> {formData.panNumber || 'Not provided'}</p>
+                            <p><strong>Aadhar Number:</strong> {formData.aadharNumber || 'Not provided'}</p>
+                        </div>
                     </div>
-                )}
-                {success && (
-                    <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-                        {success}
+                    {/* Emergency Contacts */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Emergency Contact Details</h3>
+                        {formData.emergencyContacts.map((contact, idx) => contact.name && contact.location && contact.phone && (
+                            <div key={idx} className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                <p className="font-semibold">Contact {idx + 1}</p>
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <p><strong>Name:</strong> {contact.name}</p>
+                                    <p><strong>Location:</strong> {contact.location}</p>
+                                    <p><strong>Phone:</strong> {contact.phone}</p>
+                                    <p><strong>Relationship:</strong> {contact.relationship}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="bg-white text-gray-900 rounded-lg shadow-sm p-6">
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Referred By *</label>
-                        {loadingUsers ? (
-                            <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">Loading referrers...</div>
-                        ) : (
-                            <select
-                                name="referredBy"
-                                value={formData.referredBy}
-                                onChange={handleChange}
-                                required
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                            >
-                                <option value="">Select a referrer</option>
-                                {usersList.map(user => (
-                                    <option key={user.userCode} value={user.userCode}>
-                                        {user.fullName} ({user.userCode})
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">This member will be placed under your selected referrer</p>
+                    {/* Previous Employment */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Previous Employment Details</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Company Name:</strong> {formData.previousCompany || 'Not provided'}</p>
+                            <p><strong>Designation:</strong> {formData.previousDesignation || 'Not provided'}</p>
+                            <p><strong>Educational Qualification:</strong> {formData.educationalQualification || 'Not provided'}</p>
+                        </div>
                     </div>
-
-                    <h2 className="text-xl font-semibold mb-4">Personal Details</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Full Name" name="fullName" placeholder="Full name" value={formData.fullName} onChange={handleChange} validation="name" required />
-                        <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required />
-                        <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required />
-                        <InputField label="Blood Group" name="bloodGroup" placeholder="e.g., A+, B+, O+" value={formData.bloodGroup} onChange={handleChange} required={false} />
-                        <InputField label="Address" name="address" placeholder="Complete address" value={formData.address} onChange={handleChange} required />
-                        <InputField label="Contact Number" name="contactNo" type="tel" placeholder="9876543210" value={formData.contactNo} onChange={handleChange} validation="mobile" required maxLength={10} />
-                        <InputField label="Email ID" name="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} validation="email" required />
-                        <InputField label="Pin Code" name="pinCode" placeholder="Pincode" value={formData.pinCode} onChange={handleChange} validation="pincode" required maxLength={6} />
-                        <InputField label="PAN Number" name="panNumber" placeholder="ABCDE1234F" value={formData.panNumber} onChange={handleChange} validation="pan" required maxLength={10} />
-                        <InputField label="Aadhar Number" name="aadharNumber" placeholder="123456789012" value={formData.aadharNumber} onChange={handleChange} validation="aadhar" required maxLength={12} />
+                    {/* Legal Cases */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Legal Cases</h3>
+                        <p><strong>Any Legal Cases Pending:</strong> {formData.legalCasesPending === 'yes' ? 'Yes' : formData.legalCasesPending === 'no' ? 'No' : 'Not provided'}</p>
                     </div>
-
-                    <h2 className="text-xl font-semibold mt-6 mb-4">Emergency Contact Details</h2>
-                    <div className="flex justify-end mb-4">
-                        {formData.emergencyContacts?.length < 5 && (
-                            <button type="button" onClick={addEmergencyContact} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
-                                + Add More Contact
-                            </button>
-                        )}
+                    {/* Bank Details */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Bank Account Details</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Name as per Bank:</strong> {formData.nameAsPerBank || 'Not provided'}</p>
+                            <p><strong>Bank Name:</strong> {formData.bankName || 'Not provided'}</p>
+                            <p><strong>Account Number:</strong> {formData.accountNo ? `XXXX${formData.accountNo.slice(-4)}` : 'Not provided'}</p>
+                            <p><strong>IFSC Code:</strong> {formData.ifscCode || 'Not provided'}</p>
+                            <p><strong>Branch:</strong> {formData.branch || 'Not provided'}</p>
+                            <p><strong>City:</strong> {formData.bankCity || 'Not provided'}</p>
+                        </div>
                     </div>
-                    {formData.emergencyContacts?.map((contact, index) => (
-                        <EmergencyContact
-                            key={index}
-                            index={index}
-                            contact={contact}
-                            onChange={handleEmergencyContactChange}
-                            onRemove={removeEmergencyContact}
-                            canRemove={formData.emergencyContacts?.length > 1}
-                        />
-                    ))}
-
-                    <h2 className="text-xl font-semibold mt-6 mb-4">Previous Employment Details</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Company Name" name="previousCompany" placeholder="Previous company name" value={formData.previousCompany} onChange={handleChange} required={false} />
-                        <InputField label="Designation" name="previousDesignation" placeholder="Job title/designation" value={formData.previousDesignation} onChange={handleChange} required={false} />
-                        <InputField label="Educational Qualification" name="educationalQualification" placeholder="Highest educational qualification" value={formData.educationalQualification} onChange={handleChange} required={false} />
+                    {/* Declaration */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Declaration</h3>
+                        <p><strong>Note:</strong> {formData.declarationNote || 'Not provided'}</p>
+                        <p className="mt-2"><strong>Declaration Accepted:</strong> {formData.declaration ? 'Yes' : 'No'}</p>
                     </div>
-                    <div className="mt-6">
-                        <RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required />
+                    {/* Signatures */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Digital Signatures</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><p><strong>Applicant Signature:</strong></p>{formData.applicantSignature ? <img src={formData.applicantSignature} alt="Applicant Signature" className="mt-2 max-h-24 border rounded shadow-sm" /> : <p className="text-gray-500">Not provided</p>}</div>
+                            <div><p><strong>Referrer Signature:</strong></p>{formData.referrerSignature ? <img src={formData.referrerSignature} alt="Referrer Signature" className="mt-2 max-h-24 border rounded shadow-sm" /> : <p className="text-gray-500">Not provided</p>}</div>
+                        </div>
                     </div>
-
-                    <h2 className="text-xl font-semibold mt-6 mb-4">Bank Account Details</h2>
-                    <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                        <p className="text-sm text-yellow-800"><span className="font-semibold">Note:</span> Please ensure all bank details are correct. Payments will be processed to the provided bank account.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Name as per Bank" name="nameAsPerBank" placeholder="Name exactly as in bank account" value={formData.nameAsPerBank} onChange={handleChange} validation="name" required />
-                        <InputField label="Bank Name" name="bankName" placeholder="Name of the bank" value={formData.bankName} onChange={handleChange} required />
-                        <InputField label="Account Number" name="accountNo" placeholder="Bank account number" value={formData.accountNo} onChange={handleChange} validation="accountNo" required maxLength={18} />
-                        <InputField label="IFSC Code" name="ifscCode" placeholder="IFSC code (e.g., SBIN0012345)" value={formData.ifscCode} onChange={handleChange} validation="ifsc" required maxLength={11} />
-                        <InputField label="Branch" name="branch" placeholder="Bank branch name" value={formData.branch} onChange={handleChange} required />
-                        <InputField label="City" name="bankCity" placeholder="Bank branch city" value={formData.bankCity} onChange={handleChange} validation="name" required />
-                    </div>
-
-                    <h2 className="text-xl font-semibold mt-6 mb-4">Digital Signatures</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} />
-                        <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} />
-                    </div>
-
-                    <h2 className="text-xl font-semibold mt-6 mb-4">Declaration</h2>
-                    <TextArea label="Declaration Note" name="declarationNote" placeholder="Enter any additional declaration notes here..." value={formData.declarationNote} onChange={handleChange} required={false} rows={5} />
-                    <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required description="Please read and accept the declaration to proceed." />
-
-                    <div className="mt-8">
-                        <button type="submit" disabled={loading} className="w-full px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50">
-                            {loading ? "Submitting..." : "Submit Application"}
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
+        </div>
+    );
+
+    // ======================
+    // Form View
+    // ======================
+    return (
+        <div className="min-h-screen bg-gray-50">
+            {notification && (
+                <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white animate-slide-in`}>
+                    {notification.message}
+                </div>
+            )}
+            <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="mb-6">
+                    <div className="flex justify-between items-center">
+                        <h1 className="text-3xl font-bold text-gray-900">{'Register Here'}</h1>
+                    </div>
+                </div>
+                <div className="bg-white text-gray-800 rounded-lg shadow-sm overflow-hidden">
+                    <div className="border-b border-gray-200 bg-gray-50">
+                        <nav className="flex gap-1 px-6 overflow-x-auto hide-scrollbar">
+                            {tabs.map((tab) => {
+                                const hasError = tabErrors[tab] && Object.keys(tabErrors[tab]).length > 0;
+                                return (
+                                    <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`px-4 py-3 text-sm font-medium transition border-b-2 whitespace-nowrap ${activeTab === tab ? 'border-yellow-600 text-yellow-600' : hasError ? 'border-red-500 text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                                        {tab === 'personal' && 'Personal Details'}
+                                        {tab === 'emergency' && 'Emergency Contact'}
+                                        {tab === 'employment' && 'Employment Details'}
+                                        {tab === 'bank' && 'Bank Details'}
+                                        {tab === 'signatures' && 'Signatures'}
+                                        {tab === 'declaration' && 'Declaration'}
+                                        {hasError && <span className="ml-1 text-red-500">⚠️</span>}
+                                    </button>
+                                );
+                            })}
+                        </nav>
+                    </div>
+                    <form onSubmit={handleSubmit} className="p-6">
+                        {/* Personal Tab */}
+                        {activeTab === 'personal' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
+                                    <InputField label="Referred By" name="referredBy" placeholder="Enter Refer Name" value={formData.referredBy} onChange={handleChange} required={false} />
+                                    <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
+                                    <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required={false} />
+                                    <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required={false} />
+                                    <InputField label="Blood Group" name="bloodGroup" placeholder="e.g., A+, B+, O+" value={formData.bloodGroup} onChange={handleChange} required={false} />
+                                    <InputField label="Address" name="address" placeholder="Complete address" value={formData.address} onChange={handleChange} required={false} maxLength={200} />
+                                    <InputField label="Contact Number" name="contactNo" type="tel" placeholder="9876543210" value={formData.contactNo} onChange={handleChange} validation="mobile" required={false} maxLength={10} />
+                                    <InputField label="Email ID" name="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} validation="email" required={false} />
+                                    <InputField label="Pin Code" name="pinCode" placeholder="Pincode" value={formData.pinCode} onChange={handleChange} validation="pincode" required={false} maxLength={6} />
+                                    <InputField label="PAN Number" name="panNumber" placeholder="ABCDE1234F" value={formData.panNumber} onChange={handleChange} validation="pan" required={false} maxLength={10} />
+                                    <InputField label="Aadhar Number" name="aadharNumber" placeholder="123456789012" value={formData.aadharNumber} onChange={handleChange} validation="aadhar" required={false} maxLength={12} />
+                                </div>
+                            </div>
+                        )}
+                        {/* Emergency Tab */}
+                        {activeTab === 'emergency' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Emergency Contact Details</h3>
+                                    {formData.emergencyContacts.length < 5 && <button type="button" onClick={addEmergencyContact} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">+ Add</button>}
+                                </div>
+                                <p className="text-sm text-gray-500 mb-4">You can add up to 5 contacts (optional).</p>
+                                {formData.emergencyContacts.map((contact, index) => (
+                                    <EmergencyContact key={index} index={index} contact={contact} onChange={handleEmergencyContactChange} onRemove={removeEmergencyContact} canRemove={formData.emergencyContacts.length > 1} />
+                                ))}
+                            </div>
+                        )}
+                        {/* Employment Tab */}
+                        {activeTab === 'employment' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Employment Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField label="Company Name" name="previousCompany" placeholder="Previous company name" value={formData.previousCompany} onChange={handleChange} required={false} />
+                                    <InputField label="Designation" name="previousDesignation" placeholder="Job title/designation" value={formData.previousDesignation} onChange={handleChange} required={false} />
+                                    <InputField label="Educational Qualification" name="educationalQualification" placeholder="Highest educational qualification" value={formData.educationalQualification} onChange={handleChange} required={false} />
+                                </div>
+                                <div className="mt-6">
+                                    <RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required={false} />
+                                </div>
+                            </div>
+                        )}
+                        {/* Bank Tab */}
+                        {activeTab === 'bank' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Account Details</h3>
+                                <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                                    <p className="text-sm text-yellow-800"><span className="font-semibold">Note:</span> Please ensure all bank details are correct. Payments will be processed to the provided bank account.</p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField label="Name as per Bank" name="nameAsPerBank" placeholder="Name exactly as in bank account" value={formData.nameAsPerBank} onChange={handleChange} validation="name" required={false} />
+                                    <InputField label="Bank Name" name="bankName" placeholder="Name of the bank" value={formData.bankName} onChange={handleChange} required={false} />
+                                    <InputField label="Account Number" name="accountNo" placeholder="Bank account number" value={formData.accountNo} onChange={handleChange} validation="accountNo" required={false} maxLength={18} />
+                                    <InputField label="IFSC Code" name="ifscCode" placeholder="IFSC code (e.g., SBIN0012345)" value={formData.ifscCode} onChange={handleChange} validation="ifsc" required={false} maxLength={11} />
+                                    <InputField label="Branch" name="branch" placeholder="Bank branch name" value={formData.branch} onChange={handleChange} required={false} />
+                                    <InputField label="City" name="bankCity" placeholder="Bank branch city" value={formData.bankCity} onChange={handleChange} validation="name" required={false} />
+                                </div>
+                            </div>
+                        )}
+                        {/* Signatures Tab */}
+                        {activeTab === 'signatures' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signatures</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <DigitalSignature label="Applicant Signature" name="applicantSignature" value={formData.applicantSignature} onChange={handleChange} required={false} />
+                                    <DigitalSignature label="Referrer Signature" name="referrerSignature" value={formData.referrerSignature} onChange={handleChange} required={false} />
+                                </div>
+                            </div>
+                        )}
+                        {/* Declaration Tab */}
+                        {activeTab === 'declaration' && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Declaration</h3>
+                                <TextArea label="Declaration Note" name="declarationNote" placeholder="Enter any additional declaration notes here..." value={formData.declarationNote} onChange={handleChange} required={false} rows={5} />
+                                <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required={false} description="(Optional) Please read and accept the declaration." />
+                            </div>
+                        )}
+                        {/* Navigation Buttons */}
+                        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
+                            <button type="button" onClick={handlePreviousTab} disabled={currentTabIndex === 0} className={`px-6 py-2 rounded-lg transition ${currentTabIndex === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}>
+                                Previous
+                            </button>
+                            <div className="flex gap-4">
+                                {!isLastTab ? (
+                                    <button type="button" onClick={handleNextTab} disabled={!isCurrentTabValid()} className={`px-6 py-2 rounded-lg transition ${!isCurrentTabValid() ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-yellow-600 text-white hover:bg-yellow-700'}`}>
+                                        Next
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button type="button" onClick={handleShowPreview} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                                            Show Preview
+                                        </button>
+                                        <button type="submit" disabled={isLoading} className={`px-6 py-2 bg-yellow-600 text-white rounded-lg transition ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-700'}`}>
+                                            {isLoading ? 'Saving...' : 'Save'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                {showPreview && <PreviewSection />}
+            </div>
+            <style jsx>{`
+                @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+                .animate-slide-in { animation: slide-in 0.3s ease-out; }
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+                .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #c1c1c1 #f1f1f1; }
+            `}</style>
         </div>
     );
 }
