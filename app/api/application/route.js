@@ -34,18 +34,18 @@ const applicationSchema = Joi.object({
     fatherName: Joi.string().min(2).max(100).optional(),
     bloodGroup: Joi.string().allow("").optional(),
     address: Joi.string().min(5).max(200).optional(),
-    contactNo: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+    contactNo: Joi.string().allow("").optional(),
     email: Joi.string().email().optional(),
-    pinCode: Joi.string().pattern(/^[0-9]{6}$/).optional(),
-    panNumber: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).optional(),
-    aadharNumber: Joi.string().pattern(/^[0-9]{12}$/).optional(),
+    pinCode: Joi.string().allow("").optional(),
+    panNumber: Joi.string().allow("").optional(),
+    aadharNumber: Joi.string().allow("").optional(),
 
     // Emergency Contact Details
     emergencyContacts: Joi.array().items(
         Joi.object({
             name: Joi.string().allow("").optional(),
             location: Joi.string().allow("").optional(),
-            phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+            phone: Joi.string().allow("").optional(),
             relationship: Joi.string().allow("").optional(),
         })
     ).optional(),
@@ -59,12 +59,12 @@ const applicationSchema = Joi.object({
     legalCasesPending: Joi.string().valid("yes", "no").optional(),
 
     // Bank Account Details
-    nameAsPerBank: Joi.string().min(3).max(100).optional(),
-    bankName: Joi.string().min(3).max(100).optional(),
-    accountNo: Joi.string().pattern(/^[0-9]{9,18}$/).optional(),
-    ifscCode: Joi.string().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
-    branch: Joi.string().min(2).max(100).optional(),
-    bankCity: Joi.string().min(2).max(50).optional(),
+    nameAsPerBank: Joi.string().allow("").optional(),
+    bankName: Joi.string().allow("").optional(),
+    accountNo: Joi.string().allow("").optional(),
+    ifscCode: Joi.string().allow("").optional(),
+    branch: Joi.string().allow("").optional(),
+    bankCity: Joi.string().allow("").optional(),
 
     // Declaration
     declarationNote: Joi.string().allow("").optional(),
@@ -78,7 +78,7 @@ const applicationSchema = Joi.object({
     referredBy: Joi.string().allow("").optional(),
 
     // Metadata
-    status: Joi.string().valid("pending", "approved", "rejected").default("pending"),
+    status: Joi.string().allow("").default("pending"),
     appliedAt: Joi.date().default(Date.now),
 });
 
@@ -91,18 +91,18 @@ const updateApplicationSchema = Joi.object({
     fatherName: Joi.string().min(2).max(100).optional(),
     bloodGroup: Joi.string().allow("").optional(),
     address: Joi.string().allow("").optional(),
-    contactNo: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+    contactNo: Joi.string().allow("").optional(),
     email: Joi.string().email().optional(),
-    pinCode: Joi.string().pattern(/^[0-9]{6}$/).optional(),
-    panNumber: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).optional(),
-    aadharNumber: Joi.string().pattern(/^[0-9]{12}$/).optional(),
+    pinCode: Joi.string().allow("").optional(),
+    panNumber: Joi.string().allow("").optional(),
+    aadharNumber: Joi.string().allow("").optional(),
 
     // Emergency Contact Details
     emergencyContacts: Joi.array().items(
         Joi.object({
             name: Joi.string().allow("").optional(),
             location: Joi.string().allow("").optional(),
-            phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+            phone: Joi.string().allow("").optional(),
             relationship: Joi.string().allow("").optional(),
         })
     ).optional(),
@@ -116,12 +116,12 @@ const updateApplicationSchema = Joi.object({
     legalCasesPending: Joi.string().valid("yes", "no").optional(),
 
     // Bank Account Details
-    nameAsPerBank: Joi.string().min(3).max(100).optional(),
-    bankName: Joi.string().min(3).max(100).optional(),
-    accountNo: Joi.string().pattern(/^[0-9]{9,18}$/).optional(),
-    ifscCode: Joi.string().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
+    nameAsPerBank: Joi.string().allow("").optional(),
+    bankName: Joi.string().allow("").optional(),
+    accountNo: Joi.string().allow("").optional(),
+    ifscCode: Joi.string().allow("").optional(),
     branch: Joi.string().min(2).max(100).optional(),
-    bankCity: Joi.string().min(2).max(50).optional(),
+    bankCity: Joi.string().allow("").optional(),
 
     // Declaration
     declarationNote: Joi.string().allow("").optional(),
@@ -135,12 +135,12 @@ const updateApplicationSchema = Joi.object({
     referredBy: Joi.string().allow("").optional(),
 
     // Metadata
-    status: Joi.string().valid("pending", "approved", "rejected").optional(),
+    status: Joi.string().allow("").optional(),
 });
 
 const updateStatusSchema = Joi.object({
     id: Joi.string().required(),
-    status: Joi.string().valid("pending", "approved", "rejected").required(),
+    status: Joi.string().allow("").required(),
     remarks: Joi.string().allow(""),
 });
 
