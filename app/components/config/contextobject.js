@@ -1,6 +1,12 @@
 export const contextObject = {
     authenticated: false,
     loader: true,
+    mlmUser: {
+        userCode: "",
+        fullName: "",
+        level: "",
+        isLoggedIn: false
+    },
     user: {
         name: "",
         email: "",

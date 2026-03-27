@@ -1,43 +1,35 @@
+// app/components/mlm/navbar.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useContext } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import RootContext from "@/app/components/config/rootcontext";
 
 export default function MLMNavbar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [userName, setUserName] = useState("");
-    const [userCode, setUserCode] = useState("");
-    const [userLevel, setUserLevel] = useState("");
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    let code = null;
-
-    useEffect(() => {
-        // Get MLM user info from localStorage
-        code = localStorage.getItem("mlm_user_code");
-        const name = localStorage.getItem("mlm_user_name");
-        const level = localStorage.getItem("mlm_user_level");
-
-        if (code) {
-            setUserCode(code);
-            setUserName(name || code);
-            setUserLevel(level || "");
-            setIsLoggedIn(true);
-        } else {
-            setIsLoggedIn(false);
-        }
-    }, []);
+    const { rootContext, setRootContext } = useContext(RootContext);
+    const { mlmUser } = rootContext;
 
     const handleLogout = () => {
+        // Clear localStorage
         localStorage.removeItem("mlm_user_code");
         localStorage.removeItem("mlm_user_name");
         localStorage.removeItem("mlm_user_level");
-        setIsLoggedIn(false);
-        setUserCode("");
-        setUserName("");
-        setUserLevel("");
+
+        // Update context
+        setRootContext(prev => ({
+            ...prev,
+            mlmUser: {
+                isLoggedIn: false,
+                userCode: "",
+                fullName: "",
+                level: "",
+            }
+        }));
+
         router.push("/");
     };
 
@@ -49,10 +41,6 @@ export default function MLMNavbar() {
         { path: "/mlm/sales", label: "Record Sale", icon: "💵" },
         { path: "/applicants", label: "Applicants", icon: "👤" }
     ];
-
-    // if (code === "GM") {
-    //     navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
-    // }
 
     return (
         <nav className="sticky top-0 z-50 bg-gradient-to-b from-yellow-100 to-yellow-50 backdrop-blur-md">
@@ -69,7 +57,7 @@ export default function MLMNavbar() {
                         </Link>
 
                         {/* Desktop Navigation - only when logged in */}
-                        {isLoggedIn && (
+                        {mlmUser.isLoggedIn && (
                             <div className="hidden md:flex space-x-1">
                                 {navItems.map((item) => (
                                     <Link
@@ -89,12 +77,12 @@ export default function MLMNavbar() {
                     </div>
 
                     <div className="flex items-center space-x-4">
-                        {isLoggedIn ? (
+                        {mlmUser.isLoggedIn ? (
                             <>
                                 <div className="text-right">
-                                    <div className="text-sm font-medium text-gray-700">{userName}</div>
+                                    <div className="text-sm font-medium text-gray-700">{mlmUser.fullName}</div>
                                     <div className="text-xs text-gray-500">
-                                        {userCode} {userLevel && `• ${userLevel}`}
+                                        {mlmUser.userCode} {mlmUser.level && `• ${mlmUser.level}`}
                                     </div>
                                 </div>
                                 <button
@@ -116,7 +104,7 @@ export default function MLMNavbar() {
                 </div>
 
                 {/* Mobile Navigation - only when logged in */}
-                {isLoggedIn && (
+                {mlmUser.isLoggedIn && (
                     <div className="md:hidden overflow-x-auto pb-2">
                         <div className="flex space-x-2">
                             {navItems.map((item) => (

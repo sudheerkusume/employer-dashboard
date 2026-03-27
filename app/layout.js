@@ -31,6 +31,12 @@ export default function RootLayout({ children }) {
       token: "",
       isAdmin: "",
     },
+    mlmUser: {
+      isLoggedIn: false,
+      userCode: "",
+      fullName: "",
+      level: "",
+    },
     active: "all",
     toast: {
       show: false,
@@ -42,22 +48,33 @@ export default function RootLayout({ children }) {
   });
 
   useEffect(() => {
+    // Load admin user from localStorage (if any)
     const storedUser = localStorage.getItem("user_details");
+    // Load MLM user from localStorage
+    const storedMlmUserCode = localStorage.getItem("mlm_user_code");
+    const storedMlmUserName = localStorage.getItem("mlm_user_name");
+    const storedMlmUserLevel = localStorage.getItem("mlm_user_level");
+
+    const mlmUser = {
+      isLoggedIn: !!storedMlmUserCode,
+      userCode: storedMlmUserCode || "",
+      fullName: storedMlmUserName || "",
+      level: storedMlmUserLevel || "",
+    };
 
     if (storedUser) {
       const userData = JSON.parse(storedUser);
-
       setRootContext((prev) => ({
         ...prev,
         authenticated: true,
         loader: false,
         user: userData,
+        mlmUser,
       }));
     } else {
-      setRootContext((prev) => ({ ...prev, loader: false }));
+      setRootContext((prev) => ({ ...prev, loader: false, mlmUser }));
     }
   }, [pathname, router]);
-
 
   return (
     <html lang="en">

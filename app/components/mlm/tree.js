@@ -332,7 +332,7 @@ export default function MLMTree() {
                             type="text"
                             value={searchCode}
                             onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
-                            placeholder="Enter user code (e.g., ME-001)"
+                            placeholder="Enter user code e.g., RB001"
                             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button

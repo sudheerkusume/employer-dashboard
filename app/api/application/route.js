@@ -56,7 +56,7 @@ const applicationSchema = Joi.object({
     educationalQualification: Joi.string().allow("").optional(),
 
     // Legal Cases
-    legalCasesPending: Joi.string().valid("yes", "no").optional(),
+    legalCasesPending: Joi.string().allow("").optional(),
 
     // Bank Account Details
     nameAsPerBank: Joi.string().allow("").optional(),
@@ -68,7 +68,7 @@ const applicationSchema = Joi.object({
 
     // Declaration
     declarationNote: Joi.string().allow("").optional(),
-    declaration: Joi.boolean().valid(true).optional(),  // If provided, must be true; otherwise ignored
+    declaration: Joi.boolean().optional(),  // If provided, must be true; otherwise ignored
 
     // Digital Signatures
     applicantSignature: Joi.string().allow("").optional(),
@@ -113,7 +113,7 @@ const updateApplicationSchema = Joi.object({
     educationalQualification: Joi.string().allow("").optional(),
 
     // Legal Cases
-    legalCasesPending: Joi.string().valid("yes", "no").optional(),
+    legalCasesPending: Joi.string().allow("").optional(),
 
     // Bank Account Details
     nameAsPerBank: Joi.string().allow("").optional(),
@@ -125,7 +125,7 @@ const updateApplicationSchema = Joi.object({
 
     // Declaration
     declarationNote: Joi.string().allow("").optional(),
-    declaration: Joi.boolean().valid(true).optional(),
+    declaration: Joi.boolean().optional(),
 
     // Digital Signatures
     applicantSignature: Joi.string().allow("").optional(),

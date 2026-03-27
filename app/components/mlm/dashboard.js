@@ -40,7 +40,7 @@ export default function MLMDashboard() {
             setLoading(true);
 
             // Fetch user data
-            const userRes = await fetch(`/api/mlm/users?userCode=${userCode}`);
+            const userRes = await fetch(`/api/mlm/users?userId=${userCode}`);
             const userData = await userRes.json();
 
             if (userData.success) {
@@ -119,7 +119,7 @@ export default function MLMDashboard() {
                                     type="text"
                                     value={searchUserCode}
                                     onChange={(e) => setSearchUserCode(e.target.value.toUpperCase())}
-                                    placeholder="Enter user code (e.g., ME-001)"
+                                    placeholder="Enter user code e.g., RB001"
                                     className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                                 <button
