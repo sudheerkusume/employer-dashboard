@@ -21,7 +21,7 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const res = await fetch(`/api/mlm/user?code=${encodeURIComponent(userCode.toUpperCase())}`);
+            const res = await fetch(`/api/mlm/users?code=${encodeURIComponent(userCode.toUpperCase())}`);
             const data = await res.json();
 
             if (data.success) {

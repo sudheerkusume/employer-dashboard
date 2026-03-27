@@ -6,33 +6,51 @@ export async function GET(req) {
         const url = new URL(req.url);
         const code = url.searchParams.get("code");
 
-        if (!code) {
-            return Response.json({ error: "User code required", success: false }, { status: 400 });
-        }
-
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const users = db.collection("marketing_applications");
 
-        const user = await users.findOne({ userCode: code.toUpperCase() });
+        // If a code is provided, return a single user
+        if (code) {
+            const user = await users.findOne({ userCode: code.toUpperCase() });
 
-        if (!user) {
-            return Response.json({ error: "User not found", success: false }, { status: 404 });
+            if (!user) {
+                return Response.json({ error: "User not found", success: false }, { status: 404 });
+            }
+
+            return Response.json({
+                success: true,
+                user: {
+                    userCode: user.userCode,
+                    fullName: user.fullName,
+                    level: user.level,
+                    email: user.email,
+                    contactNo: user.contactNo,
+                }
+            });
         }
 
-        // Return only necessary fields
+        // No code provided: return all users
+        // Optionally add pagination: limit, skip, etc. (example: limit 50)
+        const allUsers = await users.find({})
+            .project({
+                userCode: 1,
+                fullName: 1,
+                level: 1,
+                email: 1,
+                contactNo: 1,
+                _id: 1
+            })
+            .toArray();
+
         return Response.json({
             success: true,
-            user: {
-                userCode: user.userCode,
-                fullName: user.fullName,
-                level: user.level,
-                email: user.email,
-                contactNo: user.contactNo,
-            }
+            users: allUsers,
+            count: allUsers.length
         });
+
     } catch (err) {
-        console.error("Error fetching user:", err);
+        console.error("Error fetching user(s):", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }
