@@ -196,13 +196,13 @@ export default function MLMTree() {
                 setStats(data.statistics);
                 setCurrentUser(userCode);
             } else {
-                console.error("Error fetching tree:", data.error);
+                console.log("Error fetching tree:", data.error);
                 setError(data.error || "Failed to load tree data");
                 // Optionally fallback to dummy data?
                 // We'll just keep previous data or show empty
             }
         } catch (err) {
-            console.error("Error fetching tree:", err);
+            console.log("Error fetching tree:", err);
             setError("Network error. Please try again.");
         } finally {
             setLoading(false);

@@ -158,7 +158,7 @@ export async function POST(request) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error('POST /api/leave error:', error);
+        console.log('POST /api/leave error:', error);
         return NextResponse.json(
             {
                 error: 'Internal server error',

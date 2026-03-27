@@ -208,7 +208,7 @@ export default function EmployeeProfile({ employeesData }) {
                 setCompletedCrop(null);
             }, 'image/jpeg', 0.95);
         } catch (err) {
-            console.error("Cropping failed:", err);
+            console.log("Cropping failed:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -324,7 +324,7 @@ export default function EmployeeProfile({ employeesData }) {
                 setEditingHeader(false);
                 mutated();
             } else {
-                console.error(data.error || "Update failed");
+                console.log(data.error || "Update failed");
                 setRootContext(prev => ({
                     ...prev,
                     toast: {
@@ -337,7 +337,7 @@ export default function EmployeeProfile({ employeesData }) {
                 }));
             }
         } catch (err) {
-            console.error("Error updating profile:", err);
+            console.log("Error updating profile:", err);
             setServiceCall(false);
             setRootContext(prev => ({
                 ...prev,

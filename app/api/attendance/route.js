@@ -152,7 +152,7 @@ export async function POST(req) {
 
     return Response.json({ error: "Invalid action" }, { status: 400 });
   } catch (err) {
-    console.error("Attendance API Error:", err);
+    console.log("Attendance API Error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -204,6 +204,6 @@ export async function updateDailyAttendance() {
 
     console.log("Daily attendance updated at midnight for", yDateStr);
   } catch (err) {
-    console.error("Error updating daily attendance:", err);
+    console.log("Error updating daily attendance:", err);
   }
 }

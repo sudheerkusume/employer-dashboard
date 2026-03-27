@@ -157,7 +157,7 @@ export async function POST(request) {
             { status: 200 }
         );
     } catch (err) {
-        console.error("❌ Error applying leave:", err);
+        console.log("❌ Error applying leave:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }

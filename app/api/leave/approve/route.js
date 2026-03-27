@@ -149,7 +149,7 @@ export async function PUT(request) {
             { status: 200 }
         );
     } catch (err) {
-        console.error("❌ Error in leave approval:", err);
+        console.log("❌ Error in leave approval:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }

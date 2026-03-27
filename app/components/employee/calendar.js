@@ -603,7 +603,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
             mutated();
         } catch (err) {
-            console.error("Withdraw failed:", err);
+            console.log("Withdraw failed:", err);
             setRootContext((prevContext) => ({
                 ...prevContext,
                 toast: {
@@ -712,7 +712,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             setShowARModal(false);
 
         } catch (err) {
-            console.error('AR submit error:', err);
+            console.log('AR submit error:', err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -757,7 +757,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
             mutated();
         } catch (err) {
-            console.error('Withdraw AR error:', err);
+            console.log('Withdraw AR error:', err);
             setRootContext((prev) => ({
                 ...prev,
                 toast: {

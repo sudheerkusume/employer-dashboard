@@ -59,7 +59,7 @@ export async function POST(req) {
             event: newEvent,
         });
     } catch (err) {
-        console.error("❌ Error adding event:", err);
+        console.log("❌ Error adding event:", err);
         return Response.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -115,7 +115,7 @@ export async function PUT(req) {
             updated: { employeeId, eventId, title, description, date, type },
         });
     } catch (err) {
-        console.error("❌ Error updating event:", err);
+        console.log("❌ Error updating event:", err);
         return Response.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

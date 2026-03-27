@@ -65,7 +65,7 @@ export async function GET(req) {
         });
 
     } catch (err) {
-        console.error("❌ Error fetching tree:", err);
+        console.log("❌ Error fetching tree:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }

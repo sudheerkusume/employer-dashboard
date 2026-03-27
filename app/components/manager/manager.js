@@ -213,7 +213,7 @@ function ManagerProfile({ employeesData }) {
                 setCompletedCrop(null);
             }, 'image/jpeg', 0.95);
         } catch (err) {
-            console.error("Cropping failed:", err);
+            console.log("Cropping failed:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -339,7 +339,7 @@ function ManagerProfile({ employeesData }) {
                 }));
             }
         } catch (err) {
-            console.error("Update Error:", err);
+            console.log("Update Error:", err);
             setServiceCall(false);
             setRootContext(prevContext => ({
                 ...prevContext,

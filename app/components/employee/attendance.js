@@ -120,7 +120,7 @@ export default function Attendance({ profile }) {
                 }));
             }
         } catch (err) {
-            console.error(err);
+            console.log(err);
             setRootContext((prevContext) => ({
                 ...prevContext,
                 toast: {
@@ -200,7 +200,7 @@ export default function Attendance({ profile }) {
                 }));
             }
         } catch (err) {
-            console.error(err);
+            console.log(err);
             setRootContext((prevContext) => ({
                 ...prevContext,
                 toast: {

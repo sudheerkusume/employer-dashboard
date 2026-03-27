@@ -194,7 +194,7 @@ export async function POST(req) {
             userCode: userCode,
         });
     } catch (err) {
-        console.error("Error in registration:", err);
+        console.log("Error in registration:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }

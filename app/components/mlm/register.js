@@ -526,10 +526,10 @@ export default function ApplicationManagement() {
             if (data.success) {
                 setUsersList(data.users);
             } else {
-                console.error('Failed to fetch users');
+                console.log('Failed to fetch users');
             }
         } catch (err) {
-            console.error('Error fetching users:', err);
+            console.log('Error fetching users:', err);
         } finally {
             setLoadingUsers(false);
         }
@@ -797,7 +797,7 @@ export default function ApplicationManagement() {
                 showNotification('error', data.error || 'Something went wrong');
             }
         } catch (error) {
-            console.error(error);
+            console.log(error);
             showNotification('error', 'Network error. Please try again.');
         } finally {
             setIsLoading(false);

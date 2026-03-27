@@ -366,7 +366,7 @@ export async function POST(req) {
             application: responseData,
         });
     } catch (err) {
-        console.error("❌ Error submitting application:", err);
+        console.log("❌ Error submitting application:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }
@@ -447,7 +447,7 @@ export async function GET(req) {
         });
 
     } catch (err) {
-        console.error("❌ Error fetching applications:", err);
+        console.log("❌ Error fetching applications:", err);
         return Response.json({
             error: "Internal Server Error",
             success: false
@@ -523,7 +523,7 @@ export async function PUT(req) {
                         mlmUserCode: mlmUserCode,
                     });
                 } catch (mlmError) {
-                    console.error("MLM creation failed:", mlmError);
+                    console.log("MLM creation failed:", mlmError);
                     return Response.json({
                         error: `Application approved but MLM member creation failed: ${mlmError.message}`,
                         success: false,
@@ -635,7 +635,7 @@ export async function PUT(req) {
         }
 
     } catch (err) {
-        console.error("❌ Error updating application:", err);
+        console.log("❌ Error updating application:", err);
         return Response.json({
             error: "Internal Server Error",
             success: false
@@ -691,7 +691,7 @@ export async function DELETE(req) {
         });
 
     } catch (err) {
-        console.error("❌ Error deleting application:", err);
+        console.log("❌ Error deleting application:", err);
         return Response.json({
             error: "Internal Server Error",
             success: false

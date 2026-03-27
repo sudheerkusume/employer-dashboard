@@ -458,7 +458,7 @@ export default function AboutMe({ profile }) {
             }
             mutated()
             if (!res.ok) {
-                console.error("Error deleting experience:", data.error);
+                console.log("Error deleting experience:", data.error);
                 setRootContext(prev => ({
                     ...prev,
                     toast: {
@@ -475,7 +475,7 @@ export default function AboutMe({ profile }) {
             console.log("✅ Experience entry deleted successfully");
 
         } catch (err) {
-            console.error("❌ Failed to delete experience:", err);
+            console.log("❌ Failed to delete experience:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -510,7 +510,7 @@ export default function AboutMe({ profile }) {
             const data = await res.json();
             mutated();
             if (!res.ok) {
-                console.error("Error deleting experience document:", data.error);
+                console.log("Error deleting experience document:", data.error);
                 setRootContext(prev => ({
                     ...prev,
                     toast: {
@@ -526,7 +526,7 @@ export default function AboutMe({ profile }) {
             console.log("✅ Experience document deleted successfully");
 
         } catch (err) {
-            console.error("❌ Failed to delete experience document:", err);
+            console.log("❌ Failed to delete experience document:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -554,7 +554,7 @@ export default function AboutMe({ profile }) {
             }
             mutated()
             if (!res.ok) {
-                console.error("Error deleting education:", data.error);
+                console.log("Error deleting education:", data.error);
                 setRootContext(prev => ({
                     ...prev,
                     toast: {
@@ -570,7 +570,7 @@ export default function AboutMe({ profile }) {
             console.log("✅ Education entry deleted successfully");
 
         } catch (err) {
-            console.error("❌ Failed to delete education:", err);
+            console.log("❌ Failed to delete education:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {
@@ -605,7 +605,7 @@ export default function AboutMe({ profile }) {
             const data = await res.json();
             mutated()
             if (!res.ok) {
-                console.error("Error deleting education document:", data.error);
+                console.log("Error deleting education document:", data.error);
                 setRootContext(prev => ({
                     ...prev,
                     toast: {
@@ -621,7 +621,7 @@ export default function AboutMe({ profile }) {
             console.log("✅ Education document deleted successfully");
 
         } catch (err) {
-            console.error("❌ Failed to delete education document:", err);
+            console.log("❌ Failed to delete education document:", err);
             setRootContext(prev => ({
                 ...prev,
                 toast: {

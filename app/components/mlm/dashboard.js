@@ -76,7 +76,7 @@ export default function MLMDashboard() {
             }
 
         } catch (err) {
-            console.error("Error fetching dashboard data:", err);
+            console.log("Error fetching dashboard data:", err);
             setError("Failed to load dashboard data");
         } finally {
             setLoading(false);

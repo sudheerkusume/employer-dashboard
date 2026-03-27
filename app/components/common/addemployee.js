@@ -86,7 +86,7 @@ export default function AddEmployeeForm({ currentUserRole }) {
                 }));
             }
         } catch (err) {
-            console.error(err);
+            console.log(err);
             setRootContext((prev) => ({
                 ...prev,
                 toast: {

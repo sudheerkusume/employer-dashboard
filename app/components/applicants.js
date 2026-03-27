@@ -532,7 +532,7 @@ export default function ApplicationManagement() {
             const data = await response.json();
             if (data.success) setApplications(data.applications);
         } catch (error) {
-            console.error('Error fetching applications:', error);
+            console.log('Error fetching applications:', error);
             showNotification('error', 'Failed to fetch applications');
         } finally {
             setIsTableLoading(false);
@@ -703,7 +703,7 @@ export default function ApplicationManagement() {
                 showNotification('error', data.error || 'Something went wrong');
             }
         } catch (error) {
-            console.error(error);
+            console.log(error);
             showNotification('error', 'Network error. Please try again.');
         } finally {
             setIsLoading(false);
@@ -755,7 +755,7 @@ export default function ApplicationManagement() {
                 showNotification('error', 'Failed to load application details');
             }
         } catch (error) {
-            console.error(error);
+            console.log(error);
             showNotification('error', 'Network error. Please try again.');
         } finally {
             setIsLoading(false);
@@ -776,7 +776,7 @@ export default function ApplicationManagement() {
                 setIsTableLoading(false);
             }
         } catch (error) {
-            console.error(error);
+            console.log(error);
             showNotification('error', 'Network error');
             setIsTableLoading(false);
         }
@@ -837,7 +837,7 @@ export default function ApplicationManagement() {
             XLSX.writeFile(wb, `applications_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
             showNotification('success', 'Applications exported successfully');
         } catch (error) {
-            console.error(error);
+            console.log(error);
             showNotification('error', 'Failed to export applications');
         } finally { setIsExporting(false); }
     };
@@ -874,7 +874,7 @@ export default function ApplicationManagement() {
                 if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
                 fetchApplications();
             } catch (error) {
-                console.error(error);
+                console.log(error);
                 showNotification('error', 'Failed to import Excel file');
             } finally { setIsImporting(false); }
         };

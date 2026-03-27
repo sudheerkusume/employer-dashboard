@@ -4,15 +4,15 @@ import clientPromise from "@/app/components/lib/db";
 export async function GET(req) {
     try {
         const url = new URL(req.url);
-        const code = url.searchParams.get("code");
+        const applicationId = url.searchParams.get("applicationId");
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const users = db.collection("marketing_applications");
 
-        // If a code is provided, return a single user
-        if (code) {
-            const user = await users.findOne({ userCode: code.toUpperCase() });
+        // If a applicationId is provided, return a single user
+        if (applicationId) {
+            const user = await users.findOne({ applicationId: applicationId.toUpperCase() });
 
             if (!user) {
                 return Response.json({ error: "User not found", success: false }, { status: 404 });
@@ -21,7 +21,7 @@ export async function GET(req) {
             return Response.json({
                 success: true,
                 user: {
-                    userCode: user.userCode,
+                    applicationId: user.applicationId,
                     fullName: user.fullName,
                     level: user.level,
                     email: user.email,
@@ -30,11 +30,11 @@ export async function GET(req) {
             });
         }
 
-        // No code provided: return all users
+        // No applicationId provided: return all users
         // Optionally add pagination: limit, skip, etc. (example: limit 50)
         const allUsers = await users.find({})
             .project({
-                userCode: 1,
+                applicationId: 1,
                 fullName: 1,
                 level: 1,
                 email: 1,
@@ -50,7 +50,7 @@ export async function GET(req) {
         });
 
     } catch (err) {
-        console.error("Error fetching user(s):", err);
+        console.log("Error fetching user(s):", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }

@@ -75,7 +75,7 @@ export async function DELETE(req) {
             message: `Leave withdrawn successfully for ${leaveStartDate} to ${leaveEndDate}`,
         });
     } catch (err) {
-        console.error('❌ DELETE leave error:', err);
+        console.log('❌ DELETE leave error:', err);
         return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
     }
 }

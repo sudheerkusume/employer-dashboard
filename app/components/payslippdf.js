@@ -6,7 +6,7 @@ const WATERMARK_PATH = "/icons/watermark.png";
 
 export async function generatePDF(payslip) {
     if (!payslip || !payslip.employee) {
-        console.error("❌ Missing payslip data!", payslip);
+        console.log("❌ Missing payslip data!", payslip);
         return;
     }
 

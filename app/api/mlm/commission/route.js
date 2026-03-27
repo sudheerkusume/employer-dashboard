@@ -120,7 +120,7 @@ export async function GET(req) {
         });
 
     } catch (err) {
-        console.error("❌ Error fetching commissions:", err);
+        console.log("❌ Error fetching commissions:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }
@@ -193,7 +193,7 @@ export async function POST(req) {
         });
 
     } catch (err) {
-        console.error("❌ Error recording sale:", err);
+        console.log("❌ Error recording sale:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
 }

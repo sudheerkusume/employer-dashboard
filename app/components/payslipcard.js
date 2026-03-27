@@ -60,7 +60,7 @@ export default function PayslipCard({ payslip, profile }) {
         try {
             await generatePDF(payslip);
         } catch (error) {
-            console.error("PDF generation failed:", error);
+            console.log("PDF generation failed:", error);
         } finally {
             setTimeout(() => setIsDownloading(false), 1000);
         }

@@ -49,7 +49,7 @@ export default function CommissionsPage() {
                 calculateStats(data.commissions);
             }
         } catch (err) {
-            console.error("Error fetching commissions:", err);
+            console.log("Error fetching commissions:", err);
         } finally {
             setLoading(false);
         }

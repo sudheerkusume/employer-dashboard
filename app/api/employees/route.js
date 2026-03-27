@@ -82,7 +82,7 @@ export async function GET(req) {
         const employees = await employeesCollection.find().toArray();
         return Response.json(employees);
     } catch (error) {
-        console.error("GET /api/employees error:", error);
+        console.log("GET /api/employees error:", error);
         return Response.json({ error: error.message }, { status: 500 });
     }
 }
@@ -162,7 +162,7 @@ export async function POST(request) {
             { status: 201 }
         );
     } catch (err) {
-        console.error("❌ Error adding employee:", err);
+        console.log("❌ Error adding employee:", err);
         return new Response(JSON.stringify({ error: err.message }), {
             status: 500,
         });
@@ -436,7 +436,7 @@ export async function PUT(request) {
         }), { status: 200 });
 
     } catch (err) {
-        console.error("PUT /api/employees error:", err);
+        console.log("PUT /api/employees error:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
@@ -669,7 +669,7 @@ export async function DELETE(req) {
         });
 
     } catch (err) {
-        console.error("Error in DELETE /api/employees:", err);
+        console.log("Error in DELETE /api/employees:", err);
 
         // Handle specific MongoDB errors
         if (err.message.includes("buffering timed out")) {

@@ -700,7 +700,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                 }));
             }
         } catch (err) {
-            console.error("Error applying leave:", err);
+            console.log("Error applying leave:", err);
             setServiceCall(false);
             setRootContext(prev => ({
                 ...prev,

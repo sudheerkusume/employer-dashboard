@@ -52,7 +52,7 @@ const HeaderNav = () => {
                     condition: current.weatherDesc[0].value,
                 });
             } catch (err) {
-                console.error('Weather fetch failed:', err);
+                console.log('Weather fetch failed:', err);
                 setWeather({ city: 'Unavailable', temp: null, condition: 'Error' });
             }
         };

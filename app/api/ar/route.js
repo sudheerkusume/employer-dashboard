@@ -135,7 +135,7 @@ export async function POST(request) {
             { status: 200 }
         );
     } catch (err) {
-        console.error("❌ Error applying regularization:", err);
+        console.log("❌ Error applying regularization:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
@@ -202,7 +202,7 @@ export async function DELETE(request) {
             { status: 200 }
         );
     } catch (err) {
-        console.error("❌ Error withdrawing regularization:", err);
+        console.log("❌ Error withdrawing regularization:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
@@ -357,7 +357,7 @@ export async function PUT(request) {
         );
 
     } catch (err) {
-        console.error("❌ Error processing regularization action:", err);
+        console.log("❌ Error processing regularization action:", err);
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
