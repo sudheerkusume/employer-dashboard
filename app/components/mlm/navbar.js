@@ -11,10 +11,11 @@ export default function MLMNavbar() {
     const [userCode, setUserCode] = useState("");
     const [userLevel, setUserLevel] = useState("");
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    let code = null;
 
     useEffect(() => {
         // Get MLM user info from localStorage
-        const code = localStorage.getItem("mlm_user_code");
+        code = localStorage.getItem("mlm_user_code");
         const name = localStorage.getItem("mlm_user_name");
         const level = localStorage.getItem("mlm_user_level");
 
@@ -46,7 +47,6 @@ export default function MLMNavbar() {
         { path: "/mlm/commissions", label: "Commissions", icon: "💰" },
         { path: "/mlm/sales", label: "Record Sale", icon: "💵" }
     ];
-    const code = localStorage && localStorage.getItem("mlm_user_code");
 
     if (code === "GM") {
         navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
