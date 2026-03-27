@@ -45,12 +45,13 @@ export default function MLMNavbar() {
         { path: "/mlm/dashboard", label: "Dashboard", icon: "🏠" },
         { path: "/mlm/tree", label: "Tree", icon: "🌳" },
         { path: "/mlm/commissions", label: "Commissions", icon: "💰" },
-        { path: "/mlm/sales", label: "Record Sale", icon: "💵" }
+        { path: "/mlm/sales", label: "Record Sale", icon: "💵" },
+        { path: "/applicants", label: "Applicants", icon: "👤" }
     ];
 
-    if (code === "GM") {
-        navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
-    }
+    // if (code === "GM") {
+    //     navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
+    // }
 
     return (
         <nav className="bg-white shadow-md sticky top-0 z-50">
