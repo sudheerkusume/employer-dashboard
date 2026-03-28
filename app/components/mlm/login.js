@@ -28,6 +28,7 @@ export default function LoginPage() {
             if (data.success) {
                 // Store user data in localStorage
                 localStorage.setItem('mlm_user_code', data.user.applicationId);
+                localStorage.setItem('mlm_user_role', data.user.role);
                 localStorage.setItem('mlm_user_name', data.user.fullName);
                 localStorage.setItem('mlm_user_level', data.user.level);
                 // Redirect to dashboard
