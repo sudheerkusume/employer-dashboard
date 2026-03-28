@@ -20,17 +20,15 @@ export default function MLMDashboard() {
     const [recentCommissions, setRecentCommissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [searchUserCode, setSearchUserCode] = useState("");
 
     useEffect(() => {
-        // Get user code from localStorage or URL param
-        const userCode = localStorage.getItem("mlm_user_code") ||
-            new URLSearchParams(window.location.search).get("userCode");
+        // Get user code from localStorage only (no URL fallback for dashboard)
+        const userCode = localStorage.getItem("mlm_user_code");
 
         if (userCode) {
             fetchDashboardData(userCode);
         } else {
-            setError("No user code found. Please login or provide a user code.");
+            setError("No user code found. Please login.");
             setLoading(false);
         }
     }, []);
@@ -52,11 +50,6 @@ export default function MLMDashboard() {
                     directCount: userData.user.directCount || 0,
                     totalDownline: userData.user.totalTeamCount || 0
                 });
-
-                // Store in localStorage for persistence
-                localStorage.setItem("mlm_user_code", userCode);
-                localStorage.setItem("mlm_user_name", userData.user.fullName);
-                localStorage.setItem("mlm_user_level", userData.user.level);
             } else {
                 setError(userData.error || "User not found");
             }
@@ -83,14 +76,6 @@ export default function MLMDashboard() {
         }
     };
 
-    const handleUserSearch = (e) => {
-        e.preventDefault();
-        if (searchUserCode.trim()) {
-            fetchDashboardData(searchUserCode.toUpperCase());
-            setSearchUserCode("");
-        }
-    };
-
     const handleLogout = () => {
         localStorage.removeItem("mlm_user_code");
         localStorage.removeItem("mlm_user_name");
@@ -100,8 +85,8 @@ export default function MLMDashboard() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
             </div>
         );
     }
@@ -114,21 +99,12 @@ export default function MLMDashboard() {
                         <h2 className="font-bold mb-2">Error</h2>
                         <p>{error}</p>
                         <div className="mt-4">
-                            <form onSubmit={handleUserSearch} className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={searchUserCode}
-                                    onChange={(e) => setSearchUserCode(e.target.value.toUpperCase())}
-                                    placeholder="Enter user code e.g., RB001"
-                                    className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <button
-                                    type="submit"
-                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-                                >
-                                    View Dashboard
-                                </button>
-                            </form>
+                            <button
+                                onClick={() => router.push("/")}
+                                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                            >
+                                Go to Login
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -150,33 +126,12 @@ export default function MLMDashboard() {
                             Level: {userData?.level}
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleLogout}
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                        >
-                            Switch User
-                        </button>
-                    </div>
-                </div>
-
-                {/* Search Bar for Switching Users */}
-                <div className="mb-6">
-                    <form onSubmit={handleUserSearch} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={searchUserCode}
-                            onChange={(e) => setSearchUserCode(e.target.value.toUpperCase())}
-                            placeholder="Switch to another user (Enter user code)"
-                            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                            type="submit"
-                            className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700"
-                        >
-                            Switch
-                        </button>
-                    </form>
+                    <button
+                        onClick={handleLogout}
+                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    >
+                        Logout
+                    </button>
                 </div>
 
                 {/* Stats Cards */}

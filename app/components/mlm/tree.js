@@ -109,7 +109,7 @@ export default function MLMTree() {
                     {identifier && (
                         <button
                             onClick={() => handleViewUser(identifier)}
-                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50 transition"
+                            className="text-xs text-yellow-600 hover:text-yellow-800 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-50 transition"
                             disabled={loading}
                         >
                             View
@@ -149,7 +149,7 @@ export default function MLMTree() {
                         {identifier && (
                             <button
                                 onClick={() => handleViewUser(identifier)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-yellow-600 hover:text-yellow-800"
                                 disabled={loading}
                             >
                                 View Downline
@@ -166,8 +166,8 @@ export default function MLMTree() {
 
     if (loading && !treeData) {
         return (
-            <div className="flex justify-center items-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
             </div>
         );
     }
@@ -186,38 +186,20 @@ export default function MLMTree() {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setViewMode("tree")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-2 rounded transition ${viewMode === "tree" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 Tree View
                             </button>
                             <button
                                 onClick={() => setViewMode("list")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-2 rounded transition ${viewMode === "list" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 List View
                             </button>
                         </div>
                     </div>
                 </div>
-
-                {/* Search */}
-                <div className="mb-6">
-                    <form onSubmit={handleSearch} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={searchCode}
-                            onChange={(e) => setSearchCode(e.target.value)}
-                            placeholder="Enter user code or application ID (e.g., GM-001 or RB20251234)"
-                            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                            type="submit"
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-                        >
-                            View Tree
-                        </button>
-                    </form>
-                </div>
+           
 
                 {/* Error */}
                 {error && (
@@ -231,7 +213,7 @@ export default function MLMTree() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Direct Children</div>
-                            <div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div>
+                            <div className="text-2xl font-bold text-yellow-600">{stats.directChildren}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Total Downline</div>
@@ -284,7 +266,7 @@ export default function MLMTree() {
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>AGM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div><span>SMM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span>MM</span></div>
+                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>MM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-500"></div><span>ME</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-gray-400"></div><span>Pending</span></div>
                     </div>

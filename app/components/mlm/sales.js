@@ -84,6 +84,15 @@ export default function RecordSale() {
         }
     };
 
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
             <div className="bg-white text-gray-900 w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
