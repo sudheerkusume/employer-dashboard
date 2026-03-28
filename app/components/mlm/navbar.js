@@ -18,6 +18,7 @@ export default function MLMNavbar() {
         localStorage.removeItem("mlm_user_code");
         localStorage.removeItem("mlm_user_name");
         localStorage.removeItem("mlm_user_level");
+        localStorage.removeItem("mlm_user_level");
 
         // Update context
         setRootContext(prev => ({

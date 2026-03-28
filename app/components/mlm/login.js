@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import RootContext from '../config/rootcontext';
 
 export default function LoginPage() {
     const router = useRouter();
     const [applicationId, setApplicationId] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const { setRootContext } = useContext(RootContext);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,6 +33,19 @@ export default function LoginPage() {
                 localStorage.setItem('mlm_user_role', data.user.role);
                 localStorage.setItem('mlm_user_name', data.user.fullName);
                 localStorage.setItem('mlm_user_level', data.user.level);
+
+                // Update context
+                setRootContext(prev => ({
+                    ...prev,
+                    mlmUser: {
+                        isLoggedIn: false,
+                        userCode: "",
+                        fullName: "",
+                        level: "",
+                        role: ""
+                    }
+                }));
+
                 // Redirect to dashboard
                 router.push('/mlm/dashboard');
             } else {
