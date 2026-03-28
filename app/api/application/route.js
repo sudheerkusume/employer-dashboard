@@ -538,6 +538,14 @@ export async function PUT(req) {
 
             // If approved and no MLM user code yet, create the MLM member
             if (status === 'approved' && !application.mlmUserCode) {
+                // Validate referrer exists
+                if (!application.referredBy) {
+                    return Response.json({
+                        error: "Application cannot be approved because no referrer was provided.",
+                        success: false
+                    }, { status: 400 });
+                }
+
                 try {
                     const mlmUserCode = await createMlmMemberFromApplication(db, application);
 

@@ -222,7 +222,10 @@ export default function MLMTree() {
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Level / Status</div>
                             <div className="text-2xl font-bold text-purple-600">
-                                {`${stats.level === "Pending" ? "Pending Approval" : stats.level}${stats.status ? "/" : ""}${stats.status}`}
+                                {[
+                                    stats.level === "Pending" ? "Pending Approval" : stats.level ?? "",
+                                    stats.status ?? ""
+                                ].filter(Boolean).join("/")}
                             </div>
                         </div>
                     </div>
