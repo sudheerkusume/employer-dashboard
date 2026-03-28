@@ -528,6 +528,8 @@ export default function ApplicationManagement() {
     const [statusUpdateApp, setStatusUpdateApp] = useState(null);
     const [remarks, setRemarks] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteApp, setDeleteApp] = useState(null);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -803,14 +805,26 @@ export default function ApplicationManagement() {
         }
     };
 
-    const handleDelete = async (applicationId) => {
-        if (!confirm('Are you sure you want to delete this application?')) return;
-        setIsTableLoading(true);
+
+
+    // Update the handleDelete function to open the modal instead of directly deleting
+    const handleDelete = (app) => {
+        setDeleteApp(app);
+        setShowDeleteModal(true);
+    };
+
+    // Function to actually delete after confirmation
+    const confirmDelete = async () => {
+        if (!deleteApp) return;
+        setActionLoading(true);
         try {
-            const response = await fetch(`/api/application?id=${applicationId}`, { method: 'DELETE' });
+            const response = await fetch(`/api/application?id=${deleteApp._id}`, { method: 'DELETE' });
             const data = await response.json();
             if (data.success) {
-                showNotification('success', 'Application deleted!');
+                showNotification('success', 'Application deleted successfully');
+                setShowDeleteModal(false);
+                setDeleteApp(null);
+                // Refetch current page
                 if (applications.length === 1 && currentPage > 1) {
                     fetchApplications(currentPage - 1);
                 } else {
@@ -818,12 +832,12 @@ export default function ApplicationManagement() {
                 }
             } else {
                 showNotification('error', data.error || 'Failed to delete');
-                setIsTableLoading(false);
             }
         } catch (error) {
             console.log(error);
             showNotification('error', 'Network error');
-            setIsTableLoading(false);
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -1240,16 +1254,18 @@ export default function ApplicationManagement() {
                         <p className="text-gray-700"><strong>Application ID:</strong> {statusUpdateApp.applicationId}</p>
                     </div>
 
-                    <TextArea
-                        label="Remarks (optional)"
-                        name="remarks"
-                        placeholder="Add remarks for this status change..."
-                        value={remarks}
-                        onChange={(e) => setRemarks(e.target.value)}
-                        required={false}
-                        rows={3} />
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
+                        <textarea
+                            rows="3"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder="Add remarks for this status change..."
+                        />
+                    </div>
 
-                    <div className="flex justify-end space-x-3 mt-4">
+                    <div className="flex justify-end space-x-3">
                         <button
                             onClick={() => setShowStatusModal(false)}
                             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
@@ -1269,6 +1285,45 @@ export default function ApplicationManagement() {
                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                         >
                             {actionLoading ? 'Processing...' : 'Approve'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
+    // Delete Modal Component
+    const DeleteConfirmationModal = () => {
+        if (!deleteApp) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Confirm Deletion</h2>
+                        <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className="mb-4">
+                        <p className="text-gray-700">Are you sure you want to delete this application?</p>
+                        <p className="text-gray-700 mt-2"><strong>Applicant:</strong> {deleteApp.fullName}</p>
+                        <p className="text-gray-700"><strong>Application ID:</strong> {deleteApp.applicationId}</p>
+                        <p className="text-red-600 text-sm mt-3">This action cannot be undone.</p>
+                    </div>
+                    <div className="flex justify-end space-x-3 mt-4">
+                        <button
+                            onClick={() => setShowDeleteModal(false)}
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            disabled={actionLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {actionLoading ? 'Deleting...' : 'Delete'}
                         </button>
                     </div>
                 </div>
@@ -1444,7 +1499,7 @@ export default function ApplicationManagement() {
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
-                                                        <div className="text-sm text-gray-500">ID: {app.applicationId || app._id?.slice(-6)}</div>
+                                                        <div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -1473,7 +1528,7 @@ export default function ApplicationManagement() {
                                                             <CheckCircle size={20} />
                                                         </button>
                                                     )}
-                                                    <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800" aria-label="Delete">
+                                                    <button onClick={() => handleDelete(app)} className="text-red-600 hover:text-red-800" aria-label="Delete">
                                                         <Trash size={20} />
                                                     </button>
                                                 </td>
@@ -1705,6 +1760,7 @@ export default function ApplicationManagement() {
                     </form>
                 </div>
                 {showPreview && <PreviewSection />}
+                {showDeleteModal && <DeleteConfirmationModal />}
             </div>
             <style jsx>{`
                 @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
