@@ -324,7 +324,7 @@ RadioGroup.displayName = 'RadioGroup';
 // ======================
 // TextArea Component
 // ======================
-const TextArea = memo(({ label, name, value, onChange, required = false, placeholder = '', rows = 4 }) => {
+const TextArea = memo(forwardRef(({ label, name, value, onChange, required = false, placeholder = '', rows = 4 }, ref) => {
     const [error, setError] = useState('');
     const handleChange = (e) => {
         const syntheticEvent = { target: { name, value: e.target.value, type: 'textarea' } };
@@ -336,12 +336,21 @@ const TextArea = memo(({ label, name, value, onChange, required = false, placeho
     return (
         <div className="mb-4">
             <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
-            <textarea id={name} name={name} value={value} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder} rows={rows}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} />
+            <textarea
+                ref={ref}
+                id={name}
+                name={name}
+                value={value}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder={placeholder}
+                rows={rows}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+            />
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
     );
-});
+}));
 TextArea.displayName = 'TextArea';
 
 // ======================
@@ -1238,49 +1247,57 @@ export default function ApplicationManagement() {
         );
     };
 
-    const StatusModal = () => {
-        if (!statusUpdateApp) return null;
+    // Extract StatusModal outside the main component
+    const StatusModal = memo(({ show, onClose, application, onUpdate, actionLoading, remarks, setRemarks }) => {
+        const textareaRef = useRef(null);
+
+        useEffect(() => {
+            if (show && textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }, [show]);
+
+        if (!show || !application) return null;
+
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Update Application Status</h2>
-                        <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600">
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                             <X size={24} />
                         </button>
                     </div>
                     <div className="mb-4">
-                        <p className="text-gray-700"><strong>Applicant:</strong> {statusUpdateApp.fullName}</p>
-                        <p className="text-gray-700"><strong>Application ID:</strong> {statusUpdateApp.applicationId}</p>
+                        <p className="text-gray-700"><strong>Applicant:</strong> {application.fullName}</p>
+                        <p className="text-gray-700"><strong>Application ID:</strong> {application.applicationId}</p>
                     </div>
-
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
-                        <textarea
-                            rows="3"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={remarks}
-                            onChange={(e) => setRemarks(e.target.value)}
-                            placeholder="Add remarks for this status change..."
-                        />
-                    </div>
-
-                    <div className="flex justify-end space-x-3">
+                    <TextArea
+                        ref={textareaRef}
+                        label="Remarks (optional)"
+                        name="remarks"
+                        placeholder="Add remarks for this status change..."
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        required={false}
+                        rows={3}
+                    />
+                    <div className="flex justify-end space-x-3 mt-4">
                         <button
-                            onClick={() => setShowStatusModal(false)}
+                            onClick={onClose}
                             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                         >
                             Cancel
                         </button>
                         <button
-                            onClick={() => updateStatus('rejected')}
+                            onClick={() => onUpdate('rejected')}
                             disabled={actionLoading}
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                         >
                             {actionLoading ? 'Processing...' : 'Reject'}
                         </button>
                         <button
-                            onClick={() => updateStatus('approved')}
+                            onClick={() => onUpdate('approved')}
                             disabled={actionLoading}
                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                         >
@@ -1290,7 +1307,8 @@ export default function ApplicationManagement() {
                 </div>
             </div>
         );
-    };
+    });
+    StatusModal.displayName = 'StatusModal';
 
 
     // Delete Modal Component
@@ -1599,7 +1617,15 @@ export default function ApplicationManagement() {
                     .animate-slide-in { animation: slide-in 0.3s ease-out; }
                 `}</style>
                 {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
-                {showStatusModal && <StatusModal />}
+                {showStatusModal && <StatusModal
+                    show={showStatusModal}
+                    onClose={() => setShowStatusModal(false)}
+                    application={statusUpdateApp}
+                    onUpdate={updateStatus}
+                    actionLoading={actionLoading}
+                    remarks={remarks}
+                    setRemarks={setRemarks}
+                />}
             </div>
         );
     }
