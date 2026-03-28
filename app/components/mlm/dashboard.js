@@ -125,13 +125,7 @@ export default function MLMDashboard() {
                         <p className="text-sm text-gray-500 mt-1">
                             Level: {userData?.level}
                         </p>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                    >
-                        Logout
-                    </button>
+                    </div>                  
                 </div>
 
                 {/* Stats Cards */}
@@ -225,25 +219,25 @@ export default function MLMDashboard() {
                     <div className="flex flex-wrap gap-4">
                         <button
                             onClick={() => router.push(`/mlm/register?referrer=${userData?.userCode}`)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            className="bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700"
                         >
                             Add New Member
                         </button>
                         <button
                             onClick={() => router.push(`/mlm/tree?userCode=${userData?.userCode}`)}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                            className="bg-green-600 text-white px-4 py-1.5 rounded hover:bg-green-700"
                         >
                             View Tree
                         </button>
                         <button
                             onClick={() => router.push(`/mlm/commissions?userCode=${userData?.userCode}`)}
-                            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+                            className="bg-purple-600 text-white px-4 py-1.5 rounded hover:bg-purple-700"
                         >
                             Commission History
                         </button>
                         <button
                             onClick={() => router.push(`/mlm/sales?userCode=${userData?.userCode}`)}
-                            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+                            className="bg-orange-600 text-white px-4 py-1.5 rounded hover:bg-orange-700"
                         >
                             Record Sale
                         </button>

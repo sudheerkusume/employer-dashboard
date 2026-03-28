@@ -524,6 +524,7 @@ export async function PUT(req) {
                 {
                     $set: {
                         status,
+                        level: "ME",
                         remarks: remarks || application.remarks,
                         updatedAt: new Date().toISOString(),
                         reviewedAt: new Date().toISOString(),

@@ -186,20 +186,20 @@ export default function MLMTree() {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setViewMode("tree")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "tree" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-1.5 rounded-full transition ${viewMode === "tree" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 Tree View
                             </button>
                             <button
                                 onClick={() => setViewMode("list")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "list" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-1.5 rounded-full transition ${viewMode === "list" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 List View
                             </button>
                         </div>
                     </div>
                 </div>
-           
+
 
                 {/* Error */}
                 {error && (
@@ -222,7 +222,7 @@ export default function MLMTree() {
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Level / Status</div>
                             <div className="text-2xl font-bold text-purple-600">
-                                {stats.level === "Pending" ? "Pending Approval" : stats.level}
+                                {stats.level === "Pending" ? "Pending Approval" : stats.level}/{stats.status}
                             </div>
                         </div>
                     </div>
