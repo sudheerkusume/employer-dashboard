@@ -54,12 +54,14 @@ export default function RootLayout({ children }) {
     const storedMlmUserCode = localStorage.getItem("mlm_user_code");
     const storedMlmUserName = localStorage.getItem("mlm_user_name");
     const storedMlmUserLevel = localStorage.getItem("mlm_user_level");
+    const storedMlmUserRole = localStorage.getItem("mlm_user_role");
 
     const mlmUser = {
       isLoggedIn: !!storedMlmUserCode,
       userCode: storedMlmUserCode || "",
       fullName: storedMlmUserName || "",
       level: storedMlmUserLevel || "",
+      role: storedMlmUserRole || "uer"
     };
 
     if (storedUser) {
