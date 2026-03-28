@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // ======================
 // Date Picker Dropdown Component
 // ======================
-const DatePickerDropdown = memo(({ currentDate, onSelect, onClose }) => {
+const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) => {
     const [selectedDate, setSelectedDate] = useState(currentDate ? new Date(currentDate) : new Date());
     const [viewMonth, setViewMonth] = useState(currentDate ? new Date(currentDate) : new Date());
     const dropdownRef = useRef(null);
@@ -37,6 +37,9 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose }) => {
         const newDate = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
         setSelectedDate(newDate);
         onSelect(newDate);
+        if (inputRef && inputRef.current) {
+            inputRef.current.focus();
+        }
     };
 
     const handlePrevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
@@ -129,6 +132,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [touched, setTouched] = useState(false);
     const [hasValue, setHasValue] = useState(false);
+    const inputRef = useRef(null);
 
     const validateField = (val) => {
         // Only required validation for fullName (name field)
@@ -240,15 +244,48 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
             {validation === 'dob' ? (
                 <div className="relative">
                     <div className="relative">
-                        <input type="text" id={name} name={name} value={formatDisplayDate(value)} onFocus={toggleDatePicker} onChange={() => { }} onBlur={handleBlur} required={required} placeholder={placeholder || 'DD/MM/YYYY'} readOnly
-                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none cursor-pointer bg-white pr-10 ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} />
-                        <button type="button" onClick={toggleDatePicker} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"><Calendar size={18} /></button>
+                        <input
+                            ref={inputRef} // attach ref
+                            type="text"
+                            id={name}
+                            name={name}
+                            value={formatDisplayDate(value)}
+                            onFocus={toggleDatePicker}
+                            onChange={() => { }}
+                            onBlur={handleBlur}
+                            required={required}
+                            placeholder={placeholder || 'DD/MM/YYYY'}
+                            readOnly
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none cursor-pointer bg-white pr-10 ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                        />
+                        <button type="button" onClick={toggleDatePicker} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                            <Calendar size={18} />
+                        </button>
                     </div>
-                    {showDatePicker && <DatePickerDropdown currentDate={value} onSelect={handleDateSelect} onClose={() => setShowDatePicker(false)} />}
+                    {showDatePicker && (
+                        <DatePickerDropdown
+                            currentDate={value}
+                            onSelect={handleDateSelect}
+                            onClose={() => setShowDatePicker(false)}
+                            inputRef={inputRef} // pass ref
+                        />
+                    )}
                 </div>
             ) : (
-                <input type={type} id={name} name={name} value={value} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} required={required} placeholder={placeholder} maxLength={maxLength} pattern={pattern}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} />
+                <input
+                    type={type}
+                    id={name}
+                    name={name}
+                    value={value}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    onFocus={handleFocus}
+                    required={required}
+                    placeholder={placeholder}
+                    maxLength={maxLength}
+                    pattern={pattern}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                />
             )}
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
@@ -487,6 +524,18 @@ export default function ApplicationManagement() {
     const [isExporting, setIsExporting] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState(null);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [statusUpdateApp, setStatusUpdateApp] = useState(null);
+    const [remarks, setRemarks] = useState('');
+    const [actionLoading, setActionLoading] = useState(false);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [hasNext, setHasNext] = useState(false);
+    const [hasPrev, setHasPrev] = useState(false);
+    const [limit] = useState(10);
 
     const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
     const currentTabIndex = tabs.indexOf(activeTab);
@@ -523,14 +572,23 @@ export default function ApplicationManagement() {
         status: 'pending',
     });
 
-    useEffect(() => { fetchApplications(); }, []);
-
-    const fetchApplications = async () => {
+    const fetchApplications = async (page = 1) => {
         setIsTableLoading(true);
         try {
-            const response = await fetch('/api/application');
+            let url = `/api/application?page=${page}&limit=${limit}`;
+            if (filter !== 'all') url += `&status=${filter}`;
+            const response = await fetch(url);
             const data = await response.json();
-            if (data.success) setApplications(data.applications);
+            if (data.success) {
+                setApplications(data.applications);
+                setCurrentPage(data.pagination.currentPage);
+                setTotalPages(data.pagination.totalPages);
+                setTotalRecords(data.pagination.totalRecords);
+                setHasNext(data.pagination.hasNext);
+                setHasPrev(data.pagination.hasPrev);
+            } else {
+                showNotification('error', data.error || 'Failed to fetch applications');
+            }
         } catch (error) {
             console.log('Error fetching applications:', error);
             showNotification('error', 'Failed to fetch applications');
@@ -538,6 +596,17 @@ export default function ApplicationManagement() {
             setIsTableLoading(false);
         }
     };
+
+    // Reset to page 1 when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+        fetchApplications(1);
+    }, [filter]);
+
+    // Initial load
+    useEffect(() => {
+        fetchApplications(1);
+    }, []);
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
@@ -571,11 +640,10 @@ export default function ApplicationManagement() {
         }
     };
 
-    // Validation functions (only fullName required)
+    // Validation functions (unchanged)
     const validatePersonalTab = useCallback(() => {
         const errors = {};
         if (!formData.fullName) errors.fullName = 'Full Name is required';
-        // Format validations only if value exists
         if (formData.email && !/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(formData.email)) errors.email = 'Please enter a valid email address';
         if (formData.contactNo && !/^[0-9]{10}$/.test(formData.contactNo)) errors.contactNo = 'Please enter a valid 10-digit mobile number';
         if (formData.pinCode && !/^[0-9]{6}$/.test(formData.pinCode)) errors.pinCode = 'Please enter a valid 6-digit pincode';
@@ -594,37 +662,21 @@ export default function ApplicationManagement() {
 
     const validateEmergencyTab = useCallback(() => {
         const errors = {};
-        // No required fields – only format checks on provided values
         formData.emergencyContacts.forEach((contact, idx) => {
             if (contact.phone && !/^[0-9]{10}$/.test(contact.phone)) errors[`emergencyPhone_${idx}`] = 'Please enter a valid 10-digit phone number';
         });
         return errors;
     }, [formData.emergencyContacts]);
 
-    const validateEmploymentTab = useCallback(() => {
-        const errors = {};
-        // No required fields
-        return errors;
-    }, []);
-
+    const validateEmploymentTab = useCallback(() => ({}), []);
     const validateBankTab = useCallback(() => {
         const errors = {};
         if (formData.accountNo && !/^[0-9]{9,18}$/.test(formData.accountNo)) errors.accountNo = 'Account number should be 9-18 digits only';
         if (formData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.toUpperCase())) errors.ifscCode = 'Please enter a valid IFSC code';
         return errors;
     }, [formData.accountNo, formData.ifscCode]);
-
-    const validateSignaturesTab = useCallback(() => {
-        const errors = {};
-        // No required fields
-        return errors;
-    }, []);
-
-    const validateDeclarationTab = useCallback(() => {
-        const errors = {};
-        // No required fields
-        return errors;
-    }, []);
+    const validateSignaturesTab = useCallback(() => ({}), []);
+    const validateDeclarationTab = useCallback(() => ({}), []);
 
     const getCurrentTabErrors = useCallback(() => {
         switch (activeTab) {
@@ -640,15 +692,10 @@ export default function ApplicationManagement() {
 
     useEffect(() => {
         const errors = getCurrentTabErrors();
-        setTabErrors(prev => {
-            const currentErrors = prev[activeTab] || {};
-            if (JSON.stringify(currentErrors) !== JSON.stringify(errors)) return { ...prev, [activeTab]: errors };
-            return prev;
-        });
+        setTabErrors(prev => ({ ...prev, [activeTab]: errors }));
     }, [getCurrentTabErrors, activeTab]);
 
     const isCurrentTabValid = useCallback(() => {
-        // Only personal tab has required field (fullName), others are always valid (no required fields)
         if (activeTab === 'personal') {
             const errors = getCurrentTabErrors();
             return Object.keys(errors).length === 0;
@@ -670,22 +717,15 @@ export default function ApplicationManagement() {
         }
     };
 
-    const handleShowPreview = () => {
-        // No validation – preview is always allowed
-        setShowPreview(true);
-    };
-
+    const handleShowPreview = () => setShowPreview(true);
     const handleClosePreview = () => setShowPreview(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // Only require fullName
         if (!formData.fullName) {
             showNotification('error', 'Full Name is required');
             return;
         }
-        // No other required checks
-
         setIsLoading(true);
         try {
             const url = '/api/application';
@@ -698,7 +738,7 @@ export default function ApplicationManagement() {
                 setCurrentView('list');
                 setShowPreview(false);
                 resetForm();
-                fetchApplications();
+                fetchApplications(currentPage);
             } else {
                 showNotification('error', data.error || 'Something went wrong');
             }
@@ -747,6 +787,7 @@ export default function ApplicationManagement() {
                     referrerSignature: app.referrerSignature || '',
                     applicantSignature: app.applicantSignature || '',
                     status: app.status || 'pending',
+                    role: 'user',
                 });
                 setCurrentView('edit');
                 setActiveTab('personal');
@@ -770,7 +811,11 @@ export default function ApplicationManagement() {
             const data = await response.json();
             if (data.success) {
                 showNotification('success', 'Application deleted!');
-                await fetchApplications();
+                if (applications.length === 1 && currentPage > 1) {
+                    fetchApplications(currentPage - 1);
+                } else {
+                    fetchApplications(currentPage);
+                }
             } else {
                 showNotification('error', data.error || 'Failed to delete');
                 setIsTableLoading(false);
@@ -779,6 +824,42 @@ export default function ApplicationManagement() {
             console.log(error);
             showNotification('error', 'Network error');
             setIsTableLoading(false);
+        }
+    };
+
+    const handleStatusUpdate = (app) => {
+        setStatusUpdateApp(app);
+        setRemarks('');
+        setShowStatusModal(true);
+    };
+
+    const updateStatus = async (status) => {
+        if (!statusUpdateApp) return;
+        setActionLoading(true);
+        try {
+            const response = await fetch('/api/application', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: statusUpdateApp._id,
+                    status,
+                    remarks,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('success', `Application ${status} successfully`);
+                setShowStatusModal(false);
+                setStatusUpdateApp(null);
+                fetchApplications(currentPage);
+            } else {
+                showNotification('error', data.error || 'Failed to update status');
+            }
+        } catch (error) {
+            console.log(error);
+            showNotification('error', 'Network error');
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -795,15 +876,15 @@ export default function ApplicationManagement() {
         setShowPreview(false);
     };
 
-    // Excel Export
+    // Excel Export/Import (unchanged)
     const handleExportExcel = async () => {
-        if (filteredApplications.length === 0) {
+        if (applications.length === 0) {
             showNotification('error', 'No applications to export');
             return;
         }
         setIsExporting(true);
         try {
-            const exportData = filteredApplications.map(app => ({
+            const exportData = applications.map(app => ({
                 'Application ID': app.applicationId || '',
                 'Full Name': app.fullName || '',
                 'Date of Birth': app.dob || '',
@@ -842,7 +923,6 @@ export default function ApplicationManagement() {
         } finally { setIsExporting(false); }
     };
 
-    // Excel Import
     const handleImportExcel = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -858,7 +938,7 @@ export default function ApplicationManagement() {
                     setIsImporting(false);
                     return;
                 }
-                const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName); // skip empty
+                const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName);
                 const results = await Promise.allSettled(
                     mappedData.map(async (appData, idx) => {
                         if (!appData.fullName) throw new Error(`Row ${idx + 1}: Full Name is required`);
@@ -872,7 +952,7 @@ export default function ApplicationManagement() {
                 const failed = results.filter(r => r.status === 'rejected');
                 if (successful > 0) showNotification('success', `Successfully imported ${successful} applications`);
                 if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
-                fetchApplications();
+                fetchApplications(currentPage);
             } catch (error) {
                 console.log(error);
                 showNotification('error', 'Failed to import Excel file');
@@ -881,7 +961,6 @@ export default function ApplicationManagement() {
         input.click();
     };
 
-    // Helper to read Excel file
     const readExcelFile = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -899,37 +978,21 @@ export default function ApplicationManagement() {
         });
     };
 
-    // Helper: parse various date formats to YYYY-MM-DD
     const parseDate = (dateStr) => {
         if (!dateStr) return '';
-        // Try to convert to Date object
         let date;
-        // Already YYYY-MM-DD (ISO)
         if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             date = new Date(dateStr);
-        }
-        // DD-MM-YYYY
-        else if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+        } else if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
             const [day, month, year] = dateStr.split('-');
             date = new Date(`${year}-${month}-${day}`);
-        }
-        // DD/MM/YYYY
-        else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+        } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
             const [day, month, year] = dateStr.split('/');
             date = new Date(`${year}-${month}-${day}`);
-        }
-        // MM/DD/YYYY (unlikely, but handle)
-        else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-            const [month, day, year] = dateStr.split('/');
-            date = new Date(`${year}-${month}-${day}`);
-        }
-        // Try default parsing
-        else {
+        } else {
             date = new Date(dateStr);
         }
-        // Check if valid
         if (isNaN(date.getTime())) return '';
-        // Format as YYYY-MM-DD
         return date.toISOString().split('T')[0];
     };
 
@@ -950,7 +1013,7 @@ export default function ApplicationManagement() {
         return {
             applicationId: getStr('Application ID'),
             fullName: getStr('Full Name'),
-            dob: parseDate(getStr('Date of Birth')), // ✅ use date parser
+            dob: parseDate(getStr('Date of Birth')),
             fatherName: getStr("Father's/Husband's Name"),
             bloodGroup: getStr('Blood Group'),
             address: getStr('Address'),
@@ -979,7 +1042,6 @@ export default function ApplicationManagement() {
         };
     };
 
-    // Download Template
     const handleDownloadTemplate = () => {
         const templateData = [{
             'Application ID': 'APP2024001',
@@ -1020,14 +1082,13 @@ export default function ApplicationManagement() {
 
     const filteredApplications = useMemo(() => {
         let filtered = applications;
-        if (filter !== 'all') filtered = filtered.filter(app => app.status === filter);
         if (searchTerm) filtered = filtered.filter(app =>
             app.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             app.contactNo?.includes(searchTerm)
         );
         return filtered;
-    }, [applications, filter, searchTerm]);
+    }, [applications, searchTerm]);
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -1038,20 +1099,36 @@ export default function ApplicationManagement() {
         }
     };
 
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'approved': return <CheckCircle size={16} className="inline mr-1" />;
+            case 'pending': return <Clock size={16} className="inline mr-1" />;
+            case 'rejected': return <XCircle size={16} className="inline mr-1" />;
+            default: return null;
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            fetchApplications(newPage);
+        }
+    };
+
     const handleViewDetails = (app) => {
         setSelectedApplication(app);
         setShowDetailsModal(true);
     };
 
+    // ======================
+    // Modals
+    // ======================
     const DetailsModal = ({ application, onClose }) => {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                     <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center rounded-t-lg">
                         <h2 className="text-xl font-bold text-gray-900">Application Details</h2>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100">
-                            <X size={24} />
-                        </button>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100"><X size={24} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                         {/* Personal Details */}
@@ -1147,6 +1224,58 @@ export default function ApplicationManagement() {
         );
     };
 
+    const StatusModal = () => {
+        if (!statusUpdateApp) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Update Application Status</h2>
+                        <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className="mb-4">
+                        <p className="text-gray-700"><strong>Applicant:</strong> {statusUpdateApp.fullName}</p>
+                        <p className="text-gray-700"><strong>Application ID:</strong> {statusUpdateApp.applicationId}</p>
+                    </div>
+
+                    <TextArea
+                        label="Remarks (optional)"
+                        name="remarks"
+                        placeholder="Add remarks for this status change..."
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        required={false}
+                        rows={3} />
+
+                    <div className="flex justify-end space-x-3 mt-4">
+                        <button
+                            onClick={() => setShowStatusModal(false)}
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => updateStatus('rejected')}
+                            disabled={actionLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {actionLoading ? 'Processing...' : 'Reject'}
+                        </button>
+                        <button
+                            onClick={() => updateStatus('approved')}
+                            disabled={actionLoading}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                        >
+                            {actionLoading ? 'Processing...' : 'Approve'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const PreviewSection = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -1234,7 +1363,7 @@ export default function ApplicationManagement() {
     );
 
     // ======================
-    // List View
+    // List View (with pagination and status update)
     // ======================
     if (currentView === 'list') {
         return (
@@ -1256,8 +1385,18 @@ export default function ApplicationManagement() {
                     </div>
                     {/* Search, Filter and Excel Buttons */}
                     <div className="mb-6 flex flex-wrap gap-4">
-                        <input type="text" placeholder="Search by name, email, or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none" />
-                        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none">
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, or phone..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                        />
+                        <select
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                        >
                             <option value="all">All Status</option>
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
@@ -1288,6 +1427,7 @@ export default function ApplicationManagement() {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLIED DATE</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                     </tr>
                                 </thead>
@@ -1304,7 +1444,7 @@ export default function ApplicationManagement() {
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
-                                                        <div className="text-sm text-gray-500">ID: {app._id?.slice(-6)}</div>
+                                                        <div className="text-sm text-gray-500">ID: {app.applicationId || app._id?.slice(-6)}</div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -1312,10 +1452,15 @@ export default function ApplicationManagement() {
                                                     <div className="text-sm text-gray-500">{app.contactNo}</div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">{app.bankName}</div>
-                                                    <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4)}</div>
+                                                    <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
+                                                    <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(app.status)}`}>
+                                                        {getStatusIcon(app.status)} {app.status.toUpperCase()}
+                                                    </span>
+                                                </td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details">
                                                         <Eye size={20} />
@@ -1323,6 +1468,11 @@ export default function ApplicationManagement() {
                                                     <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit">
                                                         <Edit size={20} />
                                                     </button>
+                                                    {app.status === 'pending' && (
+                                                        <button onClick={() => handleStatusUpdate(app)} className="text-green-600 hover:text-green-800 mr-3" aria-label="Approve/Reject">
+                                                            <CheckCircle size={20} />
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => handleDelete(app._id)} className="text-red-600 hover:text-red-800" aria-label="Delete">
                                                         <Trash size={20} />
                                                     </button>
@@ -1334,12 +1484,67 @@ export default function ApplicationManagement() {
                             </table>
                         </div>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-between items-center mt-6">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={!hasPrev}
+                                className={`px-4 py-2 border rounded-md ${hasPrev
+                                    ? 'bg-white text-gray-700 hover:bg-gray-50'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                Previous
+                            </button>
+                            <div className="flex space-x-2">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else {
+                                        if (currentPage <= 3) {
+                                            pageNum = i + 1;
+                                        } else if (currentPage >= totalPages - 2) {
+                                            pageNum = totalPages - 4 + i;
+                                        } else {
+                                            pageNum = currentPage - 2 + i;
+                                        }
+                                    }
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => handlePageChange(pageNum)}
+                                            className={`px-3 py-2 border rounded-md ${currentPage === pageNum
+                                                ? 'bg-yellow-600 text-white'
+                                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={!hasNext}
+                                className={`px-4 py-2 border rounded-md ${hasNext
+                                    ? 'bg-white text-gray-700 hover:bg-gray-50'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <style jsx>{`
                     @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                     .animate-slide-in { animation: slide-in 0.3s ease-out; }
                 `}</style>
                 {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
+                {showStatusModal && <StatusModal />}
             </div>
         );
     }
@@ -1500,7 +1705,6 @@ export default function ApplicationManagement() {
                     </form>
                 </div>
                 {showPreview && <PreviewSection />}
-                {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
             </div>
             <style jsx>{`
                 @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
