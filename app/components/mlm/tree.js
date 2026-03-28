@@ -6,146 +6,6 @@ import { Fragment, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, getLevelColor } from "@/app/components/lib/mlmUtils";
 
-// Dummy data for testing – a complete tree structure
-const DUMMY_TREE_DATA = {
-    userCode: "GM-001",
-    fullName: "John Smith",
-    level: "GM",
-    wallet: 1250000,
-    children: [
-        {
-            userCode: "DGM-001",
-            fullName: "Sarah Johnson",
-            level: "DGM",
-            wallet: 450000,
-            children: [
-                {
-                    userCode: "AGM-001",
-                    fullName: "Michael Brown",
-                    level: "AGM",
-                    wallet: 180000,
-                    children: [
-                        {
-                            userCode: "SMM-001",
-                            fullName: "Emily Davis",
-                            level: "SMM",
-                            wallet: 85000,
-                            children: [
-                                {
-                                    userCode: "MM-001",
-                                    fullName: "Daniel Wilson",
-                                    level: "MM",
-                                    wallet: 42000,
-                                    children: [
-                                        {
-                                            userCode: "ME-001",
-                                            fullName: "Olivia Martinez",
-                                            level: "ME",
-                                            wallet: 15000,
-                                            children: []
-                                        },
-                                        {
-                                            userCode: "ME-002",
-                                            fullName: "James Garcia",
-                                            level: "ME",
-                                            wallet: 12000,
-                                            children: []
-                                        }
-                                    ]
-                                },
-                                {
-                                    userCode: "MM-002",
-                                    fullName: "Sophia Rodriguez",
-                                    level: "MM",
-                                    wallet: 38000,
-                                    children: [
-                                        {
-                                            userCode: "ME-003",
-                                            fullName: "William Lee",
-                                            level: "ME",
-                                            wallet: 8000,
-                                            children: []
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            userCode: "SMM-002",
-                            fullName: "Isabella White",
-                            level: "SMM",
-                            wallet: 72000,
-                            children: [
-                                {
-                                    userCode: "MM-003",
-                                    fullName: "Ethan Harris",
-                                    level: "MM",
-                                    wallet: 31000,
-                                    children: [
-                                        {
-                                            userCode: "ME-004",
-                                            fullName: "Mia Clark",
-                                            level: "ME",
-                                            wallet: 5000,
-                                            children: []
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    userCode: "AGM-002",
-                    fullName: "Alexander Lewis",
-                    level: "AGM",
-                    wallet: 165000,
-                    children: [
-                        {
-                            userCode: "SMM-003",
-                            fullName: "Amelia Walker",
-                            level: "SMM",
-                            wallet: 68000,
-                            children: [
-                                {
-                                    userCode: "MM-004",
-                                    fullName: "Lucas Hall",
-                                    level: "MM",
-                                    wallet: 29000,
-                                    children: []
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            userCode: "DGM-002",
-            fullName: "Emma Young",
-            level: "DGM",
-            wallet: 480000,
-            children: [
-                {
-                    userCode: "AGM-003",
-                    fullName: "Oliver King",
-                    level: "AGM",
-                    wallet: 175000,
-                    children: [
-                        {
-                            userCode: "SMM-004",
-                            fullName: "Ava Scott",
-                            level: "SMM",
-                            wallet: 73000,
-                            children: []
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-};
-
 export default function MLMTree() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -158,20 +18,16 @@ export default function MLMTree() {
     const [viewMode, setViewMode] = useState("tree"); // tree or list
 
     useEffect(() => {
-        const userCode = searchParams.get("userCode") || localStorage.getItem("mlm_user_code");
+        const userCode = searchParams.get("mlm_user_code") || localStorage.getItem("userCode");
         if (userCode) {
             fetchTreeData(userCode);
             setCurrentUser(userCode);
         } else {
-            // No user code, show dummy data by default
-            setTreeData(DUMMY_TREE_DATA);
-            setStats({
-                directChildren: DUMMY_TREE_DATA.children.length,
-                totalDownline: countTotalNodes(DUMMY_TREE_DATA),
-                wallet: DUMMY_TREE_DATA.wallet
-            });
-            setCurrentUser("GM-001");
+            // No user code provided – show empty state
             setLoading(false);
+            setTreeData(null);
+            setStats(null);
+            setCurrentUser(null);
         }
     }, []); // run only once
 
@@ -198,12 +54,15 @@ export default function MLMTree() {
             } else {
                 console.log("Error fetching tree:", data.error);
                 setError(data.error || "Failed to load tree data");
-                // Optionally fallback to dummy data?
-                // We'll just keep previous data or show empty
+                // Clear previous data on error
+                setTreeData(null);
+                setStats(null);
             }
         } catch (err) {
             console.log("Error fetching tree:", err);
             setError("Network error. Please try again.");
+            setTreeData(null);
+            setStats(null);
         } finally {
             setLoading(false);
         }
@@ -303,7 +162,7 @@ export default function MLMTree() {
                 <div className="mb-8">
                     <div className="flex justify-between items-center flex-wrap gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-800">MLM Tree Structure</h1>
+                            <h1 className="text-3xl font-bold text-gray-800">Real Beez Tree Structure</h1>
                             <p className="text-gray-600 mt-2">
                                 {currentUser ? `Viewing tree for: ${currentUser}` : 'No user selected'}
                             </p>
@@ -332,7 +191,7 @@ export default function MLMTree() {
                             type="text"
                             value={searchCode}
                             onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
-                            placeholder="Enter user code e.g., RB001"
+                            placeholder="Enter user code e.g., GM-001"
                             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button

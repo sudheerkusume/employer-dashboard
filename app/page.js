@@ -15,7 +15,7 @@ export default function LandingPage() {
               <span className="text-yellow-600">Earn Commissions</span>
             </h1>
             <p className="mt-4 text-lg text-gray-600">
-              Join our MLM platform and start building your downline. Watch your network grow and earn commissions as your team expands.
+              Join our Real Beez platform and start building your downline. Watch your network grow and earn commissions as your team expands.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
@@ -36,7 +36,7 @@ export default function LandingPage() {
           <div className="hidden md:block">
             <img
               src="/images/mlm-image.png"
-              alt="MLM Illustration"
+              alt="Real Beez Illustration"
               className="rounded-lg shadow-xl h-[580px] w-full object-fit"
             />
           </div>
@@ -48,7 +48,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Powerful Features</h2>
-            <p className="mt-2 text-gray-600">Everything you need to build and manage your MLM business</p>
+            <p className="mt-2 text-gray-600">Everything you need to build and manage your Real Beez business</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition">
@@ -112,7 +112,7 @@ export default function LandingPage() {
       {/* Call to Action */}
       <section className="bg-yellow-600 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white">Ready to Start Your MLM Journey?</h2>
+          <h2 className="text-3xl font-bold text-white">Ready to Start Your Real Beez Journey?</h2>
           <p className="mt-4 text-yellow-100 max-w-2xl mx-auto">
             Join thousands of members who are already building successful networks and earning commissions.
           </p>

@@ -167,7 +167,7 @@ export async function POST(req) {
             status: 'active',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            // MLM specific fields
+            // Real Beez specific fields
             children: [], // will be populated later
             directChildrenCount: 0,
             // Optional: we can store counts per level for efficiency

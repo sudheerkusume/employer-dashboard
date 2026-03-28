@@ -145,7 +145,7 @@ const updateStatusSchema = Joi.object({
 });
 
 // ======================
-// MLM Helpers
+// Real Beez Helpers
 // ======================
 
 // Promotion thresholds
@@ -223,17 +223,17 @@ async function createMlmMemberFromApplication(db, application) {
 
     // Validate referrer exists in marketing_applications
     if (!referredBy) {
-        throw new Error('ReferredBy is required to create MLM member.');
+        throw new Error('ReferredBy is required to create Real Beez member.');
     }
     const sponsor = await db.collection('marketing_applications').findOne({ userCode: referredBy });
     if (!sponsor) {
-        throw new Error(`Referrer code "${referredBy}" not found in MLM network.`);
+        throw new Error(`Referrer code "${referredBy}" not found in Real Beez network.`);
     }
 
     // Generate user code for level ME
     const userCode = await generateUserCode(db, 'ME');
 
-    // Create MLM user document
+    // Create Real Beez user document
     const newMlmUser = {
         _id: new ObjectId(),
         userCode,
@@ -273,7 +273,7 @@ async function createMlmMemberFromApplication(db, application) {
         }
     );
 
-    // Update application with generated MLM user code
+    // Update application with generated Real Beez user code
     await db.collection('marketing_applications').updateOne(
         { _id: appId },
         { $set: { mlmUserCode: userCode, updatedAt: new Date().toISOString() } }
@@ -329,13 +329,10 @@ export async function POST(req) {
             }
         }
 
-        // Generate application ID
-        const generatedAppId = value.applicationId || `RB${new Date().getFullYear()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-
-        // Build document (unchanged)
+        // Build document (no mlmUserCode here)
         const newApplication = {
             _id: new ObjectId(),
-            applicationId: generatedAppId,
+            applicationId: value.applicationId,
             ...(value.fullName !== undefined && { fullName: value.fullName }),
             ...(value.dob !== undefined && { dob: new Date(value.dob).toISOString() }),
             ...(value.fatherName !== undefined && { fatherName: value.fatherName }),
@@ -368,20 +365,21 @@ export async function POST(req) {
             appliedAt: value.appliedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             remarks: "",
-            mlmUserCode: generateUserCode(),
+            userCode: generateUserCode() || "RB00001"
         };
 
         await applications.insertOne(newApplication);
 
         // --- Send email (only if email field is present) ---
         if (newApplication.email) {
+            // Remove mlmUserCode from email since it doesn't exist yet
             const emailHtml = `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #ca8a04;">Application Received</h2>
                     <p>Dear ${newApplication.fullName || 'Applicant'},</p>
                     <p>Thank you for submitting your application. Your application has been successfully received.</p>
                     <p><strong>Application ID:</strong> ${newApplication.applicationId}</p>
-                    <p><strong>User Code:</strong> ${newApplication.mlmUserCode}</p>
+                    <p><strong>User Code:</strong> ${newApplication.userCode}</p>
                     <p>You will receive an email once your application is processed.</p>
                     <hr />
                     <p style="font-size: 12px; color: #666;">If you have any questions, please contact support.</p>
@@ -551,22 +549,22 @@ export async function PUT(req) {
                 }, { status: 400 });
             }
 
-            // If status is 'approved' and no MLM user code exists yet, create MLM member
+            // If status is 'approved' and no Real Beez user code exists yet, create Real Beez member
             if (status === 'approved' && !application.mlmUserCode) {
                 try {
                     const mlmUserCode = await createMlmMemberFromApplication(db, application);
                     return Response.json({
                         success: true,
-                        message: "Application approved and MLM member created",
+                        message: "Application approved and Real Beez member created",
                         applicationId: id,
                         status: status,
                         remarks: remarks,
                         mlmUserCode: mlmUserCode,
                     });
                 } catch (mlmError) {
-                    console.log("MLM creation failed:", mlmError);
+                    console.log("Real Beez creation failed:", mlmError);
                     return Response.json({
-                        error: `Application approved but MLM member creation failed: ${mlmError.message}`,
+                        error: `Application approved but Real Beez member creation failed: ${mlmError.message}`,
                         success: false,
                     }, { status: 500 });
                 }

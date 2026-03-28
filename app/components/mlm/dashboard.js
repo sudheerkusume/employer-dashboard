@@ -142,7 +142,7 @@ export default function MLMDashboard() {
                 {/* Header with User Info */}
                 <div className="mb-8 flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">MLM Dashboard</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">Real Beez Dashboard</h1>
                         <p className="text-gray-600 mt-2">
                             Welcome, {userData?.fullName} ({userData?.userCode})
                         </p>

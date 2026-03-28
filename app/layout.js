@@ -50,7 +50,7 @@ export default function RootLayout({ children }) {
   useEffect(() => {
     // Load admin user from localStorage (if any)
     const storedUser = localStorage.getItem("user_details");
-    // Load MLM user from localStorage
+    // Load Real Beez user from localStorage
     const storedMlmUserCode = localStorage.getItem("mlm_user_code");
     const storedMlmUserName = localStorage.getItem("mlm_user_name");
     const storedMlmUserLevel = localStorage.getItem("mlm_user_level");
