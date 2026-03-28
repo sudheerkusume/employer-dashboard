@@ -31,6 +31,7 @@ export async function GET(req) {
                     fullName: user.fullName,
                     level: user.level || "ME",          // default if not yet approved
                     email: user.email,
+                    role: user.role,
                     contactNo: user.contactNo,
                 }
             });

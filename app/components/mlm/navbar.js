@@ -27,6 +27,7 @@ export default function MLMNavbar() {
                 userCode: "",
                 fullName: "",
                 level: "",
+                role: ""
             }
         }));
 
@@ -38,9 +39,12 @@ export default function MLMNavbar() {
         { path: "/mlm/dashboard", label: "Dashboard", icon: "🏠" },
         { path: "/mlm/tree", label: "Tree", icon: "🌳" },
         { path: "/mlm/commissions", label: "Commissions", icon: "💰" },
-        { path: "/mlm/sales", label: "Record Sale", icon: "💵" },
-        { path: "/applicants", label: "Applicants", icon: "👤" }
+        { path: "/mlm/sales", label: "Record Sale", icon: "💵" }
     ];
+
+    if (mlmUser.role === "admin") {
+        navItems.push({ path: "/applicants", label: "Applicants", icon: "👤" })
+    }
 
     return (
         <nav className="sticky top-0 z-50 bg-gradient-to-b from-yellow-100 to-yellow-50 backdrop-blur-md">
