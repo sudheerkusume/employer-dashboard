@@ -496,6 +496,7 @@ export async function GET(req) {
 }
 
 // ✅ PUT: Update application (status update or partial update)
+// ✅ PUT: Update application (status update or partial update)
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -529,11 +530,9 @@ export async function PUT(req) {
                 reviewedAt: new Date().toISOString(),
             };
 
-            // ---------- APPROVAL HANDLING ----------
-            // ---------- APPROVAL HANDLING ----------
+            // ---------- APPROVAL HANDLING (applicationId) ----------
+            let finalAppId = application.applicationId; // default to existing
             if (status === 'approved') {
-                let finalAppId = null;
-
                 if (preferredAppId && preferredAppId.trim()) {
                     // Check if the provided ID already exists
                     const existing = await applications.findOne({ applicationId: preferredAppId });
@@ -551,7 +550,7 @@ export async function PUT(req) {
                 updateFields.applicationId = finalAppId;
             }
 
-            // Perform the update
+            // Perform the update (status and possibly applicationId)
             const updateResult = await applications.updateOne(
                 { _id: new ObjectId(id) },
                 { $set: updateFields }
@@ -561,61 +560,75 @@ export async function PUT(req) {
                 return Response.json({ error: "Failed to update application status", success: false }, { status: 400 });
             }
 
-            // If approved and no MLM user code yet, create the MLM member
-            if (status === 'approved' && !application.mlmUserCode) {
-                try {
-                    const mlmUserCode = await createMlmMemberFromApplication(db, application);
+            // ---------- POST-APPROVAL ACTIONS (MLM creation & email) ----------
+            if (status === 'approved') {
+                let mlmUserCode = null;
+                let mlmCreationError = null;
 
-                    // Send approval email with application ID
-                    if (application.email) {
-                        const emailHtml = `
-                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                                <h2 style="color: #28a745;">Application Approved!</h2>
-                                <p>Dear ${application.fullName || 'Applicant'},</p>
-                                <p>Congratulations! Your application has been approved.</p>
-                                <p><strong>Application ID:</strong> ${finalAppId}</p>
-                                <p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>
-                                <p>You can now log in using this user code and start building your network.</p>
-                                <p><strong>Next Steps:</strong></p>
-                                <ul>
-                                    <li>Visit the dashboard to view your team tree</li>
-                                    <li>Share your referral code to grow your team</li>
-                                    <li>Start earning commissions</li>
-                                </ul>
-                                <hr />
-                                <p style="font-size: 12px; color: #666;">Thank you for joining Real Beez Projects Pvt Ltd.</p>
-                            </div>
-                        `;
-                        sendEmail(application.email, "Application Approved - Real Beez Projects Pvt Ltd", emailHtml)
-                            .catch(err => console.error("❌ Failed to send approval email:", err));
+                // Only attempt MLM creation if a referrer exists and no user code is already present
+                if (application.referredBy && !application.mlmUserCode) {
+                    try {
+                        mlmUserCode = await createMlmMemberFromApplication(db, application);
+                    } catch (mlmError) {
+                        console.error("Real Beez creation failed:", mlmError);
+                        mlmCreationError = mlmError.message;
+                        // Do not throw – we still want to approve the application
                     }
-
-                    return Response.json({
-                        success: true,
-                        message: "Application approved and Real Beez member created",
-                        applicationId: id,
-                        status,
-                        remarks,
-                        mlmUserCode,
-                        appId: finalAppId, // include generated ID in response
-                    });
-                } catch (mlmError) {
-                    console.error("Real Beez creation failed:", mlmError);
-                    return Response.json({
-                        error: `Application approved but member creation failed: ${mlmError.message}`,
-                        success: false,
-                    }, { status: 500 });
+                } else if (!application.referredBy) {
+                    console.log("No referrer provided; skipping MLM member creation.");
                 }
+
+                // Send approval email (always)
+                if (application.email) {
+                    const emailHtml = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                            <h2 style="color: #28a745;">Application Approved!</h2>
+                            <p>Dear ${application.fullName || 'Applicant'},</p>
+                            <p>Congratulations! Your application has been approved.</p>
+                            <p><strong>Application ID:</strong> ${finalAppId}</p>
+                            ${mlmUserCode
+                            ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>`
+                            : '<p><strong>Note:</strong> Your Real Beez account will be created once a sponsor is assigned. Please contact support.</p>'}
+                            <p>You can now log in using your Application ID (if a user code is not yet available, use the Application ID).</p>
+                            <p><strong>Next Steps:</strong></p>
+                            <ul>
+                                <li>Visit the dashboard to view your team tree</li>
+                                <li>Share your referral code to grow your team</li>
+                                <li>Start earning commissions</li>
+                            </ul>
+                            <hr />
+                            <p style="font-size: 12px; color: #666;">Thank you for joining Real Beez Projects Pvt Ltd.</p>
+                        </div>
+                    `;
+                    sendEmail(application.email, "Application Approved - Real Beez Projects Pvt Ltd", emailHtml)
+                        .catch(err => console.error("❌ Failed to send approval email:", err));
+                }
+
+                // Return success response, possibly with a warning if MLM creation failed
+                return Response.json({
+                    success: true,
+                    message: mlmCreationError
+                        ? `Application approved but MLM member creation failed: ${mlmCreationError}`
+                        : (mlmUserCode
+                            ? "Application approved and Real Beez member created"
+                            : "Application approved (MLM account pending sponsor assignment)"),
+                    applicationId: id,
+                    status,
+                    remarks,
+                    mlmUserCode,
+                    appId: finalAppId,
+                    warning: mlmCreationError ? "MLM creation failed" : undefined,
+                });
             }
 
-            // For rejection or already approved
+            // For rejection (or already approved but no actions)
             return Response.json({
                 success: true,
                 message: "Application status updated successfully",
                 applicationId: id,
                 status,
                 remarks,
-                ...(finalAppId && { appId: finalAppId }), // optional if not approved
+                ...(finalAppId && { appId: finalAppId }),
             });
         }
         else {
