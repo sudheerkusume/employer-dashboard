@@ -539,6 +539,7 @@ export default function ApplicationManagement() {
     const [actionLoading, setActionLoading] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteApp, setDeleteApp] = useState(null);
+    const [loadingAction, setLoadingAction] = useState(null);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -855,7 +856,7 @@ export default function ApplicationManagement() {
 
     const updateStatus = async (status) => {
         if (!statusUpdateApp) return;
-        setActionLoading(true);
+        setLoadingAction(status);
         try {
             const response = await fetch('/api/application', {
                 method: 'PUT',
@@ -880,9 +881,10 @@ export default function ApplicationManagement() {
             console.log(error);
             showNotification('error', 'Network error');
         } finally {
-            setActionLoading(false);
+            setLoadingAction(null);
         }
     };
+
 
     const resetForm = () => {
         setFormData({
@@ -1246,7 +1248,14 @@ export default function ApplicationManagement() {
     };
 
     // Extract StatusModal outside the main component
-    const StatusModal = memo(({ show, onClose, application, onUpdate, actionLoading, remarks, setRemarks }) => {
+    const StatusModal = memo(({ show, onClose, application, onUpdate, loadingAction, remarks, setRemarks }) => {
+        const textareaRef = useRef(null);
+
+        useEffect(() => {
+            if (show && textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }, [show]);
 
         if (!show || !application) return null;
 
@@ -1266,6 +1275,7 @@ export default function ApplicationManagement() {
                     <div className="mb-4">
                         <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
                         <textarea
+                            ref={textareaRef}
                             id="remarks"
                             name="remarks"
                             placeholder="Add remarks for this status change..."
@@ -1284,17 +1294,23 @@ export default function ApplicationManagement() {
                         </button>
                         <button
                             onClick={() => onUpdate('rejected')}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                            disabled={loadingAction === 'reject'}
+                            className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'reject'
+                                ? 'bg-red-400 cursor-not-allowed'
+                                : 'bg-red-600 hover:bg-red-700'
+                                }`}
                         >
-                            {actionLoading ? 'Processing...' : 'Reject'}
+                            {loadingAction === 'reject' ? 'Rejecting...' : 'Reject'}
                         </button>
                         <button
                             onClick={() => onUpdate('approved')}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                            disabled={loadingAction === 'approve'}
+                            className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'approve'
+                                ? 'bg-green-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700'
+                                }`}
                         >
-                            {actionLoading ? 'Processing...' : 'Approve'}
+                            {loadingAction === 'approve' ? 'Approving...' : 'Approve'}
                         </button>
                     </div>
                 </div>
@@ -1629,15 +1645,18 @@ export default function ApplicationManagement() {
                     .animate-slide-in { animation: slide-in 0.3s ease-out; }
                 `}</style>
                 {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
-                {showStatusModal && <StatusModal
-                    show={showStatusModal}
-                    onClose={() => setShowStatusModal(false)}
-                    application={statusUpdateApp}
-                    onUpdate={updateStatus}
-                    actionLoading={actionLoading}
-                    remarks={remarks}
-                    setRemarks={setRemarks}
-                />}
+                {showStatusModal && (
+                    <StatusModal
+                        key={statusUpdateApp?._id}
+                        show={showStatusModal}
+                        onClose={() => setShowStatusModal(false)}
+                        application={statusUpdateApp}
+                        onUpdate={updateStatus}
+                        loadingAction={loadingAction}
+                        remarks={remarks}
+                        setRemarks={setRemarks}
+                    />
+                )}
                 {showDeleteModal && <DeleteConfirmationModal />}
             </div>
         );

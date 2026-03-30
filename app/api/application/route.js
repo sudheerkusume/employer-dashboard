@@ -422,12 +422,12 @@ export async function PUT(req) {
             };
 
             // ---------- APPROVAL HANDLING (applicationId) ----------
-            let finalAppId = application.applicationId; // default to existing
+            let finalAppId = application.applicationId || preferredAppId; // default to existing
             if (status === 'approved') {
                 if (preferredAppId && preferredAppId.trim()) {
                     // Check if the provided ID already exists
                     const existing = await applications.findOne({ applicationId: preferredAppId });
-                    if (!existing) {
+                    if (existing) {
                         // Not used – keep the provided ID
                         finalAppId = preferredAppId;
                     } else {
