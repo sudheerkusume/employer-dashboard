@@ -510,7 +510,7 @@ export async function PUT(req) {
                 return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
             }
 
-            const { id, status, remarks } = value;
+            const { id, status, remarks, applicationId: preferredAppId } = value;
 
             // Find the application
             const application = await applications.findOne({ _id: new ObjectId(id) });
@@ -518,18 +518,40 @@ export async function PUT(req) {
                 return Response.json({ error: "Application not found", success: false }, { status: 404 });
             }
 
-            // Update application status
+            // Build update object
+            const updateFields = {
+                status,
+                level: "ME",
+                remarks: remarks || application.remarks,
+                updatedAt: new Date().toISOString(),
+                reviewedAt: new Date().toISOString(),
+            };
+
+            // ---------- APPROVAL HANDLING ----------
+            if (status === 'approved') {
+                // Determine final applicationId
+                let finalAppId = null;
+                if (preferredAppId) {
+                    // Check if provided ID is already used
+                    const existing = await applications.findOne({ applicationId: preferredAppId });
+                    if (existing) {
+                        return Response.json({
+                            error: `Application ID ${preferredAppId} already exists`,
+                            success: false
+                        }, { status: 409 });
+                    }
+                    finalAppId = preferredAppId;
+                } else {
+                    // Generate a new sequential ID
+                    finalAppId = await generateApplicationId(db);
+                }
+                updateFields.applicationId = finalAppId;
+            }
+
+            // Perform the update
             const updateResult = await applications.updateOne(
                 { _id: new ObjectId(id) },
-                {
-                    $set: {
-                        status,
-                        level: "ME",
-                        remarks: remarks || application.remarks,
-                        updatedAt: new Date().toISOString(),
-                        reviewedAt: new Date().toISOString(),
-                    },
-                }
+                { $set: updateFields }
             );
 
             if (updateResult.modifiedCount === 0) {
@@ -549,13 +571,14 @@ export async function PUT(req) {
                 try {
                     const mlmUserCode = await createMlmMemberFromApplication(db, application);
 
-                    // Send approval email
+                    // Send approval email with application ID
                     if (application.email) {
                         const emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                                 <h2 style="color: #28a745;">Application Approved!</h2>
                                 <p>Dear ${application.fullName || 'Applicant'},</p>
                                 <p>Congratulations! Your application has been approved.</p>
+                                <p><strong>Application ID:</strong> ${finalAppId}</p>
                                 <p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>
                                 <p>You can now log in using this user code and start building your network.</p>
                                 <p><strong>Next Steps:</strong></p>
@@ -579,6 +602,7 @@ export async function PUT(req) {
                         status,
                         remarks,
                         mlmUserCode,
+                        appId: finalAppId, // include generated ID in response
                     });
                 } catch (mlmError) {
                     console.error("Real Beez creation failed:", mlmError);
@@ -596,10 +620,11 @@ export async function PUT(req) {
                 applicationId: id,
                 status,
                 remarks,
+                ...(finalAppId && { appId: finalAppId }), // optional if not approved
             });
         }
         else {
-            // ---------- PARTIAL APPLICATION UPDATE ----------
+            // ---------- PARTIAL APPLICATION UPDATE (unchanged) ----------
             const { error, value } = updateApplicationSchema.validate(body);
             if (error) {
                 return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
@@ -688,6 +713,43 @@ export async function PUT(req) {
         console.error("❌ Error updating application:", err);
         return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
     }
+}
+
+// Helper function to generate a unique application ID (RBxxxxxx)
+async function generateApplicationId(db, preferredId = null) {
+    const applications = db.collection("marketing_applications");
+
+    // If a preferred ID is provided and it's valid, check if it's already used
+    if (preferredId && /^RB\d{6}$/.test(preferredId)) {
+        const existing = await applications.findOne({ applicationId: preferredId });
+        if (!existing) {
+            return preferredId;
+        }
+        // If preferred ID exists, we'll fall through to generate a new one
+    }
+
+    // Find the highest existing applicationId numeric value
+    const cursor = applications.find({ applicationId: { $regex: /^RB\d{6}$/ } });
+    let maxNum = 0;
+    await cursor.forEach(doc => {
+        const match = doc.applicationId.match(/^RB(\d{6})$/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+        }
+    });
+
+    // Generate new ID
+    let newId = `RB${(maxNum + 1).toString().padStart(6, '0')}`;
+
+    // Handle race condition: if another request just created the same ID, retry once
+    const existingAfter = await applications.findOne({ applicationId: newId });
+    if (existingAfter) {
+        // Try one more time (increment again)
+        newId = `RB${(maxNum + 2).toString().padStart(6, '0')}`;
+    }
+
+    return newId;
 }
 
 // ✅ DELETE: Delete an application (admin only)

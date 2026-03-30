@@ -867,6 +867,7 @@ export default function ApplicationManagement() {
                     id: statusUpdateApp._id,
                     status,
                     remarks,
+                    applicationId: statusUpdateApp.applicationId || ""
                 }),
             });
             const data = await response.json();
