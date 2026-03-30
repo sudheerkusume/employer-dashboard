@@ -1479,18 +1479,26 @@ export default function ApplicationManagement() {
 
         const selectedUser = users.find(user => user.userCode === value) || null;
 
-        const handleChange = (user) => {
-            onChange({ target: { name: 'referredBy', value: user ? user.userCode : '', type: 'select-one' } });
+        const handleSelect = (user) => {
+            // Create synthetic event for parent onChange
+            const syntheticEvent = {
+                target: {
+                    name: 'referredBy',
+                    value: user ? user.userCode : '',
+                    type: 'select-one'
+                }
+            };
+            onChange(syntheticEvent);
             setFormData(prev => ({ ...prev, referredBy: user.applicationId || user.userCode }));
-        };
-
-        // Optional: Clear selection button
-        const handleClear = (e) => {
-            e.stopPropagation();
-            handleChange(null);
+            // Clear query after selection
             setQuery('');
         };
 
+        const handleClear = (e) => {
+            e.stopPropagation();
+            handleSelect(null);
+            setQuery('');
+        };
 
         return (
             <div className="mb-4">
@@ -1503,7 +1511,7 @@ export default function ApplicationManagement() {
                         Loading referrers...
                     </div>
                 ) : (
-                    <Combobox value={selectedUser} onChange={handleChange}>
+                    <Combobox value={selectedUser} onChange={handleSelect}>
                         <div className="relative mt-1">
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500">
                                 <Combobox.Input
@@ -1543,8 +1551,7 @@ export default function ApplicationManagement() {
                                         <Combobox.Option
                                             key={user.userCode}
                                             className={({ active }) =>
-                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                                                }`
+                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`
                                             }
                                             value={user}
                                         >
