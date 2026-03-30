@@ -452,6 +452,7 @@ export async function PUT(req) {
             }
 
             // ---------- POST-APPROVAL ACTIONS (MLM creation & email) ----------
+            // ---------- POST-APPROVAL ACTIONS (MLM creation & email) ----------
             if (status === 'approved') {
                 let mlmUserCode = null;
                 let mlmCreationError = null;
@@ -459,38 +460,40 @@ export async function PUT(req) {
                 // Only attempt MLM creation if a referrer exists and no user code is already present
                 if (application.referredBy && !(application.mlmUserCode || application.userCode)) {
                     try {
-                        mlmUserCode = await generateUserCode(db, application.level || "ME");
+                        // Replace with the actual MLM creation function
+                        mlmUserCode = await createMlmMemberFromApplication(db, application);
                     } catch (mlmError) {
                         console.error("Real Beez creation failed:", mlmError);
                         mlmCreationError = mlmError.message;
                         // Do not throw – we still want to approve the application
                     }
                 } else if (!application.referredBy) {
-                    application.referredBy = "K Srinivas"
+                    // No referrer; skip MLM creation. Optionally log a warning.
+                    console.log("No referrer provided; skipping MLM member creation.");
                 }
 
                 // Send approval email (always)
                 if (application.email) {
                     const emailHtml = `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                            <h2 style="color: #28a745;">Application Approved!</h2>
-                            <p>Dear ${application.fullName || 'Applicant'},</p>
-                            <p>Congratulations! Your application has been approved.</p>
-                            <p><strong>Application ID:</strong> ${finalAppId}</p>
-                            ${mlmUserCode
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #28a745;">Application Approved!</h2>
+                <p>Dear ${application.fullName || 'Applicant'},</p>
+                <p>Congratulations! Your application has been approved.</p>
+                <p><strong>Application ID:</strong> ${finalAppId}</p>
+                ${mlmUserCode
                             ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>`
                             : '<p><strong>Note:</strong> Your Real Beez account will be created once a sponsor is assigned. Please contact support.</p>'}
-                            <p>You can now log in using your Application ID (if a user code is not yet available, use the Application ID).</p>
-                            <p><strong>Next Steps:</strong></p>
-                            <ul>
-                                <li>Visit the dashboard to view your team tree</li>
-                                <li>Share your referral code to grow your team</li>
-                                <li>Start earning commissions</li>
-                            </ul>
-                            <hr />
-                            <p style="font-size: 12px; color: #666;">Thank you for joining Real Beez Projects Pvt Ltd.</p>
-                        </div>
-                    `;
+                <p>You can now log in using your Application ID (if a user code is not yet available, use the Application ID).</p>
+                <p><strong>Next Steps:</strong></p>
+                <ul>
+                    <li>Visit the dashboard to view your team tree</li>
+                    <li>Share your referral code to grow your team</li>
+                    <li>Start earning commissions</li>
+                </ul>
+                <hr />
+                <p style="font-size: 12px; color: #666;">Thank you for joining Real Beez Projects Pvt Ltd.</p>
+            </div>
+        `;
                     sendEmail(application.email, "Application Approved - Real Beez Projects Pvt Ltd", emailHtml)
                         .catch(err => console.error("❌ Failed to send approval email:", err));
                 }
@@ -512,15 +515,37 @@ export async function PUT(req) {
                 });
             }
 
-            // For rejection (or already approved but no actions)
-            return Response.json({
-                success: true,
-                message: "Application status updated successfully",
-                applicationId: id,
-                status,
-                remarks,
-                ...(finalAppId && { appId: finalAppId }),
-            });
+            // ---------- REJECTION HANDLING (email) ----------
+            if (status === 'rejected') {
+                // Send rejection email with remarks
+                if (application.email) {
+                    const rejectionHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc3545;">Application Status Update</h2>
+                <p>Dear ${application.fullName || 'Applicant'},</p>
+                <p>We regret to inform you that your application has been rejected.</p>
+                <p><strong>Application ID:</strong> ${application.applicationId || finalAppId}</p>
+                ${remarks ? `<p><strong>Reason:</strong> ${remarks}</p>` : ''}
+                <p>If you have any questions, please contact our support team.</p>
+                <hr />
+                <p style="font-size: 12px; color: #666;">Thank you for your interest in Real Beez Projects Pvt Ltd.</p>
+            </div>
+        `;
+                    sendEmail(application.email, "Application Status Update - Real Beez Projects Pvt Ltd", rejectionHtml)
+                        .catch(err => console.error("❌ Failed to send rejection email:", err));
+                }
+
+                // Return success response for rejection
+                return Response.json({
+                    success: true,
+                    message: "Application rejected successfully",
+                    applicationId: id,
+                    status,
+                    remarks,
+                    appId: finalAppId,
+                });
+            }
+
         }
         else {
             // ---------- PARTIAL APPLICATION UPDATE (unchanged) ----------
