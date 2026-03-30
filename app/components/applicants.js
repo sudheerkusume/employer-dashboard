@@ -1473,8 +1473,8 @@ export default function ApplicationManagement() {
         const filteredUsers = query === ''
             ? users
             : users.filter(user =>
-                user.fullName.toLowerCase().includes(query.toLowerCase()) ||
-                user.userCode.toLowerCase().includes(query.toLowerCase())
+                (user.fullName || "").toLowerCase().includes((query || "").toLowerCase()) ||
+                (user.userCode || "").toLowerCase().includes((query || "").toLowerCase())
             );
 
         const selectedUser = users.find(user => user.userCode === value) || null;
