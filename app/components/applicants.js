@@ -581,6 +581,7 @@ export default function ApplicationManagement() {
         applicantSignature: '',
         referredBy: "",
         status: 'pending',
+        level: "ME"
     });
 
     const fetchApplications = async (page = 1) => {

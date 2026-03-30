@@ -75,6 +75,7 @@ const applicationSchema = Joi.object({
 
     // Referred By
     referredBy: Joi.string().allow("").optional(),
+    level: Joi.string().allow("").optional(),
 
     // Metadata
     status: Joi.string().allow("").default("pending"),
@@ -117,6 +118,7 @@ const updateApplicationSchema = Joi.object({
     applicantSignature: Joi.string().allow("").optional(),
     referrerSignature: Joi.string().allow("").optional(),
     referredBy: Joi.string().allow("").optional(),
+    level: Joi.string().allow("").optional(),
     status: Joi.string().allow("").optional(),
 });
 
@@ -131,6 +133,33 @@ const updateStatusSchema = Joi.object({
 // ======================
 // MLM Helpers
 // ======================
+
+// Helper function to generate a unique application ID (RBxxxxxx with 6 digits)
+async function generateApplicationId(db) {
+    const applications = db.collection("marketing_applications");
+
+    // Find the highest numeric value from any ID starting with "RB" followed by digits
+    const cursor = applications.find({ applicationId: { $regex: /^RB\d+$/ } });
+    let maxNum = 0;
+    await cursor.forEach(doc => {
+        const match = doc.applicationId.match(/^RB(\d+)$/);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+        }
+    });
+
+    // Generate new ID with 6‑digit padding
+    let newId = `RB${(maxNum + 1).toString().padStart(6, '0')}`;
+
+    // Race‑condition safety: if the newly generated ID already exists, increment once more
+    const existing = await applications.findOne({ applicationId: newId });
+    if (existing) {
+        newId = `RB${(maxNum + 2).toString().padStart(6, '0')}`;
+    }
+
+    return newId;
+}
 
 async function generateUserCode(db, level) {
     const prefix = level; // e.g., "ME"
@@ -191,13 +220,13 @@ export async function POST(req) {
         }
 
         // Generate application ID if not provided
-        const generatedAppId = value.applicationId || `RB${new Date().getFullYear()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        const generatedAppId = value.applicationId || await generateApplicationId(db);
 
         // Build document – temporary userCode = applicationId
         const newApplication = {
             _id: new ObjectId(),
             applicationId: generatedAppId,
-            userCode: generateUserCode(db, value.level || "ME"),            // temporary user code for pending app
+            userCode: await generateUserCode(db, value.level || "ME"),
             ...(value.fullName !== undefined && { fullName: value.fullName }),
             ...(value.dob !== undefined && { dob: new Date(value.dob).toISOString() }),
             ...(value.fatherName !== undefined && { fatherName: value.fatherName }),
@@ -430,7 +459,7 @@ export async function PUT(req) {
                 // Only attempt MLM creation if a referrer exists and no user code is already present
                 if (application.referredBy && !(application.mlmUserCode || application.userCode)) {
                     try {
-                        mlmUserCode = generateUserCode(db, application.level || "ME");
+                        mlmUserCode = await generateUserCode(db, application.level || "ME");
                     } catch (mlmError) {
                         console.error("Real Beez creation failed:", mlmError);
                         mlmCreationError = mlmError.message;
@@ -585,32 +614,6 @@ export async function PUT(req) {
     }
 }
 
-// Helper function to generate a unique application ID (RBxxxxxx with 6 digits)
-async function generateApplicationId(db) {
-    const applications = db.collection("marketing_applications");
-
-    // Find the highest numeric value from any ID starting with "RB" followed by digits
-    const cursor = applications.find({ applicationId: { $regex: /^RB\d+$/ } });
-    let maxNum = 0;
-    await cursor.forEach(doc => {
-        const match = doc.applicationId.match(/^RB(\d+)$/);
-        if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxNum) maxNum = num;
-        }
-    });
-
-    // Generate new ID with 6‑digit padding
-    let newId = `RB${(maxNum + 1).toString().padStart(6, '0')}`;
-
-    // Race‑condition safety: if the newly generated ID already exists, increment once more
-    const existing = await applications.findOne({ applicationId: newId });
-    if (existing) {
-        newId = `RB${(maxNum + 2).toString().padStart(6, '0')}`;
-    }
-
-    return newId;
-}
 
 // ✅ DELETE: Delete an application (admin only)
 export async function DELETE(req) {
