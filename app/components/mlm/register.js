@@ -549,6 +549,7 @@ export default function ApplicationManagement() {
 
         const handleChange = (user) => {
             onChange({ target: { name: 'referredBy', value: user ? user.userCode : '', type: 'select-one' } });
+            setFormData(prev => ({ ...prev, referredBy: user.applicationId || user.userCode }));
         };
 
         // Optional: Clear selection button
