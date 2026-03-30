@@ -1469,9 +1469,10 @@ export default function ApplicationManagement() {
             setLoadingUsers(false);
         }
     };
+
     const UserSelect = ({
         users,
-        value,           // expects a userCode string (or undefined/null)
+        value = '',          // Accepts undefined, null, or a userCode string
         onChange,
         loading,
         required = true,
@@ -1479,11 +1480,10 @@ export default function ApplicationManagement() {
     }) => {
         const [query, setQuery] = useState('');
 
-        // Find the full user object that matches the current value (userCode)
+        // Derive the selected user object from the current value and users list
         const selectedUser = users.find(
             (user) => user?.userCode === value || user?.mlmUserCode === value
         );
-        console.log("selectedUser", selectedUser)
 
         const filteredUsers = query === ''
             ? users
@@ -1494,11 +1494,11 @@ export default function ApplicationManagement() {
             );
 
         const handleChange = (user) => {
-            // Notify parent with a standard input event shape
+            // Send an event object to the parent (standard input-like event)
             onChange({
                 target: {
                     name: 'referredBy',
-                    value: user ? user.userCode : '',
+                    value: user ? user.applicationId : '',
                     type: 'select-one',
                 },
             });
