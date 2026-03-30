@@ -1495,6 +1495,7 @@ export default function ApplicationManagement() {
 
         const handleChange = (user) => {
             // Send an event object to the parent (standard input-like event)
+            console.log("user", user)
             onChange({
                 target: {
                     name: 'referredBy',
