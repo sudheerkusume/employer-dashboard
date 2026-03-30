@@ -120,10 +120,12 @@ const updateApplicationSchema = Joi.object({
     status: Joi.string().allow("").optional(),
 });
 
+// --- UPDATED: Allow applicationId in status update ---
 const updateStatusSchema = Joi.object({
     id: Joi.string().required(),
-    status: Joi.string().allow("").required(),
+    status: Joi.string().required(),
     remarks: Joi.string().allow(""),
+    applicationId: Joi.string().allow("").optional(),
 });
 
 // ======================

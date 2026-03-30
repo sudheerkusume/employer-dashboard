@@ -1269,16 +1269,19 @@ export default function ApplicationManagement() {
                         <p className="text-gray-700"><strong>Applicant:</strong> {application.fullName}</p>
                         <p className="text-gray-700"><strong>Application ID:</strong> {application.applicationId}</p>
                     </div>
-                    <TextArea
-                        ref={textareaRef}
-                        label="Remarks (optional)"
-                        name="remarks"
-                        placeholder="Add remarks for this status change..."
-                        value={remarks}
-                        onChange={(e) => setRemarks(e.target.value)}
-                        required={false}
-                        rows={3}
-                    />
+                    <div className="mb-4">
+                        <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
+                        <textarea
+                            ref={textareaRef}
+                            id="remarks"
+                            name="remarks"
+                            placeholder="Add remarks for this status change..."
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
+                        />
+                    </div>
                     <div className="flex justify-end space-x-3 mt-4">
                         <button
                             onClick={onClose}
