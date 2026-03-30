@@ -200,7 +200,6 @@ export default function MLMTree() {
                     </div>
                 </div>
 
-
                 {/* Error */}
                 {error && (
                     <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -208,7 +207,7 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Stats */}
+                {/* Overall Stats */}
                 {stats && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-4">
@@ -227,6 +226,47 @@ export default function MLMTree() {
                                     stats.status ?? ""
                                 ].filter(Boolean).join("/")}
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Detailed Downline Breakdown by Level */}
+                {stats && (stats.directByLevel || stats.totalByLevel) && (
+                    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-4">Downline Breakdown by Level</h2>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direct Downlines</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Downlines (incl. indirect)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {Object.keys(stats.directByLevel || {}).map(level => (
+                                        <tr key={level}>
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className={`w-3 h-3 rounded-full inline-block mr-2 ${getLevelColor(level)}`}></div>
+                                                <span className="font-medium">{level}</span>
+                                            </td>
+                                            <td className="px-4 py-2">{stats.directByLevel[level] || 0}</td>
+                                            <td className="px-4 py-2">{stats.totalByLevel?.[level] || 0}</td>
+                                        </tr>
+                                    ))}
+                                    {/* If there are levels in totalByLevel not present in directByLevel, list them too */}
+                                    {Object.keys(stats.totalByLevel || {}).filter(level => !stats.directByLevel?.[level]).map(level => (
+                                        <tr key={level}>
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className={`w-3 h-3 rounded-full inline-block mr-2 ${getLevelColor(level)}`}></div>
+                                                <span className="font-medium">{level}</span>
+                                            </td>
+                                            <td className="px-4 py-2">0</td>
+                                            <td className="px-4 py-2">{stats.totalByLevel[level]}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
@@ -269,7 +309,7 @@ export default function MLMTree() {
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>AGM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div><span>SMM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>MM</span></div>
+                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span>MM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-500"></div><span>ME</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-gray-400"></div><span>Pending</span></div>
                     </div>

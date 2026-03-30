@@ -227,6 +227,8 @@ export async function POST(req) {
             _id: new ObjectId(),
             applicationId: generatedAppId,
             userCode: await generateUserCode(db, value.level || "ME"),
+            mlmUserCode: await generateUserCode(db, value.level || "ME"),
+            level: value.level || "ME",
             ...(value.fullName !== undefined && { fullName: value.fullName }),
             ...(value.dob !== undefined && { dob: new Date(value.dob).toISOString() }),
             ...(value.fatherName !== undefined && { fatherName: value.fatherName }),

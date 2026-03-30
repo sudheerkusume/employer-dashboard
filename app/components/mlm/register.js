@@ -574,7 +574,12 @@ export default function ApplicationManagement() {
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500">
                                 <Combobox.Input
                                     className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
-                                    displayValue={(user) => user ? `${user.fullName} (${user.userCode})` : ''}
+                                    displayValue={(user) => {
+                                        if (!user) return '';
+                                        const base = user.fullName;
+                                        const code = user.userCode || user.mlmUserCode;
+                                        return code ? `${base} (${code})` : base;
+                                    }}
                                     onChange={(event) => setQuery(event.target.value)}
                                     placeholder="Search or select a referrer"
                                 />
