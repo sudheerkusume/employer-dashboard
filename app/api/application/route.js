@@ -197,7 +197,7 @@ export async function POST(req) {
         const newApplication = {
             _id: new ObjectId(),
             applicationId: generatedAppId,
-            userCode: generatedAppId,            // temporary user code for pending app
+            userCode: generateUserCode(db, value.level || "ME"),            // temporary user code for pending app
             ...(value.fullName !== undefined && { fullName: value.fullName }),
             ...(value.dob !== undefined && { dob: new Date(value.dob).toISOString() }),
             ...(value.fatherName !== undefined && { fatherName: value.fatherName }),
