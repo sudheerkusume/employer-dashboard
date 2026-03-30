@@ -131,23 +131,6 @@ const updateStatusSchema = Joi.object({
 // ======================
 // MLM Helpers
 // ======================
-const PROMOTION_THRESHOLDS = {
-    'ME': { next: 'MM', required: 5 },
-    'MM': { next: 'SMM', required: 5 },
-    'SMM': { next: 'AGM', required: 5 },
-    'AGM': { next: 'DGM', required: 5 },
-    'DGM': { next: 'GM', required: 5 },
-    'GM': { next: null, required: null }
-};
-
-const TARGETS = {
-    'ME': 300000,
-    'MM': 1000000,
-    'SMM': 3500000,
-    'AGM': 10000000,
-    'DGM': 20000000,
-    'GM': 50000000
-};
 
 async function generateUserCode(db, level) {
     const prefix = level; // e.g., "ME"
@@ -161,127 +144,6 @@ async function generateUserCode(db, level) {
         if (match) nextNum = parseInt(match[0]) + 1;
     }
     return `${prefix}-${nextNum.toString().padStart(3, '0')}`;
-}
-
-async function promoteUserIfNeeded(db, userCode) {
-    const user = await db.collection('marketing_applications').findOne({ userCode });
-    if (!user) return false;
-
-    const currentLevel = user.level;
-    const threshold = PROMOTION_THRESHOLDS[currentLevel];
-    if (!threshold || !threshold.next) return false;
-
-    // Count direct children at the same level
-    const children = await db.collection('marketing_applications').find({ sponsorCode: userCode }).toArray();
-    const count = children.filter(child => child.level === currentLevel).length;
-
-    // Check if sales target for current level is met
-    const target = TARGETS[currentLevel];
-    const teamSales = user.teamSales || 0;
-    const meetsTarget = teamSales >= target;
-
-    if (count >= threshold.required && meetsTarget) {
-        // Promote
-        await db.collection('marketing_applications').updateOne(
-            { userCode },
-            { $set: { level: threshold.next, updatedAt: new Date().toISOString() } }
-        );
-        console.log(`Promoted ${userCode} from ${currentLevel} to ${threshold.next}`);
-
-        // Recursively check sponsor
-        if (user.sponsorCode) {
-            await promoteUserIfNeeded(db, user.sponsorCode);
-        }
-        return true;
-    }
-    return false;
-}
-
-async function createMlmMemberFromApplication(db, application) {
-    const {
-        referredBy,
-        fullName,
-        email,
-        contactNo,
-        dob,
-        fatherName,
-        address,
-        pinCode,
-        panNumber,
-        aadharNumber,
-        bankName,
-        accountNo,
-        ifscCode,
-        branch,
-        bankCity,
-        _id: appId
-    } = application;
-
-    // Validate referrer exists
-    if (!referredBy) {
-        throw new Error('ReferredBy is required to create Real Beez member.');
-    }
-    const sponsor = await db.collection('marketing_applications').findOne({ userCode: referredBy });
-    if (!sponsor) {
-        throw new Error(`Referrer code "${referredBy}" not found in Real Beez network.`);
-    }
-
-    // Generate user code for level ME
-    const userCode = await generateUserCode(db, 'ME');
-
-    // Create Real Beez user document
-    const newMlmUser = {
-        _id: new ObjectId(),
-        userCode,
-        sponsorCode: referredBy,
-        level: 'ME',
-        fullName,
-        email,
-        contactNo,
-        dob: new Date(dob).toISOString(),
-        fatherName,
-        address,
-        pinCode,
-        panNumber,
-        aadharNumber,
-        bankName,
-        accountNo,
-        ifscCode,
-        branch,
-        bankCity,
-        status: 'active',
-        children: [],
-        directChildrenCount: 0,
-        teamSales: 0,
-        personalSales: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        applicationId: appId,
-        role: 'user',
-    };
-
-    await db.collection('marketing_applications').insertOne(newMlmUser);
-
-    // Update sponsor's children list and count
-    await db.collection('marketing_applications').updateOne(
-        { userCode: referredBy },
-        {
-            $push: { children: userCode },
-            $inc: { directChildrenCount: 1 },
-            $set: { updatedAt: new Date().toISOString() }
-        }
-    );
-
-    // Update original application with the new MLM user code
-    await db.collection('marketing_applications').updateOne(
-        { _id: appId },
-        { $set: { mlmUserCode: userCode, updatedAt: new Date().toISOString() } }
-    );
-
-    // Trigger promotion checks for sponsor
-    await promoteUserIfNeeded(db, referredBy);
-
-    return userCode;
 }
 
 // ======================
@@ -496,7 +358,6 @@ export async function GET(req) {
 }
 
 // ✅ PUT: Update application (status update or partial update)
-// ✅ PUT: Update application (status update or partial update)
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -568,7 +429,7 @@ export async function PUT(req) {
                 // Only attempt MLM creation if a referrer exists and no user code is already present
                 if (application.referredBy && !application.mlmUserCode) {
                     try {
-                        mlmUserCode = await createMlmMemberFromApplication(db, application);
+                        mlmUserCode = generateUserCode(db, application.level || "ME");
                     } catch (mlmError) {
                         console.error("Real Beez creation failed:", mlmError);
                         mlmCreationError = mlmError.message;
