@@ -676,6 +676,8 @@ export default function ApplicationManagement() {
         return errors;
     }, [formData.fullName, formData.email, formData.contactNo, formData.pinCode, formData.panNumber, formData.aadharNumber, formData.dob]);
 
+    console.log("formData", formData)
+
     const validateEmergencyTab = useCallback(() => {
         const errors = {};
         formData.emergencyContacts.forEach((contact, idx) => {
@@ -765,6 +767,7 @@ export default function ApplicationManagement() {
             setIsLoading(false);
         }
     };
+
 
     const handleEdit = async (application) => {
         setIsLoading(true);
@@ -1466,53 +1469,39 @@ export default function ApplicationManagement() {
             setLoadingUsers(false);
         }
     };
-
     const UserSelect = ({
         users,
-        value,
+        value,           // expects a userCode string (or undefined/null)
         onChange,
         loading,
         required = true,
         label = 'Referred By',
     }) => {
         const [query, setQuery] = useState('');
-        const [selectedUser, setSelectedUser] = useState(null);
+
+        // Find the full user object that matches the current value (userCode)
+        const selectedUser = users.find(
+            (user) => user?.userCode === value || user?.mlmUserCode === value
+        );
         console.log("selectedUser", selectedUser)
-        // Sync internal state with parent's value (if provided)
-        useEffect(() => {
-            if (value && users.length) {
-                const matched = users.find(
-                    (user) => user?.userCode === value || user?.mlmUserCode === value
-                );
-                setSelectedUser(matched || null);
-            } else if (!value) {
-                setSelectedUser(null);
-            }
-        }, [value, users]);
 
         const filteredUsers = query === ''
             ? users
             : users.filter(
                 (user) =>
-                    (user?.fullName || '')
-                        .toLowerCase()
-                        .includes(query.toLowerCase()) ||
-                    (user?.userCode || '')
-                        .toLowerCase()
-                        .includes(query.toLowerCase())
+                    (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
             );
 
         const handleChange = (user) => {
-            setSelectedUser(user || null);
-            // Simulate a standard input event for the parent
+            // Notify parent with a standard input event shape
             onChange({
                 target: {
                     name: 'referredBy',
-                    value: user ? user?.userCode : '',
+                    value: user ? user.userCode : '',
                     type: 'select-one',
                 },
             });
-            setFormData(prev => ({ ...prev, referredBy: user?.applicationId || user?.userCode }));
         };
 
         const handleClear = (e) => {
@@ -1582,9 +1571,7 @@ export default function ApplicationManagement() {
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {/* No extra space when userCode is missing */}
-                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''
-                                                            }`}
+                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''}`}
                                                     </span>
                                                     {selected && (
                                                         <span
