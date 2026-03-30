@@ -530,21 +530,22 @@ export async function PUT(req) {
             };
 
             // ---------- APPROVAL HANDLING ----------
+            // ---------- APPROVAL HANDLING ----------
             if (status === 'approved') {
-                // Determine final applicationId
                 let finalAppId = null;
-                if (preferredAppId) {
-                    // Check if provided ID is already used
+
+                if (preferredAppId && preferredAppId.trim()) {
+                    // Check if the provided ID already exists
                     const existing = await applications.findOne({ applicationId: preferredAppId });
-                    if (existing) {
-                        return Response.json({
-                            error: `Application ID ${preferredAppId} already exists`,
-                            success: false
-                        }, { status: 409 });
+                    if (!existing) {
+                        // Not used – keep the provided ID
+                        finalAppId = preferredAppId;
+                    } else {
+                        // Already used – generate a new sequential ID
+                        finalAppId = await generateApplicationId(db);
                     }
-                    finalAppId = preferredAppId;
                 } else {
-                    // Generate a new sequential ID
+                    // No preferred ID – generate a new sequential ID
                     finalAppId = await generateApplicationId(db);
                 }
                 updateFields.applicationId = finalAppId;
@@ -717,37 +718,27 @@ export async function PUT(req) {
     }
 }
 
-// Helper function to generate a unique application ID (RBxxxxxx)
-async function generateApplicationId(db, preferredId = null) {
+// Helper function to generate a unique application ID (RBxxxxxx with 6 digits)
+async function generateApplicationId(db) {
     const applications = db.collection("marketing_applications");
 
-    // If a preferred ID is provided and it's valid, check if it's already used
-    if (preferredId && /^RB\d{6}$/.test(preferredId)) {
-        const existing = await applications.findOne({ applicationId: preferredId });
-        if (!existing) {
-            return preferredId;
-        }
-        // If preferred ID exists, we'll fall through to generate a new one
-    }
-
-    // Find the highest existing applicationId numeric value
-    const cursor = applications.find({ applicationId: { $regex: /^RB\d{6}$/ } });
+    // Find the highest numeric value from any ID starting with "RB" followed by digits
+    const cursor = applications.find({ applicationId: { $regex: /^RB\d+$/ } });
     let maxNum = 0;
     await cursor.forEach(doc => {
-        const match = doc.applicationId.match(/^RB(\d{6})$/);
+        const match = doc.applicationId.match(/^RB(\d+)$/);
         if (match) {
             const num = parseInt(match[1], 10);
             if (num > maxNum) maxNum = num;
         }
     });
 
-    // Generate new ID
+    // Generate new ID with 6‑digit padding
     let newId = `RB${(maxNum + 1).toString().padStart(6, '0')}`;
 
-    // Handle race condition: if another request just created the same ID, retry once
-    const existingAfter = await applications.findOne({ applicationId: newId });
-    if (existingAfter) {
-        // Try one more time (increment again)
+    // Race‑condition safety: if the newly generated ID already exists, increment once more
+    const existing = await applications.findOne({ applicationId: newId });
+    if (existing) {
         newId = `RB${(maxNum + 2).toString().padStart(6, '0')}`;
     }
 
