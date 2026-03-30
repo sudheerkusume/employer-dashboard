@@ -538,33 +538,33 @@ export default function ApplicationManagement() {
     const UserSelect = ({ users, value, onChange, loading, required = true, label = "Referred By" }) => {
         const [query, setQuery] = useState('');
 
+        // Helper to get the user's code (prioritize userCode, fallback to mlmUserCode)
+        const getUserCode = (user) => user?.userCode || user?.mlmUserCode || '';
+
+        // Filter users based on query (fullName or code)
         const filteredUsers = query === ''
             ? users
             : users.filter(user =>
                 (user.fullName || "").toLowerCase().includes((query || "").toLowerCase()) ||
-                (user.userCode || "").toLowerCase().includes((query || "").toLowerCase())
+                getUserCode(user).toLowerCase().includes((query || "").toLowerCase())
             );
 
-        const selectedUser = users.find(user => user.userCode === value) || null;
+        // Find the selected user object using the provided value (code)
+        const selectedUser = users.find(user => getUserCode(user) === value) || null;
 
-        const handleSelect = (user) => {
-            // Create synthetic event for parent onChange
-            const syntheticEvent = {
-                target: {
-                    name: 'referredBy',
-                    value: user ? user.userCode : '',
-                    type: 'select-one'
-                }
-            };
-            onChange(syntheticEvent);
+        // Handle selection change
+        const handleChange = (user) => {
+            // Notify parent with the new code (or empty string if cleared)
+            onChange({ target: { name: 'referredBy', value: user ? getUserCode(user) : '', type: 'select-one' } });
             setFormData(prev => ({ ...prev, referredBy: user.applicationId || user.userCode }));
-            // Clear query after selection
+            // Clear query after selection (optional)
             setQuery('');
         };
 
+        // Clear selection
         const handleClear = (e) => {
             e.stopPropagation();
-            handleSelect(null);
+            handleChange(null);
             setQuery('');
         };
 
@@ -579,16 +579,15 @@ export default function ApplicationManagement() {
                         Loading referrers...
                     </div>
                 ) : (
-                    <Combobox value={selectedUser} onChange={handleSelect}>
+                    <Combobox value={selectedUser} onChange={handleChange}>
                         <div className="relative mt-1">
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500">
                                 <Combobox.Input
                                     className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
                                     displayValue={(user) => {
                                         if (!user) return '';
-                                        const base = user.fullName;
-                                        const code = user.userCode || user.mlmUserCode;
-                                        return code ? `${base} (${code})` : base;
+                                        const code = getUserCode(user);
+                                        return code ? `${user.fullName} (${code})` : user.fullName;
                                     }}
                                     onChange={(event) => setQuery(event.target.value)}
                                     placeholder="Search or select a referrer"
@@ -617,7 +616,7 @@ export default function ApplicationManagement() {
                                 ) : (
                                     filteredUsers.map((user) => (
                                         <Combobox.Option
-                                            key={user.userCode}
+                                            key={getUserCode(user) || user._id} // Use a unique key
                                             className={({ active }) =>
                                                 `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`
                                             }
@@ -626,7 +625,7 @@ export default function ApplicationManagement() {
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {user.fullName}{user.userCode && ` (${user.userCode})`}
+                                                        {user.fullName} {getUserCode(user) && `(${getUserCode(user)})`}
                                                     </span>
                                                     {selected && (
                                                         <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}>
