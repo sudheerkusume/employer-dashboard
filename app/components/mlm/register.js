@@ -538,7 +538,7 @@ export default function ApplicationManagement() {
     const UserSelect = ({ users, value, onChange, loading, required = true, label = "Referred By" }) => {
         const [query, setQuery] = useState('');
         const [selectedUser, setSelectedUser] = useState('');
-
+console.log("selectedUser",selectedUser)
         const filteredUsers = query === ''
             ? users
             : users.filter(user =>
