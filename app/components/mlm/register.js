@@ -535,28 +535,65 @@ export default function ApplicationManagement() {
         }
     };
 
-    const UserSelect = ({ users, value, onChange, loading, required = true, label = "Referred By" }) => {
+    const UserSelect = ({
+        users,
+        value,
+        onChange,
+        loading,
+        required = true,
+        label = 'Referred By',
+    }) => {
         const [query, setQuery] = useState('');
-        const [selectedUser, setSelectedUser] = useState('');
-console.log("selectedUser",selectedUser)
+        const [selectedUser, setSelectedUser] = useState(null);
+
+        // Sync internal state with parent's value (if provided)
+        useEffect(() => {
+            if (value && users.length) {
+                const matched = users.find(
+                    (user) => user?.userCode === value || user?.mlmUserCode === value
+                );
+                setSelectedUser(matched || null);
+            } else if (!value) {
+                setSelectedUser(null);
+            }
+        }, [value, users]);
+
         const filteredUsers = query === ''
             ? users
-            : users.filter(user =>
-                (user.fullName || "").toLowerCase().includes((query || "").toLowerCase()) ||
-                (user.userCode || "").toLowerCase().includes((query || "").toLowerCase())
+            : users.filter(
+                (user) =>
+                    (user?.fullName || '')
+                        .toLowerCase()
+                        .includes(query.toLowerCase()) ||
+                    (user?.userCode || '')
+                        .toLowerCase()
+                        .includes(query.toLowerCase())
             );
 
         const handleChange = (user) => {
-            onChange({ target: { name: 'referredBy', value: user ? user.userCode : '', type: 'select-one' } });
-            setFormData(prev => ({ ...prev, referredBy: user.applicationId || user.userCode }));
-            setSelectedUser(user)
+            setSelectedUser(user || null);
+            // Simulate a standard input event for the parent
+            onChange({
+                target: {
+                    name: 'referredBy',
+                    value: user ? user?.userCode : '',
+                    type: 'select-one',
+                },
+            });
+            setFormData(prev => ({ ...prev, referredBy: user?.applicationId || user?.userCode }));
         };
 
-        // Optional: Clear selection button
         const handleClear = (e) => {
             e.stopPropagation();
             handleChange(null);
             setQuery('');
+        };
+
+        const displayValue = (user) => {
+            if (!user) return '';
+            const base = user?.fullName || '';
+            const code = user?.userCode || user?.mlmUserCode;
+            return code ? `${base} (${code})` : base;
         };
 
         return (
@@ -575,12 +612,7 @@ console.log("selectedUser",selectedUser)
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500">
                                 <Combobox.Input
                                     className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
-                                    displayValue={(user) => {
-                                        if (!user) return '';
-                                        const base = user.fullName;
-                                        const code = user.userCode || user.mlmUserCode;
-                                        return code ? `${base} (${code})` : base;
-                                    }}
+                                    displayValue={displayValue}
                                     onChange={(event) => setQuery(event.target.value)}
                                     placeholder="Search or select a referrer"
                                 />
@@ -608,7 +640,7 @@ console.log("selectedUser",selectedUser)
                                 ) : (
                                     filteredUsers.map((user) => (
                                         <Combobox.Option
-                                            key={user.userCode}
+                                            key={user?.userCode}
                                             className={({ active }) =>
                                                 `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
                                                 }`
@@ -618,10 +650,15 @@ console.log("selectedUser",selectedUser)
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {`${user.fullName} ${user.userCode && `(${user.userCode})`}`}
+                                                        {/* No extra space when userCode is missing */}
+                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''
+                                                            }`}
                                                     </span>
                                                     {selected && (
-                                                        <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}>
+                                                        <span
+                                                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'
+                                                                }`}
+                                                        >
                                                             <Check className="h-5 w-5" aria-hidden="true" />
                                                         </span>
                                                     )}
