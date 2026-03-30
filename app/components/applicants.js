@@ -1,4 +1,4 @@
-// app/page.js
+// app/page.js (or your component file)
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useRef, forwardRef } from 'react';
@@ -245,7 +245,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
                 <div className="relative">
                     <div className="relative">
                         <input
-                            ref={inputRef} // attach ref
+                            ref={inputRef}
                             type="text"
                             id={name}
                             name={name}
@@ -267,7 +267,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
                             currentDate={value}
                             onSelect={handleDateSelect}
                             onClose={() => setShowDatePicker(false)}
-                            inputRef={inputRef} // pass ref
+                            inputRef={inputRef}
                         />
                     )}
                 </div>
@@ -814,15 +814,11 @@ export default function ApplicationManagement() {
         }
     };
 
-
-
-    // Update the handleDelete function to open the modal instead of directly deleting
     const handleDelete = (app) => {
         setDeleteApp(app);
         setShowDeleteModal(true);
     };
 
-    // Function to actually delete after confirmation
     const confirmDelete = async () => {
         if (!deleteApp) return;
         setActionLoading(true);
@@ -1311,7 +1307,6 @@ export default function ApplicationManagement() {
     });
     StatusModal.displayName = 'StatusModal';
 
-
     // Delete Modal Component
     const DeleteConfirmationModal = () => {
         if (!deleteApp) return null;
@@ -1536,18 +1531,38 @@ export default function ApplicationManagement() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleViewDetails(app)}
+                                                        className="text-blue-600 hover:text-blue-800 mr-3"
+                                                        aria-label="View Details"
+                                                    >
                                                         <Eye size={20} />
                                                     </button>
-                                                    <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEdit(app)}
+                                                        className="text-yellow-600 hover:text-yellow-800 mr-3"
+                                                        aria-label="Edit"
+                                                    >
                                                         <Edit size={20} />
                                                     </button>
                                                     {app.status === 'pending' && (
-                                                        <button onClick={() => handleStatusUpdate(app)} className="text-green-600 hover:text-green-800 mr-3" aria-label="Approve/Reject">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleStatusUpdate(app)}
+                                                            className="text-green-600 hover:text-green-800 mr-3"
+                                                            aria-label="Approve/Reject"
+                                                        >
                                                             <CheckCircle size={20} />
                                                         </button>
                                                     )}
-                                                    <button onClick={() => handleDelete(app)} className="text-red-600 hover:text-red-800" aria-label="Delete">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDelete(app)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                        aria-label="Delete"
+                                                    >
                                                         <Trash size={20} />
                                                     </button>
                                                 </td>
@@ -1627,6 +1642,7 @@ export default function ApplicationManagement() {
                     remarks={remarks}
                     setRemarks={setRemarks}
                 />}
+                {showDeleteModal && <DeleteConfirmationModal />}
             </div>
         );
     }
