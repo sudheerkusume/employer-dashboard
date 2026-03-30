@@ -358,11 +358,11 @@ export async function GET(req) {
         // Mask sensitive data in list results only
         const maskedResults = results.map(app => ({
             ...app,
-            accountNo: "****" + app.accountNo.slice(-4),
-            aadharNumber: "****" + app.aadharNumber.slice(-4),
-            panNumber: "****" + app.panNumber.slice(-4),
+            accountNo: app.accountNo,
+            aadharNumber: app.aadharNumber,
+            panNumber: app.panNumber,
             applicantSignature: app.applicantSignature || "[SIGNATURE]",
-            referrerSignature: app.applicantSignature || "[SIGNATURE]",
+            referrerSignature: app.referrerSignature || "[SIGNATURE]",
         }));
 
         return Response.json({
