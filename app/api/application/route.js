@@ -226,6 +226,7 @@ export async function POST(req) {
             ...(value.applicantSignature !== undefined && { applicantSignature: value.applicantSignature }),
             ...(value.referrerSignature !== undefined && { referrerSignature: value.referrerSignature }),
             ...(value.referredBy !== undefined && { referredBy: value.referredBy }),
+            ...((!value.referredBy || value.referredBy) && { referredBy: "K Srinivas" }),
             status: value.status || "pending",
             appliedAt: value.appliedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -427,7 +428,7 @@ export async function PUT(req) {
                 let mlmCreationError = null;
 
                 // Only attempt MLM creation if a referrer exists and no user code is already present
-                if (application.referredBy && !application.mlmUserCode) {
+                if (application.referredBy && !(application.mlmUserCode || application.userCode)) {
                     try {
                         mlmUserCode = generateUserCode(db, application.level || "ME");
                     } catch (mlmError) {
@@ -436,7 +437,7 @@ export async function PUT(req) {
                         // Do not throw – we still want to approve the application
                     }
                 } else if (!application.referredBy) {
-                    console.log("No referrer provided; skipping MLM member creation.");
+                    application.referredBy = "K Srinivas"
                 }
 
                 // Send approval email (always)
