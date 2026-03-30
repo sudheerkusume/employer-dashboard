@@ -361,8 +361,8 @@ export async function GET(req) {
             accountNo: "****" + app.accountNo.slice(-4),
             aadharNumber: "****" + app.aadharNumber.slice(-4),
             panNumber: "****" + app.panNumber.slice(-4),
-            applicantSignature: "[SIGNATURE]",
-            referrerSignature: "[SIGNATURE]",
+            applicantSignature: app.applicantSignature || "[SIGNATURE]",
+            referrerSignature: app.applicantSignature || "[SIGNATURE]",
         }));
 
         return Response.json({

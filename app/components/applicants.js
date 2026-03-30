@@ -1680,7 +1680,7 @@ export default function ApplicationManagement() {
                     <div className="flex justify-between items-center">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">{currentView === 'add' ? 'Add New Applicant' : 'Edit Application'}</h1>
-                            <p className="text-gray-600 mt-1">Admin &gt; Applications &gt; {currentView === 'add' ? 'New' : `#${currentApplication?._id?.slice(-6)}`}</p>
+                            <p className="text-gray-600 mt-1">Admin &gt; Applications &gt; {currentView === 'add' ? 'New' : `#${currentApplication.applicationId || currentApplication?._id?.slice(-6)}`}</p>
                         </div>
                     </div>
                 </div>
