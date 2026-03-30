@@ -537,50 +537,36 @@ export default function ApplicationManagement() {
 
     const UserSelect = ({
         users,
-        value,
+        value = '',          // Accepts undefined, null, or a userCode string
         onChange,
         loading,
         required = true,
         label = 'Referred By',
     }) => {
         const [query, setQuery] = useState('');
-        const [selectedUser, setSelectedUser] = useState(null);
 
-        // Sync internal state with parent's value (if provided)
-        useEffect(() => {
-            if (value && users.length) {
-                const matched = users.find(
-                    (user) => user?.userCode === value || user?.mlmUserCode === value
-                );
-                setSelectedUser(matched || null);
-            } else if (!value) {
-                setSelectedUser(null);
-            }
-        }, [value, users]);
+        // Derive the selected user object from the current value and users list
+        const selectedUser = users.find(
+            (user) => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value
+        );
 
         const filteredUsers = query === ''
             ? users
             : users.filter(
                 (user) =>
-                    (user?.fullName || '')
-                        .toLowerCase()
-                        .includes(query.toLowerCase()) ||
-                    (user?.userCode || '')
-                        .toLowerCase()
-                        .includes(query.toLowerCase())
+                    (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase())
+                        (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
             );
 
         const handleChange = (user) => {
-            setSelectedUser(user || null);
-            // Simulate a standard input event for the parent
             onChange({
                 target: {
                     name: 'referredBy',
-                    value: user ? user?.userCode : '',
+                    value: user ? user.applicationId : '',
                     type: 'select-one',
                 },
             });
-            setFormData(prev => ({ ...prev, referredBy: user?.applicationId || user?.userCode }));
         };
 
         const handleClear = (e) => {
@@ -650,9 +636,7 @@ export default function ApplicationManagement() {
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {/* No extra space when userCode is missing */}
-                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''
-                                                            }`}
+                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''}`}
                                                     </span>
                                                     {selected && (
                                                         <span

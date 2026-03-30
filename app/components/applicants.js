@@ -1482,7 +1482,7 @@ export default function ApplicationManagement() {
 
         // Derive the selected user object from the current value and users list
         const selectedUser = users.find(
-            (user) => user?.userCode === value || user?.mlmUserCode === value
+            (user) => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value
         );
 
         const filteredUsers = query === ''
@@ -1490,12 +1490,11 @@ export default function ApplicationManagement() {
             : users.filter(
                 (user) =>
                     (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
+                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase())
+                        (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
             );
 
         const handleChange = (user) => {
-            // Send an event object to the parent (standard input-like event)
-            console.log("user", user)
             onChange({
                 target: {
                     name: 'referredBy',
