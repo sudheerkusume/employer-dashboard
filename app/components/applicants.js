@@ -1246,13 +1246,6 @@ export default function ApplicationManagement() {
 
     // Extract StatusModal outside the main component
     const StatusModal = memo(({ show, onClose, application, onUpdate, actionLoading, remarks, setRemarks }) => {
-        const textareaRef = useRef(null);
-
-        useEffect(() => {
-            if (show && textareaRef.current) {
-                textareaRef.current.focus();
-            }
-        }, [show]);
 
         if (!show || !application) return null;
 
@@ -1272,7 +1265,6 @@ export default function ApplicationManagement() {
                     <div className="mb-4">
                         <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
                         <textarea
-                            ref={textareaRef}
                             id="remarks"
                             name="remarks"
                             placeholder="Add remarks for this status change..."
