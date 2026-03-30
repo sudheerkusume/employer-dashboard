@@ -800,7 +800,6 @@ export default function ApplicationManagement() {
                     referrerSignature: app.referrerSignature || '',
                     applicantSignature: app.applicantSignature || '',
                     status: app.status || 'pending',
-                    role: 'user',
                 });
                 setCurrentView('edit');
                 setActiveTab('personal');
