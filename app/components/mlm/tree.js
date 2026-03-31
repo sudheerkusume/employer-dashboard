@@ -19,10 +19,8 @@ export default function MLMTree() {
 
     // Helper to get the identifier from URL or localStorage
     const getIdentifier = () => {
-        // Check URL param first
         const urlCode = searchParams.get("mlm_user_code") || searchParams.get("userCode");
         if (urlCode) return urlCode;
-        // Then localStorage
         return localStorage.getItem("mlm_user_code") || localStorage.getItem("applicationId");
     };
 
@@ -32,7 +30,6 @@ export default function MLMTree() {
             fetchTreeData(identifier);
             setCurrentUser(identifier);
         } else {
-            // No identifier – show empty state
             setTreeData(null);
             setStats(null);
             setCurrentUser(null);
@@ -43,7 +40,6 @@ export default function MLMTree() {
         setLoading(true);
         setError(null);
         try {
-            // Use the correct query parameter "userCode"
             const res = await fetch(`/api/mlm/tree?userCode=${encodeURIComponent(identifier)}&depth=4`);
             const data = await res.json();
 
@@ -78,7 +74,6 @@ export default function MLMTree() {
         fetchTreeData(identifier);
     };
 
-    // Helper to safely get display name (fallback to userCode or applicationId)
     const getDisplayName = (node) => {
         return node.fullName || node.applicationId || node.userCode || "Unknown";
     };
@@ -86,10 +81,15 @@ export default function MLMTree() {
     const renderTree = (node, level = 0) => {
         if (!node) return null;
 
+        // Safe level/status display
         const levelClass = node.level ? getLevelColor(node.level) : "bg-gray-400";
-        const levelDisplay = node.level || "Pending";
-        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
+        let levelDisplay = node.level;
+        if (!levelDisplay) {
+            levelDisplay = node.status === "approved" ? "Approved" : "Pending";
+        }
+
         const identifier = node.mlmUserCode || node.userCode || node.applicationId;
+        const walletAmount = node.wallet ? formatCurrency(node.wallet) : null;
 
         return (
             <div key={node._id} className="tree-node relative">
@@ -101,11 +101,12 @@ export default function MLMTree() {
                             <span className="text-sm text-gray-500 ml-2">({identifier})</span>
                         )}
                         <span className="text-xs text-gray-400 ml-2">{levelDisplay}</span>
-                        <span className="text-xs text-green-600 ml-2">
-                            Wallet: {walletAmount}
-                        </span>
+                        {walletAmount !== null && (
+                            <span className="text-xs text-green-600 ml-2">
+                                Wallet: {walletAmount}
+                            </span>
+                        )}
                     </div>
-                    {/* Only show "View" button if the node has a valid identifier (mlmUserCode or applicationId) */}
                     {identifier && (
                         <button
                             onClick={() => handleViewUser(identifier)}
@@ -128,9 +129,13 @@ export default function MLMTree() {
     const renderListView = (node, level = 0) => {
         if (!node) return null;
 
-        const levelDisplay = node.level || "Pending";
-        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
+        let levelDisplay = node.level;
+        if (!levelDisplay) {
+            levelDisplay = node.status === "approved" ? "Approved" : "Pending";
+        }
+
         const identifier = node.mlmUserCode || node.userCode || node.applicationId;
+        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
 
         return (
             <Fragment key={node._id}>
@@ -200,14 +205,12 @@ export default function MLMTree() {
                     </div>
                 </div>
 
-                {/* Error */}
                 {error && (
                     <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
                         <strong>Error:</strong> {error}
                     </div>
                 )}
 
-                {/* Overall Stats */}
                 {stats && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-4">
@@ -221,16 +224,13 @@ export default function MLMTree() {
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Level / Status</div>
                             <div className="text-2xl font-bold text-purple-600">
-                                {[
-                                    stats.level === "Pending" ? "Pending Approval" : stats.level ?? "",
-                                    stats.status ?? ""
-                                ].filter(Boolean).join("/")}
+                                {stats.level || "Pending"}
+                                {stats.status && stats.status !== "approved" && ` (${stats.status})`}
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Detailed Downline Breakdown by Level */}
                 {stats && (stats.directByLevel || stats.totalByLevel) && (
                     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                         <h2 className="text-lg font-semibold text-gray-800 mb-4">Downline Breakdown by Level</h2>
@@ -254,7 +254,6 @@ export default function MLMTree() {
                                             <td className="px-4 py-2">{stats.totalByLevel?.[level] || 0}</td>
                                         </tr>
                                     ))}
-                                    {/* If there are levels in totalByLevel not present in directByLevel, list them too */}
                                     {Object.keys(stats.totalByLevel || {}).filter(level => !stats.directByLevel?.[level]).map(level => (
                                         <tr key={level}>
                                             <td className="px-4 py-2 whitespace-nowrap">
@@ -271,7 +270,6 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Tree Visualization */}
                 <div className="bg-white rounded-lg shadow-md p-6">
                     {!treeData ? (
                         <div className="text-center py-8 text-gray-500">
@@ -301,7 +299,6 @@ export default function MLMTree() {
                     )}
                 </div>
 
-                {/* Legend */}
                 <div className="mt-4 text-sm text-gray-600 text-center">
                     <p>Click "View" to explore downline | Each node shows Name (Identifier) and Level</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
