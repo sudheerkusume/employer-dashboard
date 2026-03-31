@@ -1119,6 +1119,7 @@ export default function ApplicationManagement() {
                         body: JSON.stringify(appData)
                     });
                     const result = await response.json();
+                    if (result.success) { setUrlInput("") }
                     if (!result.success) throw new Error(result.error || 'Submission failed');
                     return result;
                 })
