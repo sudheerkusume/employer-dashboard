@@ -2,7 +2,7 @@
 
 "use client";
 
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, getLevelColor } from "@/app/components/lib/mlmUtils";
 
@@ -15,28 +15,17 @@ export default function MLMTree() {
     const [error, setError] = useState(null);
     const [searchCode, setSearchCode] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
+    const [originalUser, setOriginalUser] = useState(null);
     const [viewMode, setViewMode] = useState("tree");
 
     // Helper to get the identifier from URL or localStorage
-    const getIdentifier = () => {
+    const getIdentifier = useCallback(() => {
         const urlCode = searchParams.get("mlm_user_code") || searchParams.get("userCode");
         if (urlCode) return urlCode;
         return localStorage.getItem("mlm_user_code") || localStorage.getItem("applicationId");
-    };
+    }, [searchParams]);
 
-    useEffect(() => {
-        const identifier = getIdentifier();
-        if (identifier) {
-            fetchTreeData(identifier);
-            setCurrentUser(identifier);
-        } else {
-            setTreeData(null);
-            setStats(null);
-            setCurrentUser(null);
-        }
-    }, []);
-
-    const fetchTreeData = async (identifier) => {
+    const fetchTreeData = useCallback(async (identifier) => {
         setLoading(true);
         setError(null);
         try {
@@ -60,13 +49,32 @@ export default function MLMTree() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const identifier = getIdentifier();
+        if (identifier) {
+            fetchTreeData(identifier);
+            setOriginalUser(identifier);
+        } else {
+            setTreeData(null);
+            setStats(null);
+            setCurrentUser(null);
+            setOriginalUser(null);
+        }
+    }, [getIdentifier, fetchTreeData]);
 
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchCode.trim()) {
             fetchTreeData(searchCode.trim());
             setSearchCode("");
+        }
+    };
+
+    const handleReset = () => {
+        if (originalUser) {
+            fetchTreeData(originalUser);
         }
     };
 
@@ -81,7 +89,6 @@ export default function MLMTree() {
     const renderTree = (node, level = 0) => {
         if (!node) return null;
 
-        // Safe level/status display
         const levelClass = node.level ? getLevelColor(node.level) : "bg-gray-400";
         let levelDisplay = node.level;
         if (!levelDisplay) {
@@ -202,6 +209,35 @@ export default function MLMTree() {
                                 List View
                             </button>
                         </div>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="mt-6">
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <input
+                                type="text"
+                                value={searchCode}
+                                onChange={(e) => setSearchCode(e.target.value)}
+                                placeholder="Enter MLM User Code or Application ID..."
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!searchCode.trim() || loading}
+                                className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            >
+                                Search
+                            </button>
+                            {originalUser && currentUser !== originalUser && (
+                                <button
+                                    type="button"
+                                    onClick={handleReset}
+                                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+                                >
+                                    Reset
+                                </button>
+                            )}
+                        </form>
                     </div>
                 </div>
 

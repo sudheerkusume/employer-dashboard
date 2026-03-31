@@ -1,5 +1,3 @@
-// app/api/mlm/tree/route.js
-
 import clientPromise from "@/app/components/lib/db";
 
 export async function GET(req) {
@@ -16,11 +14,12 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const users = db.collection("marketing_applications");
 
-        // Find root user: by applicationId (primary) or mlmUserCode (secondary)
+        // Find root user: by applicationId OR mlmUserCode
         const rootUser = await users.findOne({
             $or: [
                 { applicationId: identifier.toUpperCase() },
-                { mlmUserCode: identifier }
+                { mlmUserCode: identifier },
+                { userCode: identifier }
             ]
         });
 
@@ -28,7 +27,7 @@ export async function GET(req) {
             return Response.json({ error: "User not found", success: false }, { status: 404 });
         }
 
-        // Recursive function to build the tree
+        // Recursive function to build the tree using referredBy field
         async function buildTree(user, currentDepth, visited = new Set()) {
             if (currentDepth >= depth || !user.applicationId) {
                 return {
@@ -44,28 +43,48 @@ export async function GET(req) {
                     ...user,
                     _id: user._id.toString(),
                     children: [],
-                    note: "Circular reference detected, children truncated"
+                    note: "Circular reference detected"
                 };
             }
             visited.add(user.applicationId);
 
-            // Fetch direct downlines: those whose sponsorCode equals this user's applicationId
-            const children = await users.find({ sponsorCode: user.applicationId }).toArray();
+            // Find children: those whose referredBy matches this user's applicationId OR mlmUserCode
+            const children = await users.find({
+                $or: [
+                    { referredBy: user.applicationId },
+                    { referredBy: user.mlmUserCode }
+                ]
+            }).toArray();
 
             const childrenWithSubtree = await Promise.all(
                 children.map(child => buildTree(child, currentDepth + 1, new Set(visited)))
             );
 
+            // Return user object with children, ensuring all fields are serializable
             return {
-                ...user,
                 _id: user._id.toString(),
+                applicationId: user.applicationId,
+                userCode: user.userCode,
+                mlmUserCode: user.mlmUserCode,
+                fullName: user.fullName,
+                level: user.level || "Pending",
+                status: user.status,
+                wallet: user.wallet || 0,
+                referredBy: user.referredBy,
+                email: user.email,
+                contactNo: user.contactNo,
                 children: childrenWithSubtree
             };
         }
 
-        // Helper to count downline stats by level
-        async function getDownlineStats(userId) {
-            const directChildren = await users.find({ sponsorCode: userId }).toArray();
+        // Helper to count downline stats by level using referredBy
+        async function getDownlineStats(userId, userMlmCode) {
+            const directChildren = await users.find({
+                $or: [
+                    { referredBy: userId },
+                    { referredBy: userMlmCode }
+                ]
+            }).toArray();
             const directCount = directChildren.length;
 
             const directByLevel = {};
@@ -79,7 +98,7 @@ export async function GET(req) {
 
             for (const child of directChildren) {
                 if (child.applicationId) {
-                    const childStats = await getDownlineStats(child.applicationId);
+                    const childStats = await getDownlineStats(child.applicationId, child.mlmUserCode);
                     totalCount += childStats.totalCount;
                     for (const [level, cnt] of Object.entries(childStats.totalByLevel)) {
                         totalByLevel[level] = (totalByLevel[level] || 0) + cnt;
@@ -90,13 +109,19 @@ export async function GET(req) {
             return { totalCount, totalByLevel };
         }
 
+        // Calculate statistics
         let directChildren = 0;
         let totalDownline = 0;
         let directByLevel = {};
         let totalByLevel = {};
 
         if (rootUser.applicationId) {
-            const directList = await users.find({ sponsorCode: rootUser.applicationId }).toArray();
+            const directList = await users.find({
+                $or: [
+                    { referredBy: rootUser.applicationId },
+                    { referredBy: rootUser.mlmUserCode }
+                ]
+            }).toArray();
             directChildren = directList.length;
 
             directByLevel = {};
@@ -105,7 +130,7 @@ export async function GET(req) {
                 directByLevel[level] = (directByLevel[level] || 0) + 1;
             }
 
-            const downlineStats = await getDownlineStats(rootUser.applicationId);
+            const downlineStats = await getDownlineStats(rootUser.applicationId, rootUser.mlmUserCode);
             totalDownline = downlineStats.totalCount;
             totalByLevel = downlineStats.totalByLevel;
         }
@@ -120,8 +145,8 @@ export async function GET(req) {
                 totalDownline,
                 directByLevel,
                 totalByLevel,
-                level: rootUser.level || "ME",
-                // wallet: rootUser.wallet
+                level: rootUser.level || "Pending",
+                status: rootUser.status
             }
         });
 
