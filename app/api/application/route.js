@@ -34,12 +34,15 @@ async function sendEmail(to, subject, html) {
  */
 async function getNextApplicationId(db) {
     const counters = db.collection("counters");
+
     const result = await counters.findOneAndUpdate(
         { _id: "applicationId" },
         { $inc: { seq: 1 } },
         { upsert: true, returnDocument: "after" }
     );
-    const seq = result.value.seq;
+
+    const seq = result?.value?.seq || 1;
+
     return `RB${seq.toString().padStart(6, '0')}`;
 }
 
@@ -49,13 +52,15 @@ async function getNextApplicationId(db) {
  */
 async function getNextUserCode(db, level) {
     const counters = db.collection("counters");
-    const counterId = `userCode_${level}`;
+
     const result = await counters.findOneAndUpdate(
-        { _id: counterId },
+        { _id: `userCode_${level}` },
         { $inc: { seq: 1 } },
         { upsert: true, returnDocument: "after" }
     );
-    const seq = result.value.seq;
+
+    const seq = result?.value?.seq || 1;
+
     return `${level}-${seq.toString().padStart(3, '0')}`;
 }
 
@@ -118,7 +123,6 @@ async function promoteUserIfNeeded(db, userCode) {
             { userCode },
             { $set: { level: threshold.next, updatedAt: new Date().toISOString() } }
         );
-        console.log(`Promoted ${userCode} from ${currentLevel} to ${threshold.next}`);
 
         // Recursively check sponsor
         if (user.sponsorCode) {
