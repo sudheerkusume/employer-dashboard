@@ -136,6 +136,7 @@ async function promoteUserIfNeeded(db, userCode) {
 async function createMlmMemberFromApplication(db, application) {
     const {
         referredBy,
+        userCode,
         fullName,
         email,
         contactNo,
@@ -157,19 +158,19 @@ async function createMlmMemberFromApplication(db, application) {
     if (!referredBy) {
         throw new Error('ReferredBy is required to create Real Beez member.');
     }
-    const sponsor = await db.collection('marketing_applications').findOne({ userCode: referredBy });
+    const sponsor = await db.collection('marketing_applications').findOne({ userCode: userCode });
     if (!sponsor) {
-        throw new Error(`Referrer code "${referredBy}" not found in Real Beez network.`);
+        throw new Error(`Referrer code "${userCode}" not found in Real Beez network.`);
     }
 
     // Generate user code for level ME
-    const userCode = await generateUserCode(db, 'ME');
+    const newUserCode = await generateUserCode(db, 'ME');
 
     // Create Real Beez user document
     const newMlmUser = {
         _id: new ObjectId(),
-        userCode,
-        sponsorCode: referredBy,
+        userCode: newUserCode,
+        sponsorCode: userCode,
         level: 'ME',
         fullName,
         email,
@@ -200,9 +201,9 @@ async function createMlmMemberFromApplication(db, application) {
 
     // Update sponsor's children list and count
     await db.collection('marketing_applications').updateOne(
-        { userCode: referredBy },
+        { userCode: userCode },
         {
-            $push: { children: userCode },
+            $push: { children: newUserCode },
             $inc: { directChildrenCount: 1 },
             $set: { updatedAt: new Date().toISOString() }
         }
@@ -211,13 +212,13 @@ async function createMlmMemberFromApplication(db, application) {
     // Update original application with the new MLM user code
     await db.collection('marketing_applications').updateOne(
         { _id: appId },
-        { $set: { mlmUserCode: userCode, updatedAt: new Date().toISOString() } }
+        { $set: { mlmUserCode: newUserCode, updatedAt: new Date().toISOString() } }
     );
 
     // Trigger promotion checks for sponsor
-    await promoteUserIfNeeded(db, referredBy);
+    await promoteUserIfNeeded(db, userCode);
 
-    return userCode;
+    return newUserCode;
 }
 
 // --- Joi Schemas (unchanged, but dob made optional string to handle empty) ---
