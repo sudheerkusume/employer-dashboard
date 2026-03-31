@@ -257,7 +257,7 @@ export async function POST(req) {
             ...(value.applicantSignature !== undefined && { applicantSignature: value.applicantSignature }),
             ...(value.referrerSignature !== undefined && { referrerSignature: value.referrerSignature }),
             ...(value.referredBy !== undefined && { referredBy: value.referredBy }),
-            ...((!value.referredBy || value.referredBy) && { referredBy: "K Srinivas" }),
+            ...((!value.referredBy || value.referredBy === "") && { referredBy: "RB000001" }),
             status: value.status || "pending",
             appliedAt: value.appliedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),

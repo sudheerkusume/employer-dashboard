@@ -676,8 +676,6 @@ export default function ApplicationManagement() {
         return errors;
     }, [formData.fullName, formData.email, formData.contactNo, formData.pinCode, formData.panNumber, formData.aadharNumber, formData.dob]);
 
-    console.log("formData", formData)
-
     const validateEmergencyTab = useCallback(() => {
         const errors = {};
         formData.emergencyContacts.forEach((contact, idx) => {
@@ -800,7 +798,7 @@ export default function ApplicationManagement() {
                     ifscCode: app.ifscCode || '',
                     branch: app.branch || '',
                     bankCity: app.bankCity || '',
-                    referredBy: app.referredBy || '',
+                    referredBy: app.referredBy || 'RB000001',
                     declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
                     referrerSignature: app.referrerSignature || '',
@@ -897,7 +895,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: 'RB000001', status: 'pending',
         });
         setCurrentApplication(null);
         setActiveTab('personal');
@@ -1065,7 +1063,7 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
-            referredBy: '',
+            referredBy: 'RB000001',
             status: getStr('Status') || 'pending',
         };
     };
