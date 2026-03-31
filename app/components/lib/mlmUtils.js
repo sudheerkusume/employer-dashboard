@@ -59,12 +59,12 @@ export function formatDate(dateString) {
 
 export function getLevelColor(level) {
     const colors = {
-        'GM': 'bg-red-100 text-red-700',
-        'DGM': 'bg-orange-100 text-orange-700',
-        'AGM': 'bg-yellow-100 text-yellow-700',
-        'SMM': 'bg-green-100 text-green-700',
-        'MM': 'bg-blue-100 text-blue-700',
-        'ME': 'bg-purple-100 text-purple-700'
+        'GM': 'bg-red-300 text-red-700',
+        'DGM': 'bg-orange-300 text-orange-700',
+        'AGM': 'bg-yellow-300 text-yellow-700',
+        'SMM': 'bg-green-300 text-green-700',
+        'MM': 'bg-blue-300 text-blue-700',
+        'ME': 'bg-purple-300 text-purple-700'
     };
-    return colors[level] || 'bg-gray-100 text-gray-700';
+    return colors[level] || 'bg-gray-300 text-gray-700';
 }
