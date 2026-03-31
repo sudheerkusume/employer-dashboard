@@ -295,26 +295,66 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
 InputField.displayName = 'InputField';
 
 // ======================
-// Radio Group Component
+// Radio Group Component (Custom)
 // ======================
 const RadioGroup = memo(({ label, name, options, value, onChange, required = false }) => {
     const [error, setError] = useState('');
-    const handleChange = (e) => {
-        const syntheticEvent = { target: { name, value: e.target.value, type: 'radio' } };
+
+    const handleChange = (selectedValue) => {
+        const syntheticEvent = { target: { name, value: selectedValue, type: 'radio' } };
         onChange(syntheticEvent);
-        if (required && !e.target.value) setError(`${label} is required`);
-        else setError('');
+        if (required && !selectedValue) {
+            setError(`${label} is required`);
+        } else {
+            setError('');
+        }
     };
+
+    const handleBlur = () => {
+        if (required && !value) {
+            setError(`${label} is required`);
+        }
+    };
+
     return (
         <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
-            <div className="flex gap-4">
-                {options.map(option => (
-                    <label key={option.value} className="flex items-center space-x-2">
-                        <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={handleChange} className="w-4 h-4 text-yellow-600 focus:ring-yellow-500" />
-                        <span className="text-sm text-gray-700">{option.label}</span>
-                    </label>
-                ))}
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div
+                className="flex gap-4"
+                role="radiogroup"
+                onBlur={handleBlur}
+            >
+                {options.map(option => {
+                    const isChecked = value === option.value;
+                    return (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={isChecked}
+                            onClick={() => handleChange(option.value)}
+                            className="flex items-center space-x-2 focus:outline-none rounded"
+                        >
+                            <div
+                                className={`
+                                    w-5 h-5 rounded-full border-2 flex items-center justify-center
+                                    transition-all duration-200
+                                    ${isChecked
+                                        ? 'border-yellow-500'
+                                        : 'border-gray-300 hover:border-gray-400'
+                                    }
+                                `}
+                            >
+                                {isChecked && (
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                                )}
+                            </div>
+                            <span className="text-sm text-gray-700">{option.label}</span>
+                        </button>
+                    );
+                })}
             </div>
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
@@ -355,23 +395,50 @@ const TextArea = memo(forwardRef(({ label, name, value, onChange, required = fal
 TextArea.displayName = 'TextArea';
 
 // ======================
-// Checkbox Component
+// Checkbox Component (Custom)
 // ======================
 const Checkbox = memo(({ label, name, checked, onChange, required = false, description = '' }) => {
     const [error, setError] = useState('');
-    const handleChange = (e) => {
-        const syntheticEvent = { target: { name, checked: e.target.checked, type: 'checkbox' } };
+
+    const handleToggle = () => {
+        const newChecked = !checked;
+        const syntheticEvent = { target: { name, checked: newChecked, type: 'checkbox' } };
         onChange(syntheticEvent);
-        if (required && !e.target.checked) setError(`${label} is required`);
-        else setError('');
+        if (required && !newChecked) {
+            setError(`${label} is required`);
+        } else {
+            setError('');
+        }
     };
-    const handleBlur = () => { if (required && !checked) setError(`${label} is required`); };
+
+    const handleBlur = () => {
+        if (required && !checked) setError(`${label} is required`);
+    };
+
     return (
         <div className="mb-4">
             <label className="flex items-start space-x-3 cursor-pointer">
-                <input type="checkbox" name={name} checked={checked} onChange={handleChange} onBlur={handleBlur} required={required} className="mt-1 w-5 h-5 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500" />
+                <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    onClick={handleToggle}
+                    onBlur={handleBlur}
+                    className={`
+                        w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center
+                        transition-all duration-200 cursor-pointer focus:outline-none
+                        ${checked
+                            ? 'bg-yellow-500 border-yellow-500 text-white'
+                            : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
+                        }
+                    `}
+                >
+                    <Check size={14} className="stroke-[3]" />
+                </button>
                 <div className="flex-1">
-                    <span className="text-gray-700 text-sm">{label} {required && <span className="text-red-500">*</span>}</span>
+                    <span className="text-gray-700 text-sm">
+                        {label} {required && <span className="text-red-500">*</span>}
+                    </span>
                     {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
                 </div>
             </label>
@@ -543,6 +610,11 @@ export default function ApplicationManagement() {
     const [loadingAction, setLoadingAction] = useState(null);
     const [usersList, setUsersList] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(true);
+
+    // Multi‑delete state
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -771,7 +843,6 @@ export default function ApplicationManagement() {
         }
     };
 
-
     const handleEdit = async (application) => {
         setIsLoading(true);
         try {
@@ -893,7 +964,6 @@ export default function ApplicationManagement() {
             setLoadingAction(null);
         }
     };
-
 
     const resetForm = () => {
         setFormData({
@@ -1124,6 +1194,58 @@ export default function ApplicationManagement() {
         return filtered;
     }, [applications, searchTerm]);
 
+    // Keep selectAll in sync with filteredApplications and selectedIds
+    useEffect(() => {
+        if (filteredApplications.length === 0) {
+            setSelectAll(false);
+        } else {
+            const allSelected = filteredApplications.every(app => selectedIds.includes(app._id));
+            setSelectAll(allSelected);
+        }
+    }, [filteredApplications, selectedIds]);
+
+    const handleSelectRow = (id) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = (checked) => {
+        setSelectAll(checked);
+        if (checked) {
+            setSelectedIds(filteredApplications.map(app => app._id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        setActionLoading(true);
+        try {
+            const response = await fetch('/api/application', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedIds }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('success', `Deleted ${data.deleted} application${data.deleted > 1 ? 's' : ''}`);
+                setSelectedIds([]);
+                setSelectAll(false);
+                setShowBulkDeleteModal(false);
+                fetchApplications(currentPage);
+            } else {
+                showNotification('error', data.error || 'Failed to delete applications');
+            }
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            showNotification('error', 'Network error. Please try again.');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'approved': return 'text-green-600 bg-green-100';
@@ -1259,13 +1381,15 @@ export default function ApplicationManagement() {
         );
     };
 
-    // Extract StatusModal outside the main component
     const StatusModal = memo(({ show, onClose, application, onUpdate, loadingAction, remarks, setRemarks }) => {
         const textareaRef = useRef(null);
 
         useEffect(() => {
             if (show && textareaRef.current) {
                 textareaRef.current.focus();
+                // Move cursor to the end of the text (right side)
+                const length = textareaRef.current.value.length;
+                textareaRef.current.setSelectionRange(length, length);
             }
         }, [show]);
 
@@ -1281,7 +1405,7 @@ export default function ApplicationManagement() {
                         </button>
                     </div>
                     <div className="mb-4">
-                        <p className="text-gray-700"><strong>Applicant:</strong> {application.fullName}</p>
+                        <p className="text-gray-700"><strong>Applicant:</strong><span className='capitalize'> {application.fullName}</span></p>
                         <p className="text-gray-700"><strong>Application ID:</strong> {application.applicationId}</p>
                     </div>
                     <div className="mb-4">
@@ -1331,7 +1455,6 @@ export default function ApplicationManagement() {
     });
     StatusModal.displayName = 'StatusModal';
 
-    // Delete Modal Component
     const DeleteConfirmationModal = () => {
         if (!deleteApp) return null;
         return (
@@ -1345,7 +1468,7 @@ export default function ApplicationManagement() {
                     </div>
                     <div className="mb-4">
                         <p className="text-gray-700">Are you sure you want to delete this application?</p>
-                        <p className="text-gray-700 mt-2"><strong>Applicant:</strong> {deleteApp.fullName}</p>
+                        <p className="text-gray-700 mt-2 capitalize"><strong>Applicant:</strong> <span className='capitalize'>{deleteApp.fullName}</span></p>
                         <p className="text-gray-700"><strong>Application ID:</strong> {deleteApp.applicationId}</p>
                         <p className="text-red-600 text-sm mt-3">This action cannot be undone.</p>
                     </div>
@@ -1362,6 +1485,41 @@ export default function ApplicationManagement() {
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                         >
                             {actionLoading ? 'Deleting...' : 'Delete'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const BulkDeleteConfirmationModal = () => {
+        if (!showBulkDeleteModal) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Confirm Bulk Deletion</h2>
+                        <button onClick={() => setShowBulkDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className="mb-4">
+                        <p className="text-gray-700">Are you sure you want to delete <strong>{selectedIds.length}</strong> application{selectedIds.length > 1 ? 's' : ''}?</p>
+                        <p className="text-red-600 text-sm mt-3">This action cannot be undone.</p>
+                    </div>
+                    <div className="flex justify-end space-x-3 mt-4">
+                        <button
+                            onClick={() => setShowBulkDeleteModal(false)}
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={actionLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {actionLoading ? 'Deleting...' : 'Delete All'}
                         </button>
                     </div>
                 </div>
@@ -1456,7 +1614,6 @@ export default function ApplicationManagement() {
         </div>
     );
 
-
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -1498,8 +1655,8 @@ export default function ApplicationManagement() {
             : users.filter(
                 (user) =>
                     (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase())
-                        (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
+                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
             );
 
         const handleChange = (user) => {
@@ -1606,8 +1763,30 @@ export default function ApplicationManagement() {
         );
     };
 
+    const CustomCheckbox = ({ checked, onChange, className = '' }) => {
+        return (
+            <button
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                onClick={() => onChange(!checked)}
+                className={`
+        w-5 h-5 rounded-md border-2 flex items-center justify-center
+        transition-all duration-200 cursor-pointer
+        ${checked
+                        ? 'bg-yellow-500 border-yellow-500 text-white'
+                        : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
+                    }
+        ${className}
+      `}
+            >
+                <Check size={14} className="stroke-[3]" />
+            </button>
+        );
+    };
+
     // ======================
-    // List View (with pagination and status update)
+    // List View (with pagination and multi‑delete)
     // ======================
     if (currentView === 'list') {
         return (
@@ -1628,7 +1807,7 @@ export default function ApplicationManagement() {
                         </button>
                     </div>
                     {/* Search, Filter and Excel Buttons */}
-                    <div className="mb-6 flex flex-wrap gap-4">
+                    <div className="mb-6 flex flex-wrap gap-4 items-center">
                         <input
                             type="text"
                             placeholder="Search by name, email, or phone..."
@@ -1655,6 +1834,14 @@ export default function ApplicationManagement() {
                         <button onClick={handleExportExcel} disabled={isExporting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
                             {isExporting ? 'Exporting...' : 'Export Excel'}
                         </button>
+                        {selectedIds.length > 0 && (
+                            <button
+                                onClick={() => setShowBulkDeleteModal(true)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                            >
+                                Delete Selected ({selectedIds.length})
+                            </button>
+                        )}
                     </div>
                     {/* Table */}
                     <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
@@ -1667,6 +1854,12 @@ export default function ApplicationManagement() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-3 py-3 text-center w-10">
+                                            <CustomCheckbox
+                                                checked={selectAll}
+                                                onChange={() => handleSelectAll(!selectAll)}
+                                            />
+                                        </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
@@ -1678,13 +1871,19 @@ export default function ApplicationManagement() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {filteredApplications.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                                            <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                                                 {isTableLoading ? 'Loading...' : 'No applications found'}
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredApplications.map((app) => (
                                             <tr key={app._id} className="hover:bg-gray-50">
+                                                <td className="px-3 py-4 text-center">
+                                                    <CustomCheckbox
+                                                        checked={selectedIds.includes(app._id)}
+                                                        onChange={() => handleSelectRow(app._id)}
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
@@ -1821,6 +2020,7 @@ export default function ApplicationManagement() {
                     />
                 )}
                 {showDeleteModal && <DeleteConfirmationModal />}
+                {showBulkDeleteModal && <BulkDeleteConfirmationModal />}
             </div>
         );
     }
@@ -1960,7 +2160,7 @@ export default function ApplicationManagement() {
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Declaration</h3>
                                 <TextArea label="Declaration Note" name="declarationNote" placeholder="Enter any additional declaration notes here..." value={formData.declarationNote} onChange={handleChange} required={false} rows={5} />
-                                <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required={false} description="(Optional) Please read and accept the declaration." />
+                                <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required={false} description="Please read and accept the declaration." />
                             </div>
                         )}
                         {/* Navigation Buttons */}

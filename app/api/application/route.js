@@ -865,31 +865,109 @@ export async function PUT(req) {
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
-        const applicationId = url.searchParams.get("id");
-        if (!applicationId) {
-            return Response.json({ error: "Application ID is required", success: false }, { status: 400 });
+
+        // ── Support both single and multiple IDs ──────────────────────────────
+        // Single:   ?id=abc123
+        // Multiple: ?id=abc123&id=def456&id=ghi789   (repeated param)
+        // OR pass JSON body: { "ids": ["abc123", "def456"] }
+        // ─────────────────────────────────────────────────────────────────────
+
+        let ids = url.searchParams.getAll("id"); // getAll handles repeated ?id=
+
+        // If no query params, try JSON body
+        if (ids.length === 0) {
+            try {
+                const body = await req.json();
+                if (body.id) ids = [body.id];           // single from body
+                if (body.ids) ids = body.ids;             // array from body
+            } catch {
+                // no body — fall through to validation below
+            }
         }
+
+        // Remove empty/invalid entries
+        ids = [...new Set(ids.filter(id => id && id.trim() !== ""))];
+
+        if (ids.length === 0) {
+            return Response.json(
+                { success: false, error: "At least one application ID is required" },
+                { status: 400 }
+            );
+        }
+
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        const application = await col.findOne({
-            _id: new ObjectId(applicationId),
-            _type: { $ne: "__counter" },   // never delete counter docs
+        // ── Validate all IDs are valid ObjectIds ──────────────────────────────
+        const validObjectIds = [];
+        const invalidIds = [];
+
+        for (const id of ids) {
+            try {
+                validObjectIds.push(new ObjectId(id));
+            } catch {
+                invalidIds.push(id);
+            }
+        }
+
+        if (invalidIds.length > 0) {
+            return Response.json(
+                {
+                    success: false,
+                    error: `Invalid ID format for: ${invalidIds.join(", ")}`,
+                    invalidIds,
+                },
+                { status: 400 }
+            );
+        }
+
+        // ── Find all matching applications (exclude counter docs) ─────────────
+        const found = await col
+            .find({
+                _id: { $in: validObjectIds },
+                _type: { $ne: "__counter" },   // never delete counter docs
+            }, { projection: { _id: 1 } })
+            .toArray();
+
+        const foundIds = found.map(doc => doc._id.toString());
+        const notFoundIds = ids.filter(id => !foundIds.includes(id));
+
+        if (foundIds.length === 0) {
+            return Response.json(
+                {
+                    success: false,
+                    error: "No applications found for the provided ID(s)",
+                    notFound: notFoundIds,
+                },
+                { status: 404 }
+            );
+        }
+
+        // ── Delete all found documents ────────────────────────────────────────
+        const deleteResult = await col.deleteMany({
+            _id: { $in: found.map(doc => doc._id) },
+            _type: { $ne: "__counter" },   // double-guard: never delete counters
         });
-        if (!application) {
-            return Response.json({ error: "Application not found", success: false }, { status: 404 });
-        }
 
-        const deleteResult = await col.deleteOne({ _id: new ObjectId(applicationId) });
-        if (deleteResult.deletedCount === 0) {
-            return Response.json({ error: "Failed to delete application", success: false }, { status: 400 });
-        }
+        // ── Build response ────────────────────────────────────────────────────
+        const isSingle = ids.length === 1;
 
-        return Response.json({ success: true, message: "Application deleted successfully", applicationId });
+        return Response.json({
+            success: true,
+            message: isSingle
+                ? "Application deleted successfully"
+                : `${deleteResult.deletedCount} of ${ids.length} applications deleted`,
+            deleted: deleteResult.deletedCount,
+            deletedIds: foundIds,
+            ...(notFoundIds.length && { notFound: notFoundIds }),  // partial: some IDs not found
+        });
 
     } catch (err) {
         console.error("❌ DELETE error:", err);
-        return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+        return Response.json(
+            { success: false, error: "Internal Server Error" },
+            { status: 500 }
+        );
     }
 }
