@@ -616,6 +616,14 @@ export default function ApplicationManagement() {
     const [selectAll, setSelectAll] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
+    const [importMethod, setImportMethod] = useState('local'); // 'local' or 'url'
+    const [urlInput, setUrlInput] = useState('');
+    const [isImportingFromUrl, setIsImportingFromUrl] = useState(false);
+    const importOptions = [
+        { value: 'local', label: 'Local File' },
+        { value: 'url', label: 'URL' }
+    ];
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -1061,6 +1069,72 @@ export default function ApplicationManagement() {
             } finally { setIsImporting(false); }
         };
         input.click();
+    };
+
+    const handleImportFromUrl = async () => {
+        if (!urlInput.trim()) {
+            showNotification('error', 'Please enter a URL');
+            return;
+        }
+        setIsImportingFromUrl(true);
+        try {
+            let data = null;
+
+            // Check if it's a Google Sheets URL
+            const sheetIdMatch = urlInput.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (sheetIdMatch) {
+                // Google Sheets: fetch CSV export
+                const sheetId = sheetIdMatch[1];
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+                const response = await fetch(csvUrl);
+                if (!response.ok) throw new Error('Failed to fetch Google Sheet data');
+                const csvText = await response.text();
+
+                // Parse CSV using PapaParse (install via npm install papaparse)
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                data = parsed.data;
+            } else {
+                // Direct file URL: fetch as blob and use readExcelFile
+                const response = await fetch(urlInput);
+                if (!response.ok) throw new Error('Failed to fetch file');
+                const blob = await response.blob();
+                const fileName = urlInput.split('/').pop() || 'file';
+                const file = new File([blob], fileName, { type: blob.type });
+                data = await readExcelFile(file);
+            }
+
+            if (!data || data.length === 0) {
+                showNotification('error', 'No data found in the source');
+                return;
+            }
+
+            const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName);
+            const results = await Promise.allSettled(
+                mappedData.map(async (appData, idx) => {
+                    if (!appData.fullName) throw new Error(`Row ${idx + 1}: Full Name is required`);
+                    const response = await fetch('/api/application', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(appData)
+                    });
+                    const result = await response.json();
+                    if (!result.success) throw new Error(result.error || 'Submission failed');
+                    return result;
+                })
+            );
+
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+            const failed = results.filter(r => r.status === 'rejected');
+            if (successful > 0) showNotification('success', `Successfully imported ${successful} applications`);
+            if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
+
+            fetchApplications(currentPage);
+        } catch (error) {
+            console.error(error);
+            showNotification('error', error.message || 'Failed to import from URL');
+        } finally {
+            setIsImportingFromUrl(false);
+        }
     };
 
     const readExcelFile = (file) => {
@@ -1828,12 +1902,68 @@ export default function ApplicationManagement() {
                         <button onClick={handleDownloadTemplate} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                             Template
                         </button>
-                        <button onClick={handleImportExcel} disabled={isImporting} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
-                            {isImporting ? 'Importing...' : 'Import Excel'}
-                        </button>
+
+                        {/* Custom Radio Group */}
+                        <div className="flex gap-2 items-center">
+                            {importOptions.map((option) => {
+                                const isChecked = importMethod === option.value;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isChecked}
+                                        onClick={() => setImportMethod(option.value)}
+                                        className="flex items-center space-x-2 focus:outline-none rounded"
+                                    >
+                                        <div
+                                            className={`
+                            w-5 h-5 rounded-full border-2 flex items-center justify-center
+                            transition-all duration-200
+                            ${isChecked
+                                                    ? 'border-yellow-500'
+                                                    : 'border-gray-300 hover:border-gray-400'
+                                                }
+                        `}
+                                        >
+                                            {isChecked && (
+                                                <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                                            )}
+                                        </div>
+                                        <span className="text-sm text-gray-700">{option.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Conditional Import Controls */}
+                        {importMethod === 'local' ? (
+                            <button onClick={handleImportExcel} disabled={isImporting} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
+                                {isImporting ? 'Importing...' : 'Import Excel'}
+                            </button>
+                        ) : (
+                            <>
+                                <input
+                                    type="text"
+                                    placeholder="Google Sheet URL or direct file URL"
+                                    value={urlInput}
+                                    onChange={(e) => setUrlInput(e.target.value)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg flex-1 min-w-[300px]"
+                                />
+                                <button
+                                    onClick={handleImportFromUrl}
+                                    disabled={isImportingFromUrl || !urlInput.trim()}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isImportingFromUrl ? 'Importing...' : 'Import from URL'}
+                                </button>
+                            </>
+                        )}
+
                         <button onClick={handleExportExcel} disabled={isExporting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
                             {isExporting ? 'Exporting...' : 'Export Excel'}
                         </button>
+
                         {selectedIds.length > 0 && (
                             <button
                                 onClick={() => setShowBulkDeleteModal(true)}
@@ -1850,16 +1980,16 @@ export default function ApplicationManagement() {
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
                             </div>
                         )}
-                        <div className="overflow-x-auto">
+                        {filteredApplications.length >= 1 ? <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-3 py-3 text-center w-10">
+                                        {filteredApplications.length >= 1 && <th className="px-3 py-3 text-center w-10">
                                             <CustomCheckbox
                                                 checked={selectAll}
                                                 onChange={() => handleSelectAll(!selectAll)}
                                             />
-                                        </th>
+                                        </th>}
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
@@ -1945,7 +2075,9 @@ export default function ApplicationManagement() {
                                     )}
                                 </tbody>
                             </table>
-                        </div>
+                        </div> : <div className="px-6 py-4 text-center text-gray-500">
+                            {'No applications found'}
+                        </div>}
                     </div>
 
                     {/* Pagination Controls */}
