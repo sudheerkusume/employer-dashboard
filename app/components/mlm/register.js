@@ -511,6 +511,7 @@ export default function ApplicationManagement() {
         referrerSignature: '',
         applicantSignature: '',
         referredBy: "",
+        referredByName: "",
         status: 'pending',
     });
 
@@ -565,6 +566,7 @@ export default function ApplicationManagement() {
                     name: 'referredBy',
                     value: user ? user.applicationId : '',
                     type: 'select-one',
+                    userName: user ? user.fullName : ''
                 },
             });
         };
@@ -668,8 +670,12 @@ export default function ApplicationManagement() {
     };
 
     const handleChange = useCallback((e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        const { name, value, type, checked, userName } = e.target;
+        if (userName) {
+            setFormData(prev => ({ ...prev, referredByName: userName, referredBy: value }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        }
     }, []);
 
     const handleEmergencyContactChange = (index, field, value) => {
@@ -838,7 +844,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', referredByName: "", status: 'pending',
         });
         setActiveTab('personal');
         setShowPreview(false);
@@ -858,6 +864,7 @@ export default function ApplicationManagement() {
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                            <p><strong>Referred By Name:</strong> {formData.referredByName || 'Not provided'}</p>
                             <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>

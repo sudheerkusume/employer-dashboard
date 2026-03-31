@@ -584,6 +584,7 @@ export default function ApplicationManagement() {
         referrerSignature: '',
         applicantSignature: '',
         referredBy: "",
+        referredByName: "",
         status: 'pending',
         level: "ME"
     });
@@ -630,8 +631,12 @@ export default function ApplicationManagement() {
     };
 
     const handleChange = useCallback((e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        const { name, value, type, checked, userName } = e.target;
+        if (userName) {
+            setFormData(prev => ({ ...prev, referredByName: userName, referredBy: value }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        }
     }, []);
 
     const handleEmergencyContactChange = (index, field, value) => {
@@ -799,6 +804,7 @@ export default function ApplicationManagement() {
                     branch: app.branch || '',
                     bankCity: app.bankCity || '',
                     referredBy: app.referredBy || 'RB000001',
+                    referredByName: app.referredByName || 'K Srinivas',
                     declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
                     referrerSignature: app.referrerSignature || '',
@@ -895,7 +901,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: 'RB000001', status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: 'RB000001', referredByName: "K srinivas", status: 'pending',
         });
         setCurrentApplication(null);
         setActiveTab('personal');
@@ -1064,35 +1070,37 @@ export default function ApplicationManagement() {
             referrerSignature: '',
             applicantSignature: '',
             referredBy: 'RB000001',
+            referredByName: 'K Srinivas',
             status: getStr('Status') || 'pending',
         };
     };
 
     const handleDownloadTemplate = () => {
         const templateData = [{
-            'Application ID': 'APP2024001',
+            'Application ID': 'RB000111',
+            "Referred ByName": 'K Srinivas',
             "Referred By": '',
-            'Full Name': 'John Doe',
-            'Date of Birth': '1990-01-01',
-            "Father's/Husband's Name": 'Robert Doe',
-            'Blood Group': 'O+',
-            'Address': '123 Main Street, City',
+            'Full Name': 'Bheema',
+            'Date of Birth': '1995-01-12',
+            "Father's/Husband's Name": 'Megya',
+            'Blood Group': 'B+',
+            'Address': '123 Main Street, Hyderabad',
             'Contact Number': '9876543210',
-            'Email ID': 'john@example.com',
+            'Email ID': 'bheema@gmail.com',
             'Pin Code': '123456',
             'PAN Number': 'ABCDE1234F',
             'Aadhar Number': '123456789012',
-            'Emergency Contacts': 'Jane Doe (Spouse) - 9876543210, City',
-            'Previous Company': 'ABC Corp',
+            'Emergency Contacts': 'Vinod - 9876543211, Hyderarab',
+            'Previous Company': 'BMax Projects Pvt Ltd',
             'Previous Designation': 'Manager',
             'Educational Qualification': 'Graduate',
             'Legal Cases Pending': 'No',
-            'Name as per Bank': 'John Doe',
+            'Name as per Bank': 'Bheema',
             'Bank Name': 'State Bank of India',
             'Account Number': '123456789012',
             'IFSC Code': 'SBIN0012345',
-            'Branch': 'Main Branch',
-            'Bank City': 'City',
+            'Branch': 'Hyderabad Branch',
+            'Bank City': 'Hyderarab',
             'Applicant Signature': '',
             'Referrer Signature': '',
             'Declaration Note': 'I confirm that all information is correct.',
@@ -1162,6 +1170,7 @@ export default function ApplicationManagement() {
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
+                                <p><strong>Referred By:</strong> {application.referredByName || 'Not provided'}</p>
                                 <p><strong>Referred By:</strong> {application.referredBy || 'Not provided'}</p>
                                 <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
                                 <p><strong>Date of Birth:</strong> {application.dob ? new Date(application.dob).toLocaleDateString() : 'Not provided'}</p>
@@ -1373,6 +1382,7 @@ export default function ApplicationManagement() {
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                            <p><strong>Referred By:</strong> {formData.referredByName || 'Not provided'}</p>
                             <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
@@ -1498,6 +1508,7 @@ export default function ApplicationManagement() {
                     name: 'referredBy',
                     value: user ? user.applicationId : '',
                     type: 'select-one',
+                    userName: user ? user.fullName : ''
                 },
             });
         };
@@ -1569,7 +1580,7 @@ export default function ApplicationManagement() {
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''}`}
+                                                        {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${(user?.userCode || user?.mlmUserCode)})` : ''}`}
                                                     </span>
                                                     {selected && (
                                                         <span
