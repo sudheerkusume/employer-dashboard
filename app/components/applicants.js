@@ -647,6 +647,7 @@ export default function ApplicationManagement() {
     const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
     const currentTabIndex = tabs.indexOf(activeTab);
     const isLastTab = currentTabIndex === tabs.length - 1;
+    const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
         applicationId: '',
@@ -1086,85 +1087,42 @@ export default function ApplicationManagement() {
         return null;
     }
 
-    const handleImportExcel = async (file) => {
-        try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-            const applications = rows.map(row => {
-                // Build emergencyContacts array from flattened columns
-                const emergencyContacts = [];
-                for (let i = 1; i <= MAX_EMERGENCY_CONTACTS; i++) {
-                    const name = row[`Emergency Contact ${i} Name`];
-                    const phone = row[`Emergency Contact ${i} Phone`];
-                    const location = row[`Emergency Contact ${i} Location`];
-                    const relationship = row[`Emergency Contact ${i} Relationship`];
-                    if (name || phone || location || relationship) {
-                        emergencyContacts.push({
-                            name: name || '',
-                            phone: phone || '',
-                            location: location || '',
-                            relationship: relationship || '',
-                        });
-                    }
+    const handleImportExcel = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx, .xls, .csv';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            setIsImporting(true);
+            try {
+                const data = await readExcelFile(file);
+                if (!data || data.length === 0) {
+                    showNotification('error', 'No data found in file');
+                    setIsImporting(false);
+                    return;
                 }
-
-                // Parse date of birth
-                const dob = parseExcelDate(row['Date of Birth']);
-
-                return {
-                    // applicationId and userCode are optional; if provided, they will be validated
-                    applicationId: row['Application ID'] || undefined,
-                    userCode: row['User Code'] || undefined,
-                    fullName: row['Full Name'] || '',
-                    dob,
-                    fatherName: row['Father Name'] || '',
-                    bloodGroup: row['Blood Group'] || '',
-                    address: row['Address'] || '',
-                    contactNo: row['Contact No'] || '',
-                    email: row['Email'] || '',
-                    pinCode: row['Pin Code'] || '',
-                    panNumber: row['PAN Number'] || '',
-                    aadharNumber: row['Aadhar Number'] || '',
-                    emergencyContacts,
-                    previousCompany: row['Previous Company'] || '',
-                    previousDesignation: row['Previous Designation'] || '',
-                    educationalQualification: row['Educational Qualification'] || '',
-                    legalCasesPending: row['Legal Cases Pending'] || '',
-                    nameAsPerBank: row['Name as per Bank'] || '',
-                    bankName: row['Bank Name'] || '',
-                    accountNo: row['Account No'] || '',
-                    ifscCode: row['IFSC Code'] || '',
-                    branch: row['Branch'] || '',
-                    bankCity: row['Bank City'] || '',
-                    declarationNote: row['Declaration Note'] || '',
-                    declaration: row['Declaration'] === 'Yes',
-                    referredBy: row['Referred By'] || '',      // Fixed field name
-                    referredByName: row['Referred By Name'] || '',
-                    level: row['Level'] || 'ME',
-                    status: row['Status'] || 'pending',
-                };
-            });
-
-            const response = await fetch('/api/application', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(applications),
-            });
-            const result = await response.json();
-            if (result.success) {
-                showNotification('success', `Imported ${result.summary.inserted} applications`);
-                fetchApplications(); // Refresh list
-            } else {
-                showNotification('error', result.error || 'Import failed');
-            }
-        } catch (error) {
-            console.error(error);
-            showNotification('error', 'Failed to process Excel file');
-        }
+                const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName);
+                const results = await Promise.allSettled(
+                    mappedData.map(async (appData, idx) => {
+                        if (!appData.fullName) throw new Error(`Row ${idx + 1}: Full Name is required`);
+                        const response = await fetch('/api/application', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(appData) });
+                        const result = await response.json();
+                        if (!result.success) throw new Error(result.error || 'Submission failed');
+                        return result;
+                    })
+                );
+                const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+                const failed = results.filter(r => r.status === 'rejected');
+                if (successful > 0) showNotification('success', `Successfully imported ${successful} applications`);
+                if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
+                fetchApplications(currentPage);
+            } catch (error) {
+                console.log(error);
+                showNotification('error', 'Failed to import Excel file');
+            } finally { setIsImporting(false); }
+        };
+        input.click();
     };
 
     const handleImportFromUrl = async () => {
