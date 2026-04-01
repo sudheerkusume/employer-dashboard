@@ -931,41 +931,58 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 5. For each document, attempt to decrement counters if last ---
-        for (const doc of existingDocs) {
-            // Application ID counter
-            const appIdMatch = doc.applicationId?.match(/^RB(\d+)$/);
-            if (appIdMatch) {
-                const appNum = parseInt(appIdMatch[1], 10);
-                // Atomically decrement only if current seq equals appNum
-                const updateResult = await col.findOneAndUpdate(
-                    { _type: "__counter", _key: "applicationId", seq: appNum },
-                    { $inc: { seq: -1 } },
-                    { returnDocument: "after" }
-                );
-                if (!updateResult) {
-                    console.warn(`Deleted applicationId ${doc.applicationId} was not the last. Counter unchanged.`);
-                }
-            }
+        // --- 5. Delete the documents ---
+        const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
 
-            // User code counter for its level
-            const userCodeMatch = doc.userCode?.match(/^(\w+)-(\d+)$/);
-            if (userCodeMatch) {
-                const level = userCodeMatch[1];
-                const userNum = parseInt(userCodeMatch[2], 10);
-                const updateResult = await col.findOneAndUpdate(
-                    { _type: "__counter", _key: `userCode_${level}`, seq: userNum },
-                    { $inc: { seq: -1 } },
-                    { returnDocument: "after" }
-                );
-                if (!updateResult) {
-                    console.warn(`Deleted userCode ${doc.userCode} was not the last. Counter unchanged.`);
-                }
-            }
+        // --- 6. After deletion, recalc and update counters ---
+        // Collect levels that were deleted (to recalc max for those levels)
+        const affectedLevels = new Set();
+        for (const doc of existingDocs) {
+            if (doc.level) affectedLevels.add(doc.level);
         }
 
-        // --- 6. Perform deletion ---
-        const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
+        // Recalculate max applicationId
+        const maxAppIdDoc = await col
+            .find(
+                { applicationId: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
+                { projection: { applicationId: 1 } }
+            )
+            .sort({ applicationId: -1 })
+            .limit(1)
+            .toArray();
+        let newAppMax = 0;
+        if (maxAppIdDoc.length > 0) {
+            const match = maxAppIdDoc[0].applicationId.match(/^RB(\d+)$/);
+            if (match) newAppMax = parseInt(match[1], 10);
+        }
+        await col.findOneAndUpdate(
+            { _type: "__counter", _key: "applicationId" },
+            { $set: { seq: newAppMax } },
+            { upsert: true }
+        );
+
+        // Recalculate max userCode per affected level
+        for (const level of affectedLevels) {
+            const regex = new RegExp(`^${level}-\\d+$`);
+            const maxUserDoc = await col
+                .find(
+                    { userCode: { $exists: true, $nin: [null, ""], $regex: regex }, _type: { $ne: "__counter" } },
+                    { projection: { userCode: 1 } }
+                )
+                .sort({ userCode: -1 })
+                .limit(1)
+                .toArray();
+            let newUserMax = 0;
+            if (maxUserDoc.length > 0) {
+                const match = maxUserDoc[0].userCode.match(new RegExp(`^${level}-(\\d+)$`));
+                if (match) newUserMax = parseInt(match[1], 10);
+            }
+            await col.findOneAndUpdate(
+                { _type: "__counter", _key: `userCode_${level}` },
+                { $set: { seq: newUserMax } },
+                { upsert: true }
+            );
+        }
 
         // --- 7. Build response ---
         const isSingle = ids.length === 1;
