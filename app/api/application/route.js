@@ -132,7 +132,7 @@ async function createMlmMemberFromApplication(db, application) {
 }
 
 // ----------------------------------------------------------------------
-// JOI SCHEMAS – applicationId and userCode are optional
+// JOI SCHEMAS – applicationId and userCode are optional but we enforce presence logic in POST
 // ----------------------------------------------------------------------
 
 const applicationSchema = Joi.object({
@@ -412,59 +412,65 @@ export async function POST(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // 2. Categorise records by which IDs are provided
-        const both = [];      // both applicationId and userCode provided
-        const onlyApp = [];   // only applicationId
-        const onlyUser = [];  // only userCode
-        const none = [];      // none provided
-
-        for (const rec of validRecords) {
+        // 2. Determine which IDs each record needs
+        const recordsToProcess = validRecords.map(rec => {
             const hasAppId = rec.value.applicationId && rec.value.applicationId.trim() !== "";
             const hasUserCode = rec.value.userCode && rec.value.userCode.trim() !== "";
-            if (hasAppId && hasUserCode) both.push(rec);
-            else if (hasAppId && !hasUserCode) onlyApp.push(rec);
-            else if (!hasAppId && hasUserCode) onlyUser.push(rec);
-            else none.push(rec);
-        }
+            return {
+                ...rec,
+                needsAppId: !hasAppId,
+                needsUserCode: !hasUserCode,
+                providedAppId: hasAppId ? rec.value.applicationId : null,
+                providedUserCode: hasUserCode ? rec.value.userCode : null,
+                generatedAppId: null,
+                generatedUserCode: null,
+            };
+        });
 
-        // 3. Generate missing IDs in batches
-        // --- Generate application IDs for records that need them (none + onlyUser)
-        const needAppId = [...none, ...onlyUser];
-        const generatedAppIds = needAppId.length > 0
-            ? await generateApplicationIds(db, needAppId.length)
-            : [];
+        // 3. Generate missing IDs in a single pass per type
+        //    We'll generate in batches, then assign to records in order.
 
-        for (let i = 0; i < needAppId.length; i++) {
-            needAppId[i].generatedAppId = generatedAppIds[i];
-        }
-
-        // --- Generate user codes for records that need them (none + onlyApp)
-        const needUserCode = [...none, ...onlyApp];
-        const levelGroups = {};
-        for (const rec of needUserCode) {
-            const lvl = rec.value.level || "ME";
-            if (!levelGroups[lvl]) levelGroups[lvl] = [];
-            levelGroups[lvl].push(rec);
-        }
-        for (const [lvl, recs] of Object.entries(levelGroups)) {
-            const codes = await generateUserCodes(db, lvl, recs.length);
-            for (let i = 0; i < recs.length; i++) {
-                recs[i].generatedUserCode = codes[i];
+        // --- Application IDs ---
+        const needAppIdRecords = recordsToProcess.filter(r => r.needsAppId);
+        if (needAppIdRecords.length > 0) {
+            const generatedAppIds = await generateApplicationIds(db, needAppIdRecords.length);
+            for (let i = 0; i < needAppIdRecords.length; i++) {
+                needAppIdRecords[i].generatedAppId = generatedAppIds[i];
             }
         }
 
-        // 4. Build final documents and collect IDs for duplicate checks
-        const allDocuments = [];
-        const finalAppIds = [];
-        const finalUserCodes = [];
-        const allRecords = [...both, ...onlyApp, ...onlyUser, ...none];
+        // --- User Codes (grouped by level) ---
+        const needUserCodeRecords = recordsToProcess.filter(r => r.needsUserCode);
+        if (needUserCodeRecords.length > 0) {
+            // Group by level
+            const levelGroups = {};
+            for (const rec of needUserCodeRecords) {
+                const lvl = rec.value.level || "ME";
+                if (!levelGroups[lvl]) levelGroups[lvl] = [];
+                levelGroups[lvl].push(rec);
+            }
+            for (const [lvl, recs] of Object.entries(levelGroups)) {
+                const codes = await generateUserCodes(db, lvl, recs.length);
+                for (let i = 0; i < recs.length; i++) {
+                    recs[i].generatedUserCode = codes[i];
+                }
+            }
+        }
 
-        for (const rec of allRecords) {
-            let finalAppId = rec.value.applicationId;
-            let finalUserCode = rec.value.userCode;
+        // 4. Build final IDs and check for duplicates within batch
+        const finalDocuments = [];
+        const usedAppIds = new Map();   // Map<appId, recordIndex>
+        const usedUserCodes = new Map(); // Map<userCode, recordIndex>
+        const duplicateInBatchErrors = [];
+
+        for (let i = 0; i < recordsToProcess.length; i++) {
+            const rec = recordsToProcess[i];
+            let finalAppId = rec.providedAppId;
+            let finalUserCode = rec.providedUserCode;
             if (rec.generatedAppId) finalAppId = rec.generatedAppId;
             if (rec.generatedUserCode) finalUserCode = rec.generatedUserCode;
 
+            // Ensure both IDs exist
             if (!finalAppId || !finalUserCode) {
                 validationErrors.push({
                     index: rec.originalIndex,
@@ -474,38 +480,51 @@ export async function POST(req) {
                 continue;
             }
 
-            finalAppIds.push(finalAppId);
-            finalUserCodes.push(finalUserCode);
-            allDocuments.push(buildDocument(rec.value, finalAppId, finalUserCode));
+            // Check for duplicates within batch
+            let dupError = null;
+            if (usedAppIds.has(finalAppId)) {
+                dupError = `applicationId "${finalAppId}" is used by another record in this batch (index ${usedAppIds.get(finalAppId)})`;
+            } else if (usedUserCodes.has(finalUserCode)) {
+                dupError = `userCode "${finalUserCode}" is used by another record in this batch (index ${usedUserCodes.get(finalUserCode)})`;
+            }
+            if (dupError) {
+                duplicateInBatchErrors.push({
+                    index: rec.originalIndex,
+                    name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
+                    reason: dupError,
+                });
+                continue;
+            }
+
+            usedAppIds.set(finalAppId, i);
+            usedUserCodes.set(finalUserCode, i);
+
+            // Build document
+            const doc = buildDocument(rec.value, finalAppId, finalUserCode);
+            finalDocuments.push(doc);
         }
 
-        // 5. Duplicate checks (batch & DB)
-        const batchDuplicateWarnings = [];
-        const dupAppIdsBatch = getDuplicatesInBatch(finalAppIds);
-        const dupUserCodesBatch = getDuplicatesInBatch(finalUserCodes);
-        dupAppIdsBatch.forEach(v => batchDuplicateWarnings.push(`Duplicate applicationId in batch: "${v}"`));
-        dupUserCodesBatch.forEach(v => batchDuplicateWarnings.push(`Duplicate userCode in batch: "${v}"`));
-
-        const existingAppIds = await getExistingInDB(col, "applicationId", finalAppIds);
-        const existingUserCodes = await getExistingInDB(col, "userCode", finalUserCodes);
+        // 5. Check duplicates against DB
+        const allAppIds = finalDocuments.map(d => d.applicationId);
+        const allUserCodes = finalDocuments.map(d => d.userCode);
+        const existingAppIds = await getExistingInDB(col, "applicationId", allAppIds);
+        const existingUserCodes = await getExistingInDB(col, "userCode", allUserCodes);
 
         const validDocuments = [];
-        const skippedRecords = [];
+        const skippedDbDuplicates = [];
 
-        for (let i = 0; i < allDocuments.length; i++) {
-            const doc = allDocuments[i];
+        for (let i = 0; i < finalDocuments.length; i++) {
+            const doc = finalDocuments[i];
             let dupReason = null;
-            if (doc.applicationId && existingAppIds.has(doc.applicationId)) {
+            if (existingAppIds.has(doc.applicationId)) {
                 dupReason = `applicationId already exists: "${doc.applicationId}"`;
-            } else if (doc.userCode && existingUserCodes.has(doc.userCode)) {
+            } else if (existingUserCodes.has(doc.userCode)) {
                 dupReason = `userCode already exists: "${doc.userCode}"`;
-            } else if (dupAppIdsBatch.has(doc.applicationId) || dupUserCodesBatch.has(doc.userCode)) {
-                dupReason = "Duplicate ID within batch";
             }
             if (dupReason) {
-                skippedRecords.push({
-                    index: allRecords[i].originalIndex,
-                    name: doc.fullName || `Row ${allRecords[i].originalIndex + 1}`,
+                skippedDbDuplicates.push({
+                    index: recordsToProcess[i].originalIndex,
+                    name: doc.fullName || `Row ${recordsToProcess[i].originalIndex + 1}`,
                     reason: dupReason,
                 });
             } else {
@@ -516,13 +535,12 @@ export async function POST(req) {
         if (validDocuments.length === 0) {
             return Response.json({
                 success: false,
-                error: "All records are duplicates – nothing inserted",
-                skipped: skippedRecords,
-                ...(validationErrors.length && { validationErrors }),
+                error: "No valid documents to insert",
+                skippedRecords: [...duplicateInBatchErrors, ...skippedDbDuplicates, ...validationErrors],
             }, { status: 409 });
         }
 
-        // 6. Insert with retry on duplicate key
+        // 6. Insert with retry (only in case of race conditions)
         let insertResult;
         let retries = 0;
         const maxRetries = 3;
@@ -533,45 +551,65 @@ export async function POST(req) {
                 break;
             } catch (err) {
                 if (err.code === 11000 && retries < maxRetries - 1) {
-                    console.warn("Duplicate key during insert, regenerating IDs...");
-                    const recordsWithGenerated = allRecords.filter(r => r.generatedAppId || r.generatedUserCode);
-                    if (recordsWithGenerated.length > 0) {
-                        // Regenerate application IDs for those that need them
-                        const needApp = recordsWithGenerated.filter(r => r.generatedAppId);
+                    console.warn("Duplicate key during insert, regenerating IDs for records that had generated ones...");
+                    // Regenerate only those that were generated
+                    const needRegen = validDocuments.filter((_, idx) => {
+                        const rec = recordsToProcess.find(r => r.originalIndex === idx);
+                        return rec && (rec.needsAppId || rec.needsUserCode);
+                    });
+                    if (needRegen.length > 0) {
+                        // Regenerate application IDs for those that needed them
+                        const needApp = needRegen.filter(doc => {
+                            const rec = recordsToProcess.find(r => r.originalIndex === doc.originalIndex);
+                            return rec.needsAppId;
+                        });
                         if (needApp.length) {
                             const newAppIds = await generateApplicationIds(db, needApp.length);
                             for (let i = 0; i < needApp.length; i++) {
-                                needApp[i].generatedAppId = newAppIds[i];
+                                const rec = recordsToProcess.find(r => r.originalIndex === needApp[i].originalIndex);
+                                rec.generatedAppId = newAppIds[i];
+                                needApp[i].applicationId = newAppIds[i];
                             }
                         }
-                        // Regenerate user codes grouped by level
-                        const needUser = recordsWithGenerated.filter(r => r.generatedUserCode);
+                        // Regenerate user codes similarly
+                        const needUser = needRegen.filter(doc => {
+                            const rec = recordsToProcess.find(r => r.originalIndex === doc.originalIndex);
+                            return rec.needsUserCode;
+                        });
                         if (needUser.length) {
                             const levelGroups = {};
-                            for (const rec of needUser) {
+                            for (const doc of needUser) {
+                                const rec = recordsToProcess.find(r => r.originalIndex === doc.originalIndex);
                                 const lvl = rec.value.level || "ME";
                                 if (!levelGroups[lvl]) levelGroups[lvl] = [];
-                                levelGroups[lvl].push(rec);
+                                levelGroups[lvl].push(doc);
                             }
-                            for (const [lvl, recs] of Object.entries(levelGroups)) {
-                                const newCodes = await generateUserCodes(db, lvl, recs.length);
-                                for (let i = 0; i < recs.length; i++) {
-                                    recs[i].generatedUserCode = newCodes[i];
+                            for (const [lvl, docs] of Object.entries(levelGroups)) {
+                                const newCodes = await generateUserCodes(db, lvl, docs.length);
+                                for (let i = 0; i < docs.length; i++) {
+                                    const rec = recordsToProcess.find(r => r.originalIndex === docs[i].originalIndex);
+                                    rec.generatedUserCode = newCodes[i];
+                                    docs[i].userCode = newCodes[i];
                                 }
                             }
                         }
-                        // Rebuild documents
-                        const newDocuments = [];
-                        for (const rec of allRecords) {
-                            let finalAppId = rec.value.applicationId;
-                            let finalUserCode = rec.value.userCode;
-                            if (rec.generatedAppId) finalAppId = rec.generatedAppId;
-                            if (rec.generatedUserCode) finalUserCode = rec.generatedUserCode;
-                            newDocuments.push(buildDocument(rec.value, finalAppId, finalUserCode));
-                        }
+                        // Rebuild validDocuments
                         validDocuments.length = 0;
-                        for (let i = 0; i < newDocuments.length; i++) {
-                            validDocuments.push(newDocuments[i]);
+                        for (let i = 0; i < recordsToProcess.length; i++) {
+                            const rec = recordsToProcess[i];
+                            if (rec.needsAppId || rec.needsUserCode) {
+                                // Re‑create the document
+                                let finalAppId = rec.providedAppId || rec.generatedAppId;
+                                let finalUserCode = rec.providedUserCode || rec.generatedUserCode;
+                                if (finalAppId && finalUserCode) {
+                                    const newDoc = buildDocument(rec.value, finalAppId, finalUserCode);
+                                    validDocuments.push(newDoc);
+                                }
+                            } else {
+                                // Already had both IDs – keep as is
+                                const doc = buildDocument(rec.value, rec.providedAppId, rec.providedUserCode);
+                                validDocuments.push(doc);
+                            }
                         }
                         retries++;
                         continue;
@@ -614,19 +652,18 @@ export async function POST(req) {
             });
         }
 
+        const allSkipped = [...duplicateInBatchErrors, ...skippedDbDuplicates, ...validationErrors];
         return Response.json({
             success: true,
             message: `${insertResult.insertedCount} of ${rawList.length} applications inserted`,
             summary: {
                 total: rawList.length,
                 inserted: insertResult.insertedCount,
-                skipped: skippedRecords.length + validationErrors.length,
+                skipped: allSkipped.length,
                 failed: validationErrors.length,
             },
             applications: maskedDocs,
-            ...(skippedRecords.length && { skippedRecords }),
-            ...(validationErrors.length && { validationErrors }),
-            ...(batchDuplicateWarnings.length && { batchDuplicateWarnings }),
+            ...(allSkipped.length && { skippedRecords: allSkipped }),
         });
 
     } catch (err) {
