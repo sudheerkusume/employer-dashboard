@@ -1236,7 +1236,14 @@ export default function ApplicationManagement() {
             'Pin Code': '123456',
             'PAN Number': 'ABCDE1234F',
             'Aadhar Number': '123456789012',
-            'Emergency Contacts': 'Vinod - 9876543211, Hyderarab',
+            'Emergency Contact 1 Name': 'Vinod',
+            'Emergency Contact 1 Phone': '9876543211',
+            'Emergency Contact 1 Location': 'Hyderabad',
+            'Emergency Contact 1 Relationship': 'Brother',
+            'Emergency Contact 2 Name': 'Sita',
+            'Emergency Contact 2 Phone': '9876543212',
+            'Emergency Contact 2 Location': 'Secunderabad',
+            'Emergency Contact 2 Relationship': 'Friend',
             'Previous Company': 'BMax Projects Pvt Ltd',
             'Previous Designation': 'Manager',
             'Educational Qualification': 'Graduate',
@@ -2036,14 +2043,14 @@ export default function ApplicationManagement() {
                                                         {getStatusIcon(app.status)} {app.status.toUpperCase()}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm">
+                                                <td className="px-1 py-4 text-sm">
                                                     <button
                                                         type="button"
                                                         onClick={() => handleViewDetails(app)}
                                                         className="text-blue-600 hover:text-blue-800 mr-3"
                                                         aria-label="View Details"
                                                     >
-                                                        <Eye size={20} />
+                                                        <Eye size={17} />
                                                     </button>
                                                     <button
                                                         type="button"
@@ -2051,7 +2058,7 @@ export default function ApplicationManagement() {
                                                         className="text-yellow-600 hover:text-yellow-800 mr-3"
                                                         aria-label="Edit"
                                                     >
-                                                        <Edit size={20} />
+                                                        <Edit size={17} />
                                                     </button>
                                                     {app.status === 'pending' && (
                                                         <button
@@ -2060,7 +2067,7 @@ export default function ApplicationManagement() {
                                                             className="text-green-600 hover:text-green-800 mr-3"
                                                             aria-label="Approve/Reject"
                                                         >
-                                                            <CheckCircle size={20} />
+                                                            <CheckCircle size={17} />
                                                         </button>
                                                     )}
                                                     <button
@@ -2069,7 +2076,7 @@ export default function ApplicationManagement() {
                                                         className="text-red-600 hover:text-red-800"
                                                         aria-label="Delete"
                                                     >
-                                                        <Trash size={20} />
+                                                        <Trash size={17} />
                                                     </button>
                                                 </td>
                                             </tr>
