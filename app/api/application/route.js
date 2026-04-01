@@ -906,7 +906,7 @@ export async function DELETE(req) {
             );
         }
 
-        // Find all matching documents (excluding counters) – only to collect IDs for response
+        // Find all matching applications (excluding counters)
         const found = await col
             .find({ _id: { $in: validObjectIds }, _type: { $ne: "__counter" } })
             .project({ _id: 1 })
@@ -922,23 +922,29 @@ export async function DELETE(req) {
             );
         }
 
-        // Delete only the found applications (still exclude counters)
+        // Delete only the found applications
         const deleteResult = await col.deleteMany({
             _id: { $in: found.map(doc => doc._id) },
-            _type: { $ne: "__counter" }   // double‑safe
+            _type: { $ne: "__counter" }
         });
 
-        // 🧮 Update the counter document(s): subtract the number of deleted applications
-        // Assumption: there is a single counter document with _type: "__counter"
-        // and it has a numeric field like "count" or "seq". Adjust the field name as needed.
-        const counterUpdateResult = await col.updateOne(
-            { _type: "__counter" },
-            { $inc: { count: -deleteResult.deletedCount } }   // decrement by deleted count
-        );
+        // --- Update application ID counter ---
+        if (deleteResult.deletedCount > 0) {
+            // Find the maximum numeric part of existing application IDs (e.g., "RB000001" → 1)
+            const maxIdResult = await col.aggregate([
+                { $match: { _type: { $ne: "__counter" }, applicationId: { $exists: true, $ne: null } } },
+                { $addFields: { numericId: { $toInt: { $substrCP: ["$applicationId", 2, 6] } } } },
+                { $group: { _id: null, max: { $max: "$numericId" } } }
+            ]).toArray();
 
-        // Optional: log if counter wasn't found
-        if (counterUpdateResult.matchedCount === 0) {
-            console.warn(`⚠️ Counter document with _type "__counter" not found – nothing decremented.`);
+            const maxExisting = maxIdResult[0]?.max || 0;
+
+            // Update the counter document for application IDs
+            await col.updateOne(
+                { _type: "__counter", _key: "applicationId" },
+                { $set: { seq: maxExisting } },
+                { upsert: true }
+            );
         }
 
         const isSingle = ids.length === 1;
@@ -949,9 +955,7 @@ export async function DELETE(req) {
                 : `${deleteResult.deletedCount} of ${ids.length} applications deleted`,
             deleted: deleteResult.deletedCount,
             deletedIds: foundIds,
-            ...(notFoundIds.length && { notFound: notFoundIds }),
-            // optional: include new counter value (if you want to fetch it after update)
-            // counterUpdated: counterUpdateResult.modifiedCount > 0
+            ...(notFoundIds.length && { notFound: notFoundIds })
         });
 
     } catch (err) {
