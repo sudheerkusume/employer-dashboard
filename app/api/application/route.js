@@ -865,33 +865,125 @@ export async function PUT(req) {
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
-        const applicationId = url.searchParams.get("id");
+        let ids = [];
 
-        if (!applicationId) {
-            return Response.json({ error: "Application ID is required", success: false }, { status: 400 });
+        // --- 1. Extract IDs from query parameter or request body ---
+        const queryId = url.searchParams.get("id");
+        if (queryId) {
+            ids = [queryId];
+        } else {
+            let body;
+            try {
+                body = await req.json();
+            } catch {
+                // No body or invalid JSON
+            }
+            if (body) {
+                if (body.id && typeof body.id === "string") {
+                    ids = [body.id];
+                } else if (body.ids && Array.isArray(body.ids)) {
+                    ids = body.ids;
+                }
+            }
         }
 
+        if (ids.length === 0) {
+            return Response.json(
+                { success: false, error: "At least one application ID is required" },
+                { status: 400 }
+            );
+        }
+
+        // --- 2. Validate ObjectIds ---
+        const objectIds = [];
+        const invalidIds = [];
+        for (const id of ids) {
+            try {
+                objectIds.push(new ObjectId(id));
+            } catch {
+                invalidIds.push(id);
+            }
+        }
+        if (invalidIds.length > 0) {
+            return Response.json(
+                { success: false, error: `Invalid ID format: ${invalidIds.join(", ")}`, invalidIds },
+                { status: 400 }
+            );
+        }
+
+        // --- 3. DB connection ---
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        const application = await col.findOne({
-            _id: new ObjectId(applicationId),
-            _type: { $ne: "__counter" },   // never delete counter docs
+        // --- 4. Find existing applications (exclude counter docs) ---
+        const existingDocs = await col
+            .find({ _id: { $in: objectIds }, _type: { $ne: "__counter" } })
+            .toArray();
+
+        const existingIds = existingDocs.map(doc => doc._id.toString());
+        const notFound = ids.filter(id => !existingIds.includes(id));
+
+        if (existingDocs.length === 0) {
+            return Response.json(
+                { success: false, error: "No applications found", notFound },
+                { status: 404 }
+            );
+        }
+
+        // --- 5. For each document, attempt to decrement counters if last ---
+        for (const doc of existingDocs) {
+            // Application ID counter
+            const appIdMatch = doc.applicationId?.match(/^RB(\d+)$/);
+            if (appIdMatch) {
+                const appNum = parseInt(appIdMatch[1], 10);
+                // Atomically decrement only if current seq equals appNum
+                const updateResult = await col.findOneAndUpdate(
+                    { _type: "__counter", _key: "applicationId", seq: appNum },
+                    { $inc: { seq: -1 } },
+                    { returnDocument: "after" }
+                );
+                if (!updateResult) {
+                    console.warn(`Deleted applicationId ${doc.applicationId} was not the last. Counter unchanged.`);
+                }
+            }
+
+            // User code counter for its level
+            const userCodeMatch = doc.userCode?.match(/^(\w+)-(\d+)$/);
+            if (userCodeMatch) {
+                const level = userCodeMatch[1];
+                const userNum = parseInt(userCodeMatch[2], 10);
+                const updateResult = await col.findOneAndUpdate(
+                    { _type: "__counter", _key: `userCode_${level}`, seq: userNum },
+                    { $inc: { seq: -1 } },
+                    { returnDocument: "after" }
+                );
+                if (!updateResult) {
+                    console.warn(`Deleted userCode ${doc.userCode} was not the last. Counter unchanged.`);
+                }
+            }
+        }
+
+        // --- 6. Perform deletion ---
+        const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
+
+        // --- 7. Build response ---
+        const isSingle = ids.length === 1;
+        return Response.json({
+            success: true,
+            message: isSingle
+                ? "Application deleted successfully"
+                : `${deleteResult.deletedCount} of ${ids.length} applications deleted`,
+            deleted: deleteResult.deletedCount,
+            deletedIds: existingIds,
+            ...(notFound.length && { notFound }),
         });
-        if (!application) {
-            return Response.json({ error: "Application not found", success: false }, { status: 404 });
-        }
-
-        const deleteResult = await col.deleteOne({ _id: new ObjectId(applicationId) });
-        if (deleteResult.deletedCount === 0) {
-            return Response.json({ error: "Failed to delete application", success: false }, { status: 400 });
-        }
-
-        return Response.json({ success: true, message: "Application deleted successfully", applicationId });
 
     } catch (err) {
         console.error("❌ DELETE error:", err);
-        return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+        return Response.json(
+            { success: false, error: "Internal Server Error" },
+            { status: 500 }
+        );
     }
 }
