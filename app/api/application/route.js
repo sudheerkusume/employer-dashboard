@@ -906,9 +906,9 @@ export async function DELETE(req) {
             );
         }
 
-        // Find all matching documents (including counters) – only to collect IDs for response
+        // Find all matching documents (excluding counters) – only to collect IDs for response
         const found = await col
-            .find({ _id: { $in: validObjectIds } })   // <- removed _type filter
+            .find({ _id: { $in: validObjectIds }, _type: { $ne: "__counter" } })
             .project({ _id: 1 })
             .toArray();
 
@@ -922,11 +922,24 @@ export async function DELETE(req) {
             );
         }
 
-        // Delete all found documents (including counters)
+        // Delete only the found applications (still exclude counters)
         const deleteResult = await col.deleteMany({
-            _id: { $in: found.map(doc => doc._id) }
-            // removed _type filter
+            _id: { $in: found.map(doc => doc._id) },
+            _type: { $ne: "__counter" }   // double‑safe
         });
+
+        // 🧮 Update the counter document(s): subtract the number of deleted applications
+        // Assumption: there is a single counter document with _type: "__counter"
+        // and it has a numeric field like "count" or "seq". Adjust the field name as needed.
+        const counterUpdateResult = await col.updateOne(
+            { _type: "__counter" },
+            { $inc: { count: -deleteResult.deletedCount } }   // decrement by deleted count
+        );
+
+        // Optional: log if counter wasn't found
+        if (counterUpdateResult.matchedCount === 0) {
+            console.warn(`⚠️ Counter document with _type "__counter" not found – nothing decremented.`);
+        }
 
         const isSingle = ids.length === 1;
         return Response.json({
@@ -937,6 +950,8 @@ export async function DELETE(req) {
             deleted: deleteResult.deletedCount,
             deletedIds: foundIds,
             ...(notFoundIds.length && { notFound: notFoundIds }),
+            // optional: include new counter value (if you want to fetch it after update)
+            // counterUpdated: counterUpdateResult.modifiedCount > 0
         });
 
     } catch (err) {
