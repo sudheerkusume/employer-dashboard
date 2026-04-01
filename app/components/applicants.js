@@ -1224,10 +1224,10 @@ export default function ApplicationManagement() {
     const handleDownloadTemplate = () => {
         const templateData = [{
             'Application ID': 'RB000111',
-            "Referred ByName": 'K Srinivas',
-            "Referred By": 'RB000001',
-            "userCode": 'ME-001',
-            "mlmUserCode": 'ME-001',
+            'Referred ByName': 'K Srinivas',
+            'Referred By': 'RB000001',
+            'userCode': 'ME-001',
+            'mlmUserCode': 'ME-001',
             'Full Name': 'Bheema',
             'Date of Birth': '1995-01-12',
             "Father's/Husband's Name": 'Megya',
@@ -1252,37 +1252,31 @@ export default function ApplicationManagement() {
             'Referrer Signature': '',
             'Declaration Note': 'I confirm that all information is correct.',
             'Declaration Accepted': 'Yes',
-            'Status': 'pending'
+            'Status': 'pending',
+
+            // Emergency Contact 1
+            'Emergency Contact 1 Name': 'Vinod',
+            'Emergency Contact 1 Phone': '9876543211',
+            'Emergency Contact 1 Location': 'Hyderabad',
+            'Emergency Contact 1 Relationship': 'Brother',
+
+            // Emergency Contact 2
+            'Emergency Contact 2 Name': 'Sita',
+            'Emergency Contact 2 Phone': '9876543212',
+            'Emergency Contact 2 Location': 'Secunderabad',
+            'Emergency Contact 2 Relationship': 'Friend',
+
+            // Emergency Contact 3 (empty for demo)
+            'Emergency Contact 3 Name': '',
+            'Emergency Contact 3 Phone': '',
+            'Emergency Contact 3 Location': '',
+            'Emergency Contact 3 Relationship': '',
         }];
 
-        // Emergency contacts data (multiple rows per Application ID)
-        const emergencyData = [
-            {
-                'Application ID': 'RB000111',
-                'Name': 'Vinod',
-                'Phone': '9876543211',
-                'Location': 'Hyderabad',
-                'Relationship': 'Brother'
-            },
-            {
-                'Application ID': 'RB000111',
-                'Name': 'Sita',
-                'Phone': '9876543212',
-                'Location': 'Secunderabad',
-                'Relationship': 'Friend'
-            }
-        ];
-
-        // Create workbook and sheets
+        // Create workbook with a single sheet
+        const ws = XLSX.utils.json_to_sheet(templateData);
         const wb = XLSX.utils.book_new();
-        const mainSheet = XLSX.utils.json_to_sheet(templateData);
-        const emergencySheet = XLSX.utils.json_to_sheet(emergencyData);
-
-        // Append both sheets
-        XLSX.utils.book_append_sheet(wb, mainSheet, 'Application_Template');
-        XLSX.utils.book_append_sheet(wb, emergencySheet, 'EmergencyContacts');
-
-        // Write the file
+        XLSX.utils.book_append_sheet(wb, ws, 'Application_Template');
         XLSX.writeFile(wb, 'application_template.xlsx');
         showNotification('success', 'Template downloaded');
     };
@@ -1395,7 +1389,7 @@ export default function ApplicationManagement() {
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
-                                <p><strong>Referred By:</strong> {application.referredByName || 'Not provided'}</p>
+                                <p><strong>Referred By Name:</strong> {application.referredByName || 'Not provided'}</p>
                                 <p><strong>Referred By:</strong> {application.referredBy || 'Not provided'}</p>
                                 <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
                                 <p><strong>Date of Birth:</strong> {application.dob ? new Date(application.dob).toLocaleDateString() : 'Not provided'}</p>
@@ -1643,7 +1637,7 @@ export default function ApplicationManagement() {
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
-                            <p><strong>Referred By:</strong> {formData.referredByName || 'Not provided'}</p>
+                            <p><strong>Referred By Name:</strong> {formData.referredByName || 'Not provided'}</p>
                             <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
