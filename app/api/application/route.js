@@ -1,3 +1,4 @@
+// app/api/application/route.js
 import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
 import Joi from "joi";
@@ -47,13 +48,16 @@ const TARGETS = {
 
 async function promoteUserIfNeeded(db, userCode) {
     const col = db.collection("marketing_applications");
-    const user = await col.findOne({ userCode });
+    const user = await col.findOne({ userCode, _type: { $ne: "__counter" } });
     if (!user) return false;
+
     const threshold = PROMOTION_THRESHOLDS[user.level];
     if (!threshold?.next) return false;
+
     const children = await col.find({ sponsorCode: userCode }).toArray();
     const count = children.filter(c => c.level === user.level).length;
     const meetsTarget = (user.teamSales || 0) >= (TARGETS[user.level] || 0);
+
     if (count >= threshold.required && meetsTarget) {
         await col.updateOne(
             { userCode },
@@ -70,21 +74,22 @@ async function createMlmMemberFromApplication(db, application) {
     const {
         referredBy, userCode, fullName, email, contactNo, dob,
         fatherName, address, pinCode, panNumber, aadharNumber,
-        bankName, accountNo, ifscCode, branch, bankCity,
-        _id: appId, applicationId
+        bankName, accountNo, ifscCode, branch, bankCity, _id: appId,
     } = application;
 
     if (!referredBy) throw new Error("referredBy is required to create Real Beez member.");
-    if (!userCode) throw new Error("userCode is missing on the application.");
 
-    const sponsor = await col.findOne({ userCode: referredBy });
+    const sponsor = await col.findOne({ userCode: referredBy, _type: { $ne: "__counter" } });
     if (!sponsor) throw new Error(`Referrer code "${referredBy}" not found.`);
+
+    // Generate a new user code for the MLM member
+    const [newUserCode] = await generateUserCodesForLevel(db, "ME", 1);
 
     const newMlmUser = {
         _id: new ObjectId(),
-        userCode,
+        userCode: newUserCode,
         sponsorCode: referredBy,
-        level: application.level || "ME",
+        level: "ME",
         fullName,
         email,
         contactNo,
@@ -106,7 +111,7 @@ async function createMlmMemberFromApplication(db, application) {
         personalSales: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        applicationId,
+        applicationId: appId,
         role: "user",
     };
 
@@ -115,7 +120,7 @@ async function createMlmMemberFromApplication(db, application) {
     await col.updateOne(
         { userCode: referredBy },
         {
-            $push: { children: userCode },
+            $push: { children: newUserCode },
             $inc: { directChildrenCount: 1 },
             $set: { updatedAt: new Date().toISOString() },
         }
@@ -123,21 +128,18 @@ async function createMlmMemberFromApplication(db, application) {
 
     await col.updateOne(
         { _id: appId },
-        { $set: { mlmUserCode: userCode, updatedAt: new Date().toISOString() } }
+        { $set: { mlmUserCode: newUserCode, updatedAt: new Date().toISOString() } }
     );
 
     await promoteUserIfNeeded(db, referredBy);
 
-    return userCode;
+    return newUserCode;
 }
 
 // ----------------------------------------------------------------------
 // JOI SCHEMAS
 // ----------------------------------------------------------------------
-
 const applicationSchema = Joi.object({
-    applicationId: Joi.string().allow("").optional(),
-    userCode: Joi.string().allow("").optional(),
     fullName: Joi.string().min(2).max(100).optional(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     fatherName: Joi.string().allow("").optional(),
@@ -226,75 +228,115 @@ const updateStatusSchema = Joi.object({
 // ----------------------------------------------------------------------
 // DUPLICATE CHECK HELPERS
 // ----------------------------------------------------------------------
+const DUP_FIELDS = ["email", "contactNo", "panNumber", "aadharNumber"];
 
 async function getExistingInDB(col, field, values) {
     const nonEmpty = [...new Set(values.filter(v => v && v !== "" && v !== "--"))];
     if (!nonEmpty.length) return new Set();
     const docs = await col
-        .find({ [field]: { $in: nonEmpty } }, { projection: { [field]: 1 } })
+        .find(
+            { _type: { $ne: "__counter" }, [field]: { $in: nonEmpty } },
+            { projection: { [field]: 1 } }
+        )
         .toArray();
     return new Set(docs.map(d => d[field]));
 }
 
-// ----------------------------------------------------------------------
-// GENERATION HELPERS
-// BUG FIX: Use $nin instead of two separate $ne (JS object keys are unique,
-// so { $ne: null, $ne: "" } silently drops the first $ne, leaving only $ne: "").
-// Also accepts an `offset` so bulk callers can reserve IDs sequentially
-// without making multiple DB round-trips.
-// ----------------------------------------------------------------------
+function getDuplicatesInBatch(values) {
+    const seen = new Set();
+    const dupes = new Set();
+    for (const v of values) {
+        if (!v || v === "" || v === "--") continue;
+        if (seen.has(v)) dupes.add(v);
+        else seen.add(v);
+    }
+    return dupes;
+}
 
+// ----------------------------------------------------------------------
+// SEQUENCE HELPERS (NO COUNTER DOCUMENTS)
+// ----------------------------------------------------------------------
 async function getMaxApplicationIdNum(col) {
     const highest = await col
-        .find({ applicationId: { $exists: true, $nin: [null, ""] } })
+        .find(
+            { applicationId: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
+            { projection: { applicationId: 1 } }
+        )
         .sort({ applicationId: -1 })
         .limit(1)
         .toArray();
-    if (highest.length > 0 && highest[0].applicationId) {
-        const match = highest[0].applicationId.match(/^RB(\d+)$/);
-        if (match) return parseInt(match[1], 10);
-    }
-    return 0;
-}
-
-async function generateApplicationIds(col, count, startAfter = null) {
-    // startAfter: if provided, start from this number instead of querying the DB
-    const lastNum = startAfter !== null ? startAfter : await getMaxApplicationIdNum(col);
-    const start = lastNum + 1;
-    const ids = [];
-    for (let i = 0; i < count; i++) {
-        ids.push(`RB${(start + i).toString().padStart(6, "0")}`);
-    }
-    return { ids, lastNum: lastNum + count };
+    if (highest.length === 0) return 0;
+    const match = highest[0].applicationId.match(/^RB(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
 }
 
 async function getMaxUserCodeNum(col, level) {
+    const regex = new RegExp(`^${level}-\\d+$`);
     const highest = await col
-        .find({ userCode: { $exists: true, $nin: [null, ""], $regex: `^${level}-\\d+$` } })
+        .find(
+            { userCode: { $exists: true, $nin: [null, ""], $regex: regex }, _type: { $ne: "__counter" } },
+            { projection: { userCode: 1 } }
+        )
         .sort({ userCode: -1 })
         .limit(1)
         .toArray();
-    if (highest.length > 0 && highest[0].userCode) {
-        const match = highest[0].userCode.match(new RegExp(`^${level}-(\\d+)$`));
-        if (match) return parseInt(match[1], 10);
-    }
-    return 0;
+    if (highest.length === 0) return 0;
+    const match = highest[0].userCode.match(new RegExp(`^${level}-(\\d+)$`));
+    return match ? parseInt(match[1], 10) : 0;
 }
 
-async function generateUserCodes(col, level, count, startAfter = null) {
-    const lastNum = startAfter !== null ? startAfter : await getMaxUserCodeNum(col, level);
-    const start = lastNum + 1;
-    const codes = [];
-    for (let i = 0; i < count; i++) {
-        codes.push(`${level}-${(start + i).toString().padStart(3, "0")}`);
+function parseApplicationIdNum(appId) {
+    const match = appId.match(/^RB(\d+)$/);
+    return match ? parseInt(match[1], 10) : null;
+}
+
+function parseUserCodeNum(userCode, level) {
+    const regex = new RegExp(`^${level}-(\\d+)$`);
+    const match = userCode.match(regex);
+    return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Generate `count` application IDs sequentially, starting after the higher of:
+ *   - the current maximum in the database, and
+ *   - the maximum provided in the batch (if any).
+ * Returns an array of IDs (e.g. ["RB000001", ...]).
+ */
+async function generateApplicationIds(col, count, providedIds = []) {
+    const dbMax = await getMaxApplicationIdNum(col);
+    let maxProvided = 0;
+    for (const id of providedIds) {
+        const num = parseApplicationIdNum(id);
+        if (num !== null && num > maxProvided) maxProvided = num;
     }
-    return { codes, lastNum: lastNum + count };
+    const start = Math.max(dbMax, maxProvided) + 1;
+    return Array.from({ length: count }, (_, i) =>
+        `RB${(start + i).toString().padStart(6, "0")}`
+    );
+}
+
+/**
+ * Generate `count` user codes for a given level sequentially, starting after the higher of:
+ *   - the current maximum in the database for that level, and
+ *   - the maximum provided in the batch for that level (if any).
+ * Returns an array of codes (e.g. ["ME-001", ...]).
+ */
+async function generateUserCodesForLevel(col, level, count, providedCodes = []) {
+    const dbMax = await getMaxUserCodeNum(col, level);
+    let maxProvided = 0;
+    for (const code of providedCodes) {
+        const num = parseUserCodeNum(code, level);
+        if (num !== null && num > maxProvided) maxProvided = num;
+    }
+    const start = Math.max(dbMax, maxProvided) + 1;
+    return Array.from({ length: count }, (_, i) =>
+        `${level}-${(start + i).toString().padStart(3, "0")}`
+    );
 }
 
 // ----------------------------------------------------------------------
 // DOCUMENT BUILDER
 // ----------------------------------------------------------------------
-
 function parseDob(dob) {
     if (!dob || dob === "") return null;
     try {
@@ -359,12 +401,13 @@ function buildDocument(value, applicationId, userCode) {
 }
 
 // ----------------------------------------------------------------------
-// POST
+// POST — single object OR array (bulk)
 // ----------------------------------------------------------------------
-
 export async function POST(req) {
     try {
         const body = await req.json();
+
+        // ── 1. Normalise to array ─────────────────────────────────────────────
         const isBulk = Array.isArray(body);
         const rawList = isBulk ? body : [body];
 
@@ -372,12 +415,19 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // 1. Validate each record
+        // ── 2. Strip server-generated fields & validate every record ──────────
         const validRecords = [];
         const validationErrors = [];
 
         for (let i = 0; i < rawList.length; i++) {
-            const { _id, _type, appliedAt, updatedAt, remarks, role, ...rest } = rawList[i];
+            const {
+                _id, _type,
+                applicationId, userCode, mlmUserCode,
+                appliedAt, updatedAt,
+                remarks, role,
+                ...rest
+            } = rawList[i];
+
             const { error, value } = applicationSchema.validate(rest);
             if (error) {
                 validationErrors.push({
@@ -398,131 +448,142 @@ export async function POST(req) {
             }, { status: 400 });
         }
 
+        // ── 3. DB connection ──────────────────────────────────────────────────
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // 2. Classify records: which need generated IDs vs provided
-        const recordsToProcess = validRecords.map(rec => {
-            const hasAppId = rec.value.applicationId && rec.value.applicationId.trim() !== "";
-            const hasUserCode = rec.value.userCode && rec.value.userCode.trim() !== "";
-            return {
-                ...rec,
-                needsAppId: !hasAppId,
-                needsUserCode: !hasUserCode,
-                providedAppId: hasAppId ? rec.value.applicationId.trim() : null,
-                providedUserCode: hasUserCode ? rec.value.userCode.trim() : null,
-                finalAppId: hasAppId ? rec.value.applicationId.trim() : null,
-                finalUserCode: hasUserCode ? rec.value.userCode.trim() : null,
-            };
-        });
-
-        // 3. Generate missing applicationIds using helper
-        const needAppIdRecords = recordsToProcess.filter(r => r.needsAppId);
-        if (needAppIdRecords.length > 0) {
-            const { ids } = await generateApplicationIds(col, needAppIdRecords.length);
-            for (let i = 0; i < needAppIdRecords.length; i++) {
-                needAppIdRecords[i].finalAppId = ids[i];
-            }
+        // ── 4. Duplicate detection (early filtering) ──────────────────────────
+        const batchDuplicateWarnings = [];
+        for (const field of DUP_FIELDS) {
+            const vals = validRecords.map(r => r.value[field]);
+            const dupes = getDuplicatesInBatch(vals);
+            dupes.forEach(v =>
+                batchDuplicateWarnings.push(`Duplicate ${field} in batch: "${v}"`)
+            );
         }
 
-        // 4. Generate missing userCodes using helper (one call per level)
-        const needUserCodeRecords = recordsToProcess.filter(r => r.needsUserCode);
-        if (needUserCodeRecords.length > 0) {
-            // Group by level
-            const levelGroups = {};
-            for (const rec of needUserCodeRecords) {
-                const lvl = rec.value.level || "ME";
-                if (!levelGroups[lvl]) levelGroups[lvl] = [];
-                levelGroups[lvl].push(rec);
-            }
-            // For each level: generate codes
-            for (const [lvl, recs] of Object.entries(levelGroups)) {
-                const { codes } = await generateUserCodes(col, lvl, recs.length);
-                for (let i = 0; i < recs.length; i++) {
-                    recs[i].finalUserCode = codes[i];
+        const existingInDB = {};
+        for (const field of DUP_FIELDS) {
+            existingInDB[field] = await getExistingInDB(
+                col, field, validRecords.map(r => r.value[field])
+            );
+        }
+
+        const cleanRecords = [];
+        const skippedRecords = [];
+        for (const rec of validRecords) {
+            let dupReason = null;
+            for (const field of DUP_FIELDS) {
+                const v = rec.value[field];
+                if (v && v !== "" && v !== "--" && existingInDB[field].has(v)) {
+                    dupReason = `${field} already exists: "${v}"`;
+                    break;
                 }
             }
-        }
-
-        // 5. Check for duplicates within this batch (in-memory)
-        const usedAppIds = new Map();
-        const usedUserCodes = new Map();
-        const duplicateInBatchErrors = [];
-        const validatedRecords = [];
-
-        for (const rec of recordsToProcess) {
-            if (!rec.finalAppId || !rec.finalUserCode) {
-                validationErrors.push({
-                    index: rec.originalIndex,
-                    name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
-                    error: "Could not resolve both applicationId and userCode",
-                });
-                continue;
-            }
-
-            let dupError = null;
-            if (usedAppIds.has(rec.finalAppId)) {
-                dupError = `applicationId "${rec.finalAppId}" duplicated in this batch (conflicts with index ${usedAppIds.get(rec.finalAppId)})`;
-            } else if (usedUserCodes.has(rec.finalUserCode)) {
-                dupError = `userCode "${rec.finalUserCode}" duplicated in this batch (conflicts with index ${usedUserCodes.get(rec.finalUserCode)})`;
-            }
-
-            if (dupError) {
-                duplicateInBatchErrors.push({
-                    index: rec.originalIndex,
-                    name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
-                    reason: dupError,
-                });
-                continue;
-            }
-
-            usedAppIds.set(rec.finalAppId, rec.originalIndex);
-            usedUserCodes.set(rec.finalUserCode, rec.originalIndex);
-            validatedRecords.push(rec);
-        }
-
-        // 6. Check duplicates against DB
-        const allAppIds = validatedRecords.map(r => r.finalAppId);
-        const allUserCodes = validatedRecords.map(r => r.finalUserCode);
-        const existingAppIds = await getExistingInDB(col, "applicationId", allAppIds);
-        const existingUserCodes = await getExistingInDB(col, "userCode", allUserCodes);
-
-        const validDocuments = [];
-        const skippedDbDuplicates = [];
-
-        for (const rec of validatedRecords) {
-            let dupReason = null;
-            if (existingAppIds.has(rec.finalAppId)) {
-                dupReason = `applicationId already exists: "${rec.finalAppId}"`;
-            } else if (existingUserCodes.has(rec.finalUserCode)) {
-                dupReason = `userCode already exists: "${rec.finalUserCode}"`;
-            }
-
             if (dupReason) {
-                skippedDbDuplicates.push({
+                skippedRecords.push({
                     index: rec.originalIndex,
                     name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
                     reason: dupReason,
                 });
             } else {
-                validDocuments.push(buildDocument(rec.value, rec.finalAppId, rec.finalUserCode));
+                cleanRecords.push(rec);
             }
         }
 
-        if (validDocuments.length === 0) {
+        if (cleanRecords.length === 0) {
             return Response.json({
                 success: false,
-                error: "No valid documents to insert",
-                skippedRecords: [...duplicateInBatchErrors, ...skippedDbDuplicates, ...validationErrors],
+                error: "All records are duplicates – nothing inserted",
+                skipped: skippedRecords,
+                ...(validationErrors.length && { validationErrors }),
             }, { status: 409 });
         }
 
-        // 7. Insert
-        const insertResult = await col.insertMany(validDocuments, { ordered: false });
+        // ── 5. Retry loop for ID generation & insertion ───────────────────────
+        let toInsert = cleanRecords;   // records that need insertion
+        let insertedDocs = [];
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
 
-        // 8. Send emails (fire and forget)
-        for (const doc of validDocuments) {
+        while (toInsert.length > 0 && retryCount < MAX_RETRIES) {
+            // Gather provided IDs from this batch (in case the caller passed them)
+            const providedAppIds = toInsert
+                .map(r => r.value.applicationId)
+                .filter(id => id && id.trim());
+            const providedUserCodesByLevel = {};
+            for (const rec of toInsert) {
+                const lvl = rec.value.level || "ME";
+                if (rec.value.userCode && rec.value.userCode.trim()) {
+                    if (!providedUserCodesByLevel[lvl]) providedUserCodesByLevel[lvl] = [];
+                    providedUserCodesByLevel[lvl].push(rec.value.userCode.trim());
+                }
+            }
+
+            // Generate new IDs (respecting DB max and provided IDs)
+            const newAppIds = await generateApplicationIds(col, toInsert.length, providedAppIds);
+            const newUserCodesByLevel = {};
+            for (const [lvl, recs] of Object.entries(
+                toInsert.reduce((acc, rec) => {
+                    const lvl = rec.value.level || "ME";
+                    acc[lvl] = (acc[lvl] || 0) + 1;
+                    return acc;
+                }, {})
+            )) {
+                const provided = providedUserCodesByLevel[lvl] || [];
+                newUserCodesByLevel[lvl] = await generateUserCodesForLevel(col, lvl, recs, provided);
+            }
+
+            // Assign IDs to records
+            let appIdx = 0;
+            const levelCounters = {};
+            for (const lvl of Object.keys(newUserCodesByLevel)) {
+                levelCounters[lvl] = 0;
+            }
+
+            const documents = toInsert.map(rec => {
+                const lvl = rec.value.level || "ME";
+                const appId = newAppIds[appIdx++];
+                const userCode = newUserCodesByLevel[lvl][levelCounters[lvl]++];
+                return buildDocument(rec.value, appId, userCode);
+            });
+
+            // Attempt insert
+            try {
+                const result = await col.insertMany(documents, { ordered: false });
+                insertedDocs.push(...documents);
+                toInsert = []; // success
+            } catch (err) {
+                if (err.code === 11000) { // Duplicate key error
+                    // Some records conflicted. We need to extract the ones that succeeded.
+                    // Since we used ordered: false, the insertedIds array tells us which
+                    // indices succeeded. Filter out those that succeeded and retry the rest.
+                    const succeededIndices = new Set(
+                        err.result?.insertedIds
+                            ? Object.values(err.result.insertedIds).map((_, idx) => idx)
+                            : []
+                    );
+                    const failedRecords = toInsert.filter((_, idx) => !succeededIndices.has(idx));
+                    toInsert = failedRecords;
+                    retryCount++;
+                    if (toInsert.length === 0) break;
+                } else {
+                    throw err; // other error, abort
+                }
+            }
+        }
+
+        if (toInsert.length > 0) {
+            return Response.json({
+                success: false,
+                error: `Failed to insert ${toInsert.length} records after ${MAX_RETRIES} retries due to duplicate conflicts.`,
+                remainingRecords: toInsert.map(r => ({ index: r.originalIndex, name: r.value.fullName })),
+            }, { status: 409 });
+        }
+
+        // ── 6. Send emails (fire-and-forget) ──────────────────────────────────
+        for (const doc of insertedDocs) {
             if (!doc.email) continue;
             const html = `
                 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -539,10 +600,11 @@ export async function POST(req) {
                 .catch(err => console.error(`❌ Email failed [${doc.email}]:`, err));
         }
 
-        const maskedDocs = validDocuments.map(maskSensitive);
+        // ── 7. Response ───────────────────────────────────────────────────────
+        const maskedDocs = insertedDocs.map(maskSensitive);
 
         if (!isBulk) {
-            const doc = validDocuments[0];
+            const doc = insertedDocs[0];
             return Response.json({
                 success: true,
                 message: "Application submitted successfully",
@@ -553,33 +615,30 @@ export async function POST(req) {
             });
         }
 
-        const allSkipped = [...duplicateInBatchErrors, ...skippedDbDuplicates, ...validationErrors];
         return Response.json({
             success: true,
-            message: `${insertResult.insertedCount} of ${rawList.length} applications inserted`,
+            message: `${insertedDocs.length} of ${rawList.length} applications inserted`,
             summary: {
                 total: rawList.length,
-                inserted: insertResult.insertedCount,
-                skipped: allSkipped.length,
+                inserted: insertedDocs.length,
+                skipped: skippedRecords.length,
                 failed: validationErrors.length,
             },
             applications: maskedDocs,
-            ...(allSkipped.length && { skippedRecords: allSkipped }),
+            ...(skippedRecords.length && { skippedRecords }),
+            ...(validationErrors.length && { validationErrors }),
+            ...(batchDuplicateWarnings.length && { batchDuplicateWarnings }),
         });
 
     } catch (err) {
         console.error("❌ POST error:", err);
-        return Response.json({
-            success: false,
-            error: "Internal Server Error",
-            details: err.message,
-        }, { status: 500 });
+        return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
     }
 }
+
 // ----------------------------------------------------------------------
 // GET
 // ----------------------------------------------------------------------
-
 export async function GET(req) {
     try {
         const url = new URL(req.url);
@@ -595,14 +654,17 @@ export async function GET(req) {
         const col = db.collection("marketing_applications");
 
         if (applicationId) {
-            const application = await col.findOne({ _id: new ObjectId(applicationId) });
+            const application = await col.findOne({
+                _id: new ObjectId(applicationId),
+                _type: { $ne: "__counter" },
+            });
             if (!application) {
                 return Response.json({ error: "Application not found", success: false }, { status: 404 });
             }
             return Response.json({ success: true, application });
         }
 
-        const filter = {};
+        const filter = { _type: { $ne: "__counter" } };
         if (email) filter.email = email;
         if (phone) filter.contactNo = phone;
         if (status) filter.status = status;
@@ -639,7 +701,6 @@ export async function GET(req) {
 // ----------------------------------------------------------------------
 // PUT
 // ----------------------------------------------------------------------
-
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -656,7 +717,10 @@ export async function PUT(req) {
 
             const { id, status, remarks, applicationId: preferredAppId } = value;
 
-            const application = await col.findOne({ _id: new ObjectId(id) });
+            const application = await col.findOne({
+                _id: new ObjectId(id),
+                _type: { $ne: "__counter" },
+            });
             if (!application) {
                 return Response.json({ error: "Application not found", success: false }, { status: 404 });
             }
@@ -673,14 +737,20 @@ export async function PUT(req) {
 
             if (status === "approved") {
                 if (preferredAppId && preferredAppId.trim()) {
-                    const existing = await col.findOne({ applicationId: preferredAppId });
+                    const existing = await col.findOne({
+                        applicationId: preferredAppId,
+                        _type: { $ne: "__counter" },
+                    });
                     if (!existing) {
                         finalAppId = preferredAppId;
+                    } else {
+                        // preferred ID taken — auto-generate
+                        const [newId] = await generateApplicationIds(col, 1);
+                        finalAppId = newId;
                     }
-                }
-                if (!finalAppId) {
-                    const dbMax = await getMaxApplicationIdNum(col);
-                    finalAppId = `RB${(dbMax + 1).toString().padStart(6, "0")}`;
+                } else if (!finalAppId) {
+                    const [newId] = await generateApplicationIds(col, 1);
+                    finalAppId = newId;
                 }
                 updateFields.applicationId = finalAppId;
             }
@@ -696,9 +766,8 @@ export async function PUT(req) {
             if (status === "approved") {
                 let mlmUserCode = null;
                 let mlmCreationError = null;
-                if (!application.userCode) {
-                    mlmCreationError = "Application has no userCode – cannot create MLM member";
-                } else if (application.referredBy && !application.mlmUserCode) {
+
+                if (application.referredBy && !(application.mlmUserCode || application.userCode)) {
                     try {
                         mlmUserCode = await createMlmMemberFromApplication(db, application);
                     } catch (e) {
@@ -706,6 +775,7 @@ export async function PUT(req) {
                         mlmCreationError = e.message;
                     }
                 }
+
                 if (application.email) {
                     const html = `
                         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -723,6 +793,7 @@ export async function PUT(req) {
                     sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
                         .catch(err => console.error("Email failed:", err));
                 }
+
                 return Response.json({
                     success: true,
                     message: mlmCreationError
@@ -773,6 +844,7 @@ export async function PUT(req) {
         delete updateFields.applicationId;
         delete updateFields.userCode;
         delete updateFields.mlmUserCode;
+        delete updateFields._type;
 
         const filteredUpdate = Object.fromEntries(
             Object.entries(updateFields).filter(([, v]) => v !== undefined)
@@ -795,6 +867,7 @@ export async function PUT(req) {
         for (const field of dupCheckFields) {
             if (!filteredUpdate[field]) continue;
             const existing = await col.findOne({
+                _type: { $ne: "__counter" },
                 [field]: filteredUpdate[field],
                 _id: { $ne: new ObjectId(id) },
             });
@@ -809,18 +882,14 @@ export async function PUT(req) {
         filteredUpdate.updatedAt = new Date().toISOString();
 
         const updateResult = await col.updateOne(
-            { _id: new ObjectId(id) },
+            { _id: new ObjectId(id), _type: { $ne: "__counter" } },
             { $set: filteredUpdate }
         );
         if (updateResult.modifiedCount === 0) {
             return Response.json({ error: "Failed to update application", success: false }, { status: 400 });
         }
 
-        return Response.json({
-            success: true,
-            message: "Application updated successfully",
-            id,
-        });
+        return Response.json({ success: true, message: "Application updated successfully", id });
 
     } catch (err) {
         console.error("❌ PUT error:", err);
@@ -831,85 +900,82 @@ export async function PUT(req) {
 // ----------------------------------------------------------------------
 // DELETE
 // ----------------------------------------------------------------------
-
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
-        let ids = url.searchParams.getAll("id");
+        const applicationId = url.searchParams.get("id");
 
-        if (ids.length === 0) {
-            try {
-                const body = await req.json();
-                if (body.id) ids = [body.id];
-                if (body.ids) ids = body.ids;
-            } catch {
-                // no body
-            }
-        }
-
-        ids = [...new Set(ids.filter(id => id && id.trim() !== ""))];
-        if (ids.length === 0) {
-            return Response.json(
-                { success: false, error: "At least one application ID is required" },
-                { status: 400 }
-            );
+        if (!applicationId) {
+            return Response.json({ error: "Application ID is required", success: false }, { status: 400 });
         }
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        const validObjectIds = [];
-        const invalidIds = [];
-        for (const id of ids) {
-            try {
-                validObjectIds.push(new ObjectId(id));
-            } catch {
-                invalidIds.push(id);
+        // Find the application (exclude counter docs)
+        const application = await col.findOne({
+            _id: new ObjectId(applicationId),
+            _type: { $ne: "__counter" },
+        });
+        if (!application) {
+            return Response.json({ error: "Application not found", success: false }, { status: 404 });
+        }
+
+        // --- Decrement applicationId counter if it was the last issued ---
+        const appIdMatch = application.applicationId?.match(/^RB(\d+)$/);
+        if (appIdMatch) {
+            const appNum = parseInt(appIdMatch[1], 10);
+            const appCounter = await col.findOneAndUpdate(
+                { _type: "__counter", _key: "applicationId" },
+                { $inc: { seq: -1 } },
+                { returnDocument: "after" }
+            );
+            if (appCounter && appCounter.seq !== appNum) {
+                // If the counter after decrement is not equal to the deleted ID's number,
+                // then the deleted ID was not the last one. Revert the decrement.
+                await col.findOneAndUpdate(
+                    { _type: "__counter", _key: "applicationId" },
+                    { $inc: { seq: 1 } }
+                );
+                console.warn(
+                    `Deleted applicationId ${application.applicationId} was not the last. Counter not changed.`
+                );
             }
         }
-        if (invalidIds.length > 0) {
-            return Response.json(
-                { success: false, error: `Invalid ID format for: ${invalidIds.join(", ")}`, invalidIds },
-                { status: 400 }
+
+        // --- Decrement userCode counter for its level if it was the last issued ---
+        const userCodeMatch = application.userCode?.match(/^(\w+)-(\d+)$/);
+        if (userCodeMatch) {
+            const level = userCodeMatch[1];
+            const userNum = parseInt(userCodeMatch[2], 10);
+            const userCounter = await col.findOneAndUpdate(
+                { _type: "__counter", _key: `userCode_${level}` },
+                { $inc: { seq: -1 } },
+                { returnDocument: "after" }
             );
+            if (userCounter && userCounter.seq !== userNum) {
+                // Not the last – revert
+                await col.findOneAndUpdate(
+                    { _type: "__counter", _key: `userCode_${level}` },
+                    { $inc: { seq: 1 } }
+                );
+                console.warn(
+                    `Deleted userCode ${application.userCode} was not the last. Counter not changed.`
+                );
+            }
         }
 
-        const found = await col
-            .find({ _id: { $in: validObjectIds } })
-            .project({ _id: 1 })
-            .toArray();
-
-        const foundIds = found.map(doc => doc._id.toString());
-        const notFoundIds = ids.filter(id => !foundIds.includes(id));
-
-        if (foundIds.length === 0) {
-            return Response.json(
-                { success: false, error: "No applications found for the provided ID(s)", notFound: notFoundIds },
-                { status: 404 }
-            );
+        // Delete the document
+        const deleteResult = await col.deleteOne({ _id: new ObjectId(applicationId) });
+        if (deleteResult.deletedCount === 0) {
+            return Response.json({ error: "Failed to delete application", success: false }, { status: 400 });
         }
 
-        const deleteResult = await col.deleteMany({
-            _id: { $in: found.map(doc => doc._id) }
-        });
-
-        const isSingle = ids.length === 1;
-        return Response.json({
-            success: true,
-            message: isSingle
-                ? "Application deleted successfully"
-                : `${deleteResult.deletedCount} of ${ids.length} applications deleted`,
-            deleted: deleteResult.deletedCount,
-            deletedIds: foundIds,
-            ...(notFoundIds.length && { notFound: notFoundIds })
-        });
+        return Response.json({ success: true, message: "Application deleted successfully", applicationId });
 
     } catch (err) {
         console.error("❌ DELETE error:", err);
-        return Response.json(
-            { success: false, error: "Internal Server Error" },
-            { status: 500 }
-        );
+        return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
     }
 }
