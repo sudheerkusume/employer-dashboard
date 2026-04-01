@@ -129,11 +129,11 @@ async function promoteUserIfNeeded(db, userCode) {
 
 async function createMlmMemberFromApplication(db, application) {
     const col = db.collection("marketing_applications");
-    const { referredBy, userCode, fullName, email, contactNo, dob,
+    const { referredById, userCode, fullName, email, contactNo, dob,
         fatherName, address, pinCode, panNumber, aadharNumber,
         bankName, accountNo, ifscCode, branch, bankCity, _id: appId } = application;
 
-    if (!referredBy) throw new Error("referredBy is required to create Real Beez member.");
+    if (!referredById) throw new Error("referredById is required to create Real Beez member.");
 
     const sponsor = await col.findOne({ userCode, _type: { $ne: "__counter" } });
     if (!sponsor) throw new Error(`Referrer code "${userCode}" not found.`);
@@ -229,7 +229,7 @@ const applicationSchema = Joi.object({
     declaration: Joi.boolean().optional(),
     applicantSignature: Joi.string().allow("").optional(),
     referrerSignature: Joi.string().allow("").optional(),
-    referredBy: Joi.string().allow("").optional(),
+    referredById: Joi.string().allow("").optional(),
     referredByName: Joi.string().allow("").optional(),
     level: Joi.string().allow("").optional(),
     status: Joi.string().allow("").default("pending"),
@@ -269,7 +269,7 @@ const updateApplicationSchema = Joi.object({
     declaration: Joi.boolean().optional(),
     applicantSignature: Joi.string().allow("").optional(),
     referrerSignature: Joi.string().allow("").optional(),
-    referredBy: Joi.string().allow("").optional(),
+    referredById: Joi.string().allow("").optional(),
     referredByName: Joi.string().allow("").optional(),
     level: Joi.string().allow("").optional(),
     status: Joi.string().allow("").optional(),
@@ -380,7 +380,7 @@ function buildDocument(value, applicationId, userCode) {
         declaration: value.declaration ?? false,
         applicantSignature: value.applicantSignature ?? "",
         referrerSignature: value.referrerSignature ?? "",
-        referredBy: value.referredBy || "RB000001",
+        referredById: value.referredById || "RB000001",
         referredByName: value.referredByName || "K Srinivas",
         status: value.status || "pending",
         appliedAt: Date.now(),
@@ -720,7 +720,7 @@ export async function PUT(req) {
                 let mlmUserCode = null;
                 let mlmCreationError = null;
 
-                if (application.referredBy && !(application.mlmUserCode || application.userCode)) {
+                if (application.referredById && !(application.mlmUserCode || application.userCode)) {
                     try {
                         mlmUserCode = await createMlmMemberFromApplication(db, application);
                     } catch (e) {

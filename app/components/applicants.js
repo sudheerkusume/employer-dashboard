@@ -675,7 +675,7 @@ export default function ApplicationManagement() {
         declaration: false,
         referrerSignature: '',
         applicantSignature: '',
-        referredBy: "",
+        referredById: "",
         referredByName: "",
         status: 'pending',
         level: "ME"
@@ -725,7 +725,7 @@ export default function ApplicationManagement() {
     const handleChange = useCallback((e) => {
         const { name, value, type, checked, userName } = e.target;
         if (userName) {
-            setFormData(prev => ({ ...prev, referredByName: userName, referredBy: value }));
+            setFormData(prev => ({ ...prev, referredByName: userName, referredById: value }));
         } else {
             setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
         }
@@ -894,7 +894,7 @@ export default function ApplicationManagement() {
                     ifscCode: app.ifscCode || '',
                     branch: app.branch || '',
                     bankCity: app.bankCity || '',
-                    referredBy: app.referredBy || 'RB000001',
+                    referredById: app.referredById || 'RB000001',
                     referredByName: app.referredByName || 'K Srinivas',
                     declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
@@ -991,14 +991,16 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: 'RB000001', referredByName: "K srinivas", status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: 'RB000001', referredByName: "K srinivas", status: 'pending',
         });
         setCurrentApplication(null);
         setActiveTab('personal');
         setShowPreview(false);
     };
 
-    // Excel Export/Import (unchanged)
+    // Maximum number of emergency contacts to export/import
+    const MAX_EMERGENCY_CONTACTS = 2;
+
     const handleExportExcel = async () => {
         if (applications.length === 0) {
             showNotification('error', 'No applications to export');
@@ -1009,17 +1011,44 @@ export default function ApplicationManagement() {
             const exportData = applications.map(app => {
                 const base = {
                     'Application ID': app.applicationId || '',
+                    'User Code': app.userCode || '',
                     'Full Name': app.fullName || '',
-                    // ... all other fields ...
+                    'Date of Birth': app.dob ? new Date(app.dob).toLocaleDateString() : '',
+                    'Father Name': app.fatherName || '',
+                    'Blood Group': app.bloodGroup || '',
+                    'Address': app.address || '',
+                    'Contact No': app.contactNo || '',
+                    'Email': app.email || '',
+                    'Pin Code': app.pinCode || '',
+                    'PAN Number': app.panNumber || '',
+                    'Aadhar Number': app.aadharNumber || '',
+                    'Previous Company': app.previousCompany || '',
+                    'Previous Designation': app.previousDesignation || '',
+                    'Educational Qualification': app.educationalQualification || '',
+                    'Legal Cases Pending': app.legalCasesPending || '',
+                    'Name as per Bank': app.nameAsPerBank || '',
+                    'Bank Name': app.bankName || '',
+                    'Account No': app.accountNo || '',
+                    'IFSC Code': app.ifscCode || '',
+                    'Branch': app.branch || '',
+                    'Bank City': app.bankCity || '',
+                    'Declaration Note': app.declarationNote || '',
+                    'Declaration': app.declaration ? 'Yes' : 'No',
+                    'Referred By Id': app.referredById || '',
+                    'Referred By Name': app.referredByName || '',
+                    'Level': app.level || '',
+                    'Status': app.status || '',
+                    'Applied At': app.appliedAt ? new Date(app.appliedAt).toLocaleString() : '',
                 };
-                // Add emergency contacts as separate columns
+
+                // Emergency Contacts – flattened into separate columns
                 const contacts = app.emergencyContacts || [];
-                for (let i = 1; i <= 3; i++) {
-                    const contact = contacts[i - 1] || {};
-                    base[`Emergency Contact ${i} Name`] = contact.name || '';
-                    base[`Emergency Contact ${i} Phone`] = contact.phone || '';
-                    base[`Emergency Contact ${i} Location`] = contact.location || '';
-                    base[`Emergency Contact ${i} Relationship`] = contact.relationship || '';
+                for (let i = 0; i < MAX_EMERGENCY_CONTACTS; i++) {
+                    const contact = contacts[i] || {};
+                    base[`Emergency Contact ${i + 1} Name`] = contact.name || '';
+                    base[`Emergency Contact ${i + 1} Phone`] = contact.phone || '';
+                    base[`Emergency Contact ${i + 1} Location`] = contact.location || '';
+                    base[`Emergency Contact ${i + 1} Relationship`] = contact.relationship || '';
                 }
                 return base;
             });
@@ -1029,47 +1058,92 @@ export default function ApplicationManagement() {
             XLSX.writeFile(wb, `applications_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
             showNotification('success', 'Applications exported successfully');
         } catch (error) {
-            console.log(error);
+            console.error(error);
             showNotification('error', 'Failed to export applications');
-        } finally { setIsExporting(false); }
+        } finally {
+            setIsExporting(false);
+        }
     };
 
-    const handleImportExcel = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.xlsx, .xls, .csv';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            setIsImporting(true);
-            try {
-                const data = await readExcelFile(file);
-                if (!data || data.length === 0) {
-                    showNotification('error', 'No data found in file');
-                    setIsImporting(false);
-                    return;
+    const handleImportExcel = async (file) => {
+        // file is the selected file from <input type="file" />
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+            const applications = rows.map(row => {
+                // Build emergencyContacts array from flattened columns
+                const emergencyContacts = [];
+                for (let i = 1; i <= MAX_EMERGENCY_CONTACTS; i++) {
+                    const name = row[`Emergency Contact ${i} Name`];
+                    const phone = row[`Emergency Contact ${i} Phone`];
+                    const location = row[`Emergency Contact ${i} Location`];
+                    const relationship = row[`Emergency Contact ${i} Relationship`];
+                    // Only add if at least one field is filled (name is a good indicator)
+                    if (name || phone || location || relationship) {
+                        emergencyContacts.push({
+                            name: name || '',
+                            phone: phone || '',
+                            location: location || '',
+                            relationship: relationship || '',
+                        });
+                    }
                 }
-                const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName);
-                const results = await Promise.allSettled(
-                    mappedData.map(async (appData, idx) => {
-                        if (!appData.fullName) throw new Error(`Row ${idx + 1}: Full Name is required`);
-                        const response = await fetch('/api/application', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(appData) });
-                        const result = await response.json();
-                        if (!result.success) throw new Error(result.error || 'Submission failed');
-                        return result;
-                    })
-                );
-                const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-                const failed = results.filter(r => r.status === 'rejected');
-                if (successful > 0) showNotification('success', `Successfully imported ${successful} applications`);
-                if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
-                fetchApplications(currentPage);
-            } catch (error) {
-                console.log(error);
-                showNotification('error', 'Failed to import Excel file');
-            } finally { setIsImporting(false); }
-        };
-        input.click();
+
+                return {
+                    applicationId: row['Application ID'] || undefined,
+                    userCode: row['User Code'] || undefined,
+                    fullName: row['Full Name'] || '',
+                    dob: row['Date of Birth'] ? new Date(row['Date of Birth']).toISOString() : null,
+                    fatherName: row['Father Name'] || '',
+                    bloodGroup: row['Blood Group'] || '',
+                    address: row['Address'] || '',
+                    contactNo: row['Contact No'] || '',
+                    email: row['Email'] || '',
+                    pinCode: row['Pin Code'] || '',
+                    panNumber: row['PAN Number'] || '',
+                    aadharNumber: row['Aadhar Number'] || '',
+                    emergencyContacts,
+                    previousCompany: row['Previous Company'] || '',
+                    previousDesignation: row['Previous Designation'] || '',
+                    educationalQualification: row['Educational Qualification'] || '',
+                    legalCasesPending: row['Legal Cases Pending'] || '',
+                    nameAsPerBank: row['Name as per Bank'] || '',
+                    bankName: row['Bank Name'] || '',
+                    accountNo: row['Account No'] || '',
+                    ifscCode: row['IFSC Code'] || '',
+                    branch: row['Branch'] || '',
+                    bankCity: row['Bank City'] || '',
+                    declarationNote: row['Declaration Note'] || '',
+                    declaration: row['Declaration'] === 'Yes',
+                    referredById: row['Referred By Id'] || '',
+                    referredByName: row['Referred By Name'] || '',
+                    level: row['Level'] || 'ME',
+                    status: row['Status'] || 'pending'
+                };
+            });
+
+            // Send to backend – adjust your API call accordingly
+            const response = await fetch('/api/application', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(applications),
+            });
+            const result = await response.json();
+            if (result.success) {
+                showNotification('success', `Imported ${result.summary.inserted} applications`);
+                // Refresh list
+                fetchApplications();
+            } else {
+                showNotification('error', result.error || 'Import failed');
+            }
+        } catch (error) {
+            console.error(error);
+            showNotification('error', 'Failed to process Excel file');
+        }
     };
 
     const handleImportFromUrl = async () => {
@@ -1239,8 +1313,8 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
-            referredBy: 'RB000001',
-            referredByName: 'K Srinivas',
+            referredById: getStr('Reffe') || 'RB000001',
+            referredByName: getStr('Declaration Note') || 'K Srinivas',
             status: getStr('Status') || 'pending',
         };
     };
@@ -1249,7 +1323,7 @@ export default function ApplicationManagement() {
         const templateData = [{
             'Application ID': 'RB000111',
             'Referred ByName': 'K Srinivas',
-            'Referred By': 'RB000001',
+            'Referred By Id': 'RB000001',
             'userCode': 'ME-001',
             'mlmUserCode': 'ME-001',
             'Full Name': 'Bheema',
@@ -1289,12 +1363,6 @@ export default function ApplicationManagement() {
             'Emergency Contact 2 Phone': '9876543212',
             'Emergency Contact 2 Location': 'Secunderabad',
             'Emergency Contact 2 Relationship': 'Friend',
-
-            // Emergency Contact 3 (empty for demo)
-            'Emergency Contact 3 Name': '',
-            'Emergency Contact 3 Phone': '',
-            'Emergency Contact 3 Location': '',
-            'Emergency Contact 3 Relationship': '',
         }];
 
         // Create workbook with a single sheet
@@ -1414,7 +1482,7 @@ export default function ApplicationManagement() {
                             <div className="grid grid-cols-2 gap-4">
                                 <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
                                 <p><strong>Referred By Name:</strong> {application.referredByName || 'Not provided'}</p>
-                                <p><strong>Referred By:</strong> {application.referredBy || 'Not provided'}</p>
+                                <p><strong>Referred By Id:</strong> {application.referredById || 'Not provided'}</p>
                                 <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
                                 <p><strong>Date of Birth:</strong> {application.dob ? new Date(application.dob).toLocaleDateString() : 'Not provided'}</p>
                                 <p><strong>Father's/Husband's Name:</strong> {application.fatherName || 'Not provided'}</p>
@@ -1662,7 +1730,7 @@ export default function ApplicationManagement() {
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
                             <p><strong>Referred By Name:</strong> {formData.referredByName || 'Not provided'}</p>
-                            <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
+                            <p><strong>Referred By Id:</strong> {formData.referredById || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
                             <p><strong>Father's/Husband's Name:</strong> {formData.fatherName || 'Not provided'}</p>
@@ -1783,7 +1851,7 @@ export default function ApplicationManagement() {
         const handleChange = (user) => {
             onChange({
                 target: {
-                    name: 'referredBy',
+                    name: 'referredById',
                     value: user ? user.applicationId : '',
                     type: 'select-one',
                     userName: user ? user.fullName : ''
@@ -2281,7 +2349,7 @@ export default function ApplicationManagement() {
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
                                     <UserSelect
                                         users={usersList}
-                                        value={formData.referredBy}
+                                        value={formData.referredById}
                                         onChange={handleChange}
                                         loading={loadingUsers}
                                         required={true}

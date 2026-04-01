@@ -156,7 +156,7 @@ export default function AdminApplications() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.fullName || "-"}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.email || "-"}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.contactNo || "-"}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.referredBy || "-"}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.referredById || "-"}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "-"}
                                         </td>
@@ -294,7 +294,7 @@ export default function AdminApplications() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Referred By</label>
-                                    <p className="mt-1 text-sm text-gray-900">{selectedApp.referredBy || "-"}</p>
+                                    <p className="mt-1 text-sm text-gray-900">{selectedApp.referredById || "-"}</p>
                                 </div>
 
                                 {/* Emergency Contacts */}
