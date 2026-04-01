@@ -406,8 +406,6 @@ function buildDocument(value, applicationId, userCode) {
 export async function POST(req) {
     try {
         const body = await req.json();
-
-        // ── 1. Normalise to array ─────────────────────────────────────────────
         const isBulk = Array.isArray(body);
         const rawList = isBulk ? body : [body];
 
@@ -415,7 +413,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // ── 2. Strip server-generated fields & validate every record ──────────
+        // 1. Validate each record
         const validRecords = [];
         const validationErrors = [];
 
@@ -448,12 +446,11 @@ export async function POST(req) {
             }, { status: 400 });
         }
 
-        // ── 3. DB connection ──────────────────────────────────────────────────
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // ── 4. Duplicate detection (early filtering) ──────────────────────────
+        // 2. Duplicate detection (early filtering)
         const batchDuplicateWarnings = [];
         for (const field of DUP_FIELDS) {
             const vals = validRecords.map(r => r.value[field]);
@@ -501,14 +498,14 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ── 5. Retry loop for ID generation & insertion ───────────────────────
-        let toInsert = cleanRecords;   // records that need insertion
+        // 3. Retry loop for ID generation & insertion
+        let toInsert = cleanRecords;
         let insertedDocs = [];
         let retryCount = 0;
         const MAX_RETRIES = 3;
 
         while (toInsert.length > 0 && retryCount < MAX_RETRIES) {
-            // Gather provided IDs from this batch (in case the caller passed them)
+            // Gather provided IDs from this batch
             const providedAppIds = toInsert
                 .map(r => r.value.applicationId)
                 .filter(id => id && id.trim());
@@ -521,18 +518,17 @@ export async function POST(req) {
                 }
             }
 
-            // Generate new IDs (respecting DB max and provided IDs)
+            // Generate new IDs
             const newAppIds = await generateApplicationIds(col, toInsert.length, providedAppIds);
             const newUserCodesByLevel = {};
-            for (const [lvl, recs] of Object.entries(
-                toInsert.reduce((acc, rec) => {
-                    const lvl = rec.value.level || "ME";
-                    acc[lvl] = (acc[lvl] || 0) + 1;
-                    return acc;
-                }, {})
-            )) {
+            const levelCounts = toInsert.reduce((acc, rec) => {
+                const lvl = rec.value.level || "ME";
+                acc[lvl] = (acc[lvl] || 0) + 1;
+                return acc;
+            }, {});
+            for (const [lvl, count] of Object.entries(levelCounts)) {
                 const provided = providedUserCodesByLevel[lvl] || [];
-                newUserCodesByLevel[lvl] = await generateUserCodesForLevel(col, lvl, recs, provided);
+                newUserCodesByLevel[lvl] = await generateUserCodesForLevel(col, lvl, count, provided);
             }
 
             // Assign IDs to records
@@ -555,10 +551,8 @@ export async function POST(req) {
                 insertedDocs.push(...documents);
                 toInsert = []; // success
             } catch (err) {
-                if (err.code === 11000) { // Duplicate key error
-                    // Some records conflicted. We need to extract the ones that succeeded.
-                    // Since we used ordered: false, the insertedIds array tells us which
-                    // indices succeeded. Filter out those that succeeded and retry the rest.
+                if (err.code === 11000) {
+                    // Duplicate key: some succeeded, some didn't
                     const succeededIndices = new Set(
                         err.result?.insertedIds
                             ? Object.values(err.result.insertedIds).map((_, idx) => idx)
@@ -569,7 +563,7 @@ export async function POST(req) {
                     retryCount++;
                     if (toInsert.length === 0) break;
                 } else {
-                    throw err; // other error, abort
+                    throw err;
                 }
             }
         }
@@ -582,7 +576,7 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ── 6. Send emails (fire-and-forget) ──────────────────────────────────
+        // 4. Send emails
         for (const doc of insertedDocs) {
             if (!doc.email) continue;
             const html = `
@@ -600,7 +594,7 @@ export async function POST(req) {
                 .catch(err => console.error(`❌ Email failed [${doc.email}]:`, err));
         }
 
-        // ── 7. Response ───────────────────────────────────────────────────────
+        // 5. Response
         const maskedDocs = insertedDocs.map(maskSensitive);
 
         if (!isBulk) {
@@ -744,7 +738,6 @@ export async function PUT(req) {
                     if (!existing) {
                         finalAppId = preferredAppId;
                     } else {
-                        // preferred ID taken — auto-generate
                         const [newId] = await generateApplicationIds(col, 1);
                         finalAppId = newId;
                     }
@@ -898,14 +891,14 @@ export async function PUT(req) {
 }
 
 // ----------------------------------------------------------------------
-// DELETE
+// DELETE — single or multiple, no counter management
 // ----------------------------------------------------------------------
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
         let ids = [];
 
-        // --- 1. Extract IDs from query parameter or request body ---
+        // 1. Extract IDs from query parameter or request body
         const queryId = url.searchParams.get("id");
         if (queryId) {
             ids = [queryId];
@@ -932,7 +925,7 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 2. Validate ObjectIds ---
+        // 2. Validate ObjectIds
         const objectIds = [];
         const invalidIds = [];
         for (const id of ids) {
@@ -949,12 +942,12 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 3. DB connection ---
+        // 3. DB connection
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // --- 4. Find existing applications (exclude counter docs) ---
+        // 4. Find existing applications (exclude counter docs, but we don't have them)
         const existingDocs = await col
             .find({ _id: { $in: objectIds }, _type: { $ne: "__counter" } })
             .toArray();
@@ -969,51 +962,10 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 5. For each document, attempt to decrement counters (if last) ---
-        for (const doc of existingDocs) {
-            // Application ID counter
-            const appIdMatch = doc.applicationId?.match(/^RB(\d+)$/);
-            if (appIdMatch) {
-                const appNum = parseInt(appIdMatch[1], 10);
-                const appCounter = await col.findOneAndUpdate(
-                    { _type: "__counter", _key: "applicationId" },
-                    { $inc: { seq: -1 } },
-                    { returnDocument: "after", upsert: false }
-                );
-                if (appCounter && appCounter.seq !== appNum) {
-                    // Not the last – revert
-                    await col.findOneAndUpdate(
-                        { _type: "__counter", _key: "applicationId" },
-                        { $inc: { seq: 1 } }
-                    );
-                    console.warn(`Deleted applicationId ${doc.applicationId} was not the last. Counter unchanged.`);
-                }
-            }
-
-            // User code counter for its level
-            const userCodeMatch = doc.userCode?.match(/^(\w+)-(\d+)$/);
-            if (userCodeMatch) {
-                const level = userCodeMatch[1];
-                const userNum = parseInt(userCodeMatch[2], 10);
-                const userCounter = await col.findOneAndUpdate(
-                    { _type: "__counter", _key: `userCode_${level}` },
-                    { $inc: { seq: -1 } },
-                    { returnDocument: "after", upsert: false }
-                );
-                if (userCounter && userCounter.seq !== userNum) {
-                    await col.findOneAndUpdate(
-                        { _type: "__counter", _key: `userCode_${level}` },
-                        { $inc: { seq: 1 } }
-                    );
-                    console.warn(`Deleted userCode ${doc.userCode} was not the last. Counter unchanged.`);
-                }
-            }
-        }
-
-        // --- 6. Perform deletion ---
+        // 5. Delete all found documents
         const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
 
-        // --- 7. Build response ---
+        // 6. Build response
         const isSingle = ids.length === 1;
         return Response.json({
             success: true,
