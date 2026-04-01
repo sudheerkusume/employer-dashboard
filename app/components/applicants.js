@@ -1225,7 +1225,9 @@ export default function ApplicationManagement() {
         const templateData = [{
             'Application ID': 'RB000111',
             "Referred ByName": 'K Srinivas',
-            "Referred By": '',
+            "Referred By": 'RB000001',
+            "userCode": 'ME-001',
+            "mlmUserCode": 'ME-001',
             'Full Name': 'Bheema',
             'Date of Birth': '1995-01-12',
             "Father's/Husband's Name": 'Megya',
@@ -1236,14 +1238,6 @@ export default function ApplicationManagement() {
             'Pin Code': '123456',
             'PAN Number': 'ABCDE1234F',
             'Aadhar Number': '123456789012',
-            'Emergency Contact 1 Name': 'Vinod',
-            'Emergency Contact 1 Phone': '9876543211',
-            'Emergency Contact 1 Location': 'Hyderabad',
-            'Emergency Contact 1 Relationship': 'Brother',
-            'Emergency Contact 2 Name': 'Sita',
-            'Emergency Contact 2 Phone': '9876543212',
-            'Emergency Contact 2 Location': 'Secunderabad',
-            'Emergency Contact 2 Relationship': 'Friend',
             'Previous Company': 'BMax Projects Pvt Ltd',
             'Previous Designation': 'Manager',
             'Educational Qualification': 'Graduate',
@@ -1260,9 +1254,35 @@ export default function ApplicationManagement() {
             'Declaration Accepted': 'Yes',
             'Status': 'pending'
         }];
-        const ws = XLSX.utils.json_to_sheet(templateData);
+
+        // Emergency contacts data (multiple rows per Application ID)
+        const emergencyData = [
+            {
+                'Application ID': 'RB000111',
+                'Name': 'Vinod',
+                'Phone': '9876543211',
+                'Location': 'Hyderabad',
+                'Relationship': 'Brother'
+            },
+            {
+                'Application ID': 'RB000111',
+                'Name': 'Sita',
+                'Phone': '9876543212',
+                'Location': 'Secunderabad',
+                'Relationship': 'Friend'
+            }
+        ];
+
+        // Create workbook and sheets
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Application_Template');
+        const mainSheet = XLSX.utils.json_to_sheet(templateData);
+        const emergencySheet = XLSX.utils.json_to_sheet(emergencyData);
+
+        // Append both sheets
+        XLSX.utils.book_append_sheet(wb, mainSheet, 'Application_Template');
+        XLSX.utils.book_append_sheet(wb, emergencySheet, 'EmergencyContacts');
+
+        // Write the file
         XLSX.writeFile(wb, 'application_template.xlsx');
         showNotification('success', 'Template downloaded');
     };
