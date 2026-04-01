@@ -865,29 +865,19 @@ export async function PUT(req) {
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
+        let ids = url.searchParams.getAll("id");
 
-        // ── Support both single and multiple IDs ──────────────────────────────
-        // Single:   ?id=abc123
-        // Multiple: ?id=abc123&id=def456&id=ghi789   (repeated param)
-        // OR pass JSON body: { "ids": ["abc123", "def456"] }
-        // ─────────────────────────────────────────────────────────────────────
-
-        let ids = url.searchParams.getAll("id"); // getAll handles repeated ?id=
-
-        // If no query params, try JSON body
         if (ids.length === 0) {
             try {
                 const body = await req.json();
-                if (body.id) ids = [body.id];           // single from body
-                if (body.ids) ids = body.ids;             // array from body
+                if (body.id) ids = [body.id];
+                if (body.ids) ids = body.ids;
             } catch {
-                // no body — fall through to validation below
+                // no body
             }
         }
 
-        // Remove empty/invalid entries
         ids = [...new Set(ids.filter(id => id && id.trim() !== ""))];
-
         if (ids.length === 0) {
             return Response.json(
                 { success: false, error: "At least one application ID is required" },
@@ -899,10 +889,9 @@ export async function DELETE(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // ── Validate all IDs are valid ObjectIds ──────────────────────────────
+        // Validate ObjectIds
         const validObjectIds = [];
         const invalidIds = [];
-
         for (const id of ids) {
             try {
                 validObjectIds.push(new ObjectId(id));
@@ -910,24 +899,17 @@ export async function DELETE(req) {
                 invalidIds.push(id);
             }
         }
-
         if (invalidIds.length > 0) {
             return Response.json(
-                {
-                    success: false,
-                    error: `Invalid ID format for: ${invalidIds.join(", ")}`,
-                    invalidIds,
-                },
+                { success: false, error: `Invalid ID format for: ${invalidIds.join(", ")}`, invalidIds },
                 { status: 400 }
             );
         }
 
-        // ── Find all matching applications (exclude counter docs) ─────────────
+        // Find all matching documents (including counters) – only to collect IDs for response
         const found = await col
-            .find({
-                _id: { $in: validObjectIds },
-                _type: { $ne: "__counter" },   // never delete counter docs
-            }, { projection: { _id: 1 } })
+            .find({ _id: { $in: validObjectIds } })   // <- removed _type filter
+            .project({ _id: 1 })
             .toArray();
 
         const foundIds = found.map(doc => doc._id.toString());
@@ -935,24 +917,18 @@ export async function DELETE(req) {
 
         if (foundIds.length === 0) {
             return Response.json(
-                {
-                    success: false,
-                    error: "No applications found for the provided ID(s)",
-                    notFound: notFoundIds,
-                },
+                { success: false, error: "No applications found for the provided ID(s)", notFound: notFoundIds },
                 { status: 404 }
             );
         }
 
-        // ── Delete all found documents ────────────────────────────────────────
+        // Delete all found documents (including counters)
         const deleteResult = await col.deleteMany({
-            _id: { $in: found.map(doc => doc._id) },
-            _type: { $ne: "__counter" },   // double-guard: never delete counters
+            _id: { $in: found.map(doc => doc._id) }
+            // removed _type filter
         });
 
-        // ── Build response ────────────────────────────────────────────────────
         const isSingle = ids.length === 1;
-
         return Response.json({
             success: true,
             message: isSingle
@@ -960,7 +936,7 @@ export async function DELETE(req) {
                 : `${deleteResult.deletedCount} of ${ids.length} applications deleted`,
             deleted: deleteResult.deletedCount,
             deletedIds: foundIds,
-            ...(notFoundIds.length && { notFound: notFoundIds }),  // partial: some IDs not found
+            ...(notFoundIds.length && { notFound: notFoundIds }),
         });
 
     } catch (err) {

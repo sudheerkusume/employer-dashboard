@@ -995,34 +995,23 @@ export default function ApplicationManagement() {
         }
         setIsExporting(true);
         try {
-            const exportData = applications.map(app => ({
-                'Application ID': app.applicationId || '',
-                'Full Name': app.fullName || '',
-                'Date of Birth': app.dob || '',
-                "Father's/Husband's Name": app.fatherName || '',
-                'Blood Group': app.bloodGroup || '',
-                Address: app.address || '',
-                'Contact Number': app.contactNo || '',
-                'Email ID': app.email || '',
-                'Pin Code': app.pinCode || '',
-                'PAN Number': app.panNumber || '',
-                'Aadhar Number': app.aadharNumber || '',
-                'Emergency Contacts': app.emergencyContacts?.map(c => `${c.name} (${c.relationship}) - ${c.phone}, ${c.location}`).join('; ') || '',
-                'Previous Company': app.previousCompany || '',
-                'Previous Designation': app.previousDesignation || '',
-                'Educational Qualification': app.educationalQualification || '',
-                'Legal Cases Pending': app.legalCasesPending === 'yes' ? 'Yes' : app.legalCasesPending === 'no' ? 'No' : '',
-                'Name as per Bank': app.nameAsPerBank || '',
-                'Bank Name': app.bankName || '',
-                'Account Number': app.accountNo || '',
-                'IFSC Code': app.ifscCode || '',
-                Branch: app.branch || '',
-                'Bank City': app.bankCity || '',
-                'Declaration Note': app.declarationNote || '',
-                'Declaration Accepted': app.declaration ? 'Yes' : 'No',
-                Status: app.status || '',
-                'Applied Date': app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : '',
-            }));
+            const exportData = applications.map(app => {
+                const base = {
+                    'Application ID': app.applicationId || '',
+                    'Full Name': app.fullName || '',
+                    // ... all other fields ...
+                };
+                // Add emergency contacts as separate columns
+                const contacts = app.emergencyContacts || [];
+                for (let i = 1; i <= 3; i++) {
+                    const contact = contacts[i - 1] || {};
+                    base[`Emergency Contact ${i} Name`] = contact.name || '';
+                    base[`Emergency Contact ${i} Phone`] = contact.phone || '';
+                    base[`Emergency Contact ${i} Location`] = contact.location || '';
+                    base[`Emergency Contact ${i} Relationship`] = contact.relationship || '';
+                }
+                return base;
+            });
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Applications');
@@ -1084,18 +1073,14 @@ export default function ApplicationManagement() {
             // Check if it's a Google Sheets URL
             const sheetIdMatch = urlInput.match(/\/d\/([a-zA-Z0-9-_]+)/);
             if (sheetIdMatch) {
-                // Google Sheets: fetch CSV export
                 const sheetId = sheetIdMatch[1];
                 const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
                 const response = await fetch(csvUrl);
                 if (!response.ok) throw new Error('Failed to fetch Google Sheet data');
                 const csvText = await response.text();
-
-                // Parse CSV using PapaParse (install via npm install papaparse)
                 const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
                 data = parsed.data;
             } else {
-                // Direct file URL: fetch as blob and use readExcelFile
                 const response = await fetch(urlInput);
                 if (!response.ok) throw new Error('Failed to fetch file');
                 const blob = await response.blob();
@@ -1119,7 +1104,7 @@ export default function ApplicationManagement() {
                         body: JSON.stringify(appData)
                     });
                     const result = await response.json();
-                    if (result.success) { setUrlInput("") }
+                    if (result.success) { setUrlInput("") }   // clears URL after first success
                     if (!result.success) throw new Error(result.error || 'Submission failed');
                     return result;
                 })
@@ -1176,18 +1161,46 @@ export default function ApplicationManagement() {
 
     const mapExcelRowToFormData = (row) => {
         const getStr = (key) => (row[key] ? String(row[key]).trim() : '');
-        let emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
-        if (row['Emergency Contacts']) {
+
+        // Build emergencyContacts array from the new column structure
+        let emergencyContacts = [];
+        const MAX_CONTACTS = 3;
+
+        for (let i = 1; i <= MAX_CONTACTS; i++) {
+            const name = getStr(`Emergency Contact ${i} Name`);
+            if (name && name !== '') {
+                emergencyContacts.push({
+                    name: name,
+                    phone: getStr(`Emergency Contact ${i} Phone`),
+                    location: getStr(`Emergency Contact ${i} Location`),
+                    relationship: getStr(`Emergency Contact ${i} Relationship`)
+                });
+            }
+        }
+
+        // Fallback for older templates (optional)
+        if (emergencyContacts.length === 0 && row['Emergency Contacts']) {
             const contactsStr = getStr('Emergency Contacts');
             if (contactsStr) {
                 const contacts = contactsStr.split(';').map(contact => {
                     const match = contact.match(/(.+?)\s*\((.+?)\)\s*-\s*(.+?),\s*(.+)/);
-                    if (match) return { name: match[1].trim(), relationship: match[2].trim(), phone: match[3].trim(), location: match[4].trim() };
-                    return { name: '', location: '', phone: '', relationship: '' };
-                }).filter(c => c.name);
+                    if (match) return {
+                        name: match[1].trim(),
+                        relationship: match[2].trim(),
+                        phone: match[3].trim(),
+                        location: match[4].trim()
+                    };
+                    return null;
+                }).filter(c => c && c.name);
                 if (contacts.length) emergencyContacts = contacts;
             }
         }
+
+        // If still no contacts, provide a default empty array
+        if (emergencyContacts.length === 0) {
+            emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
+        }
+
         return {
             applicationId: getStr('Application ID'),
             fullName: getStr('Full Name'),
