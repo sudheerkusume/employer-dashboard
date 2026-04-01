@@ -510,7 +510,7 @@ export default function ApplicationManagement() {
         declaration: false,
         referrerSignature: '',
         applicantSignature: '',
-        referredBy: "",
+        referredById: "",
         referredByName: "",
         status: 'pending',
     });
@@ -563,7 +563,7 @@ export default function ApplicationManagement() {
         const handleChange = (user) => {
             onChange({
                 target: {
-                    name: 'referredBy',
+                    name: 'referredById',
                     value: user ? user.applicationId : '',
                     type: 'select-one',
                     userName: user ? user.fullName : ''
@@ -672,7 +672,7 @@ export default function ApplicationManagement() {
     const handleChange = useCallback((e) => {
         const { name, value, type, checked, userName } = e.target;
         if (userName) {
-            setFormData(prev => ({ ...prev, referredByName: userName, referredBy: value }));
+            setFormData(prev => ({ ...prev, referredByName: userName, referredById: value }));
         } else {
             setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
         }
@@ -844,7 +844,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredBy: '', referredByName: "", status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: '', referredByName: "", status: 'pending',
         });
         setActiveTab('personal');
         setShowPreview(false);
@@ -865,7 +865,7 @@ export default function ApplicationManagement() {
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
                             <p><strong>Referred By Name:</strong> {formData.referredByName || 'Not provided'}</p>
-                            <p><strong>Referred By:</strong> {formData.referredBy || 'Not provided'}</p>
+                            <p><strong>Referred By:</strong> {formData.referredById || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
                             <p><strong>Date of Birth:</strong> {formData.dob || 'Not provided'}</p>
                             <p><strong>Father's/Husband's Name:</strong> {formData.fatherName || 'Not provided'}</p>
@@ -982,7 +982,7 @@ export default function ApplicationManagement() {
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
                                     <UserSelect
                                         users={usersList}
-                                        value={formData.referredBy}
+                                        value={formData.referredById}
                                         onChange={handleChange}
                                         loading={loadingUsers}
                                         required={true}

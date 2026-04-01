@@ -28,7 +28,7 @@ export async function GET(req) {
             return Response.json({ error: "User not found", success: false }, { status: 404 });
         }
 
-        // Recursive function to build the tree using referredBy field
+        // Recursive function to build the tree using referredById field
         async function buildTree(user, currentDepth, visited = new Set()) {
             if (currentDepth >= depth || !user.applicationId) {
                 return {
@@ -49,11 +49,11 @@ export async function GET(req) {
             }
             visited.add(user.applicationId);
 
-            // Find children: those whose referredBy matches this user's applicationId OR mlmUserCode
+            // Find children: those whose referredById matches this user's applicationId OR mlmUserCode
             const children = await users.find({
                 $or: [
-                    { referredBy: user.applicationId },
-                    { referredBy: user.mlmUserCode }
+                    { referredById: user.applicationId },
+                    { referredById: user.mlmUserCode }
                 ],
                 _type: { $ne: "__counter" }  // exclude counters
             }).toArray();
@@ -72,19 +72,19 @@ export async function GET(req) {
                 level: user.level || "Pending",
                 status: user.status,
                 wallet: user.wallet || 0,
-                referredBy: user.referredBy,
+                referredById: user.referredById,
                 email: user.email,
                 contactNo: user.contactNo,
                 children: childrenWithSubtree
             };
         }
 
-        // Helper to count downline stats by level using referredBy
+        // Helper to count downline stats by level using referredById
         async function getDownlineStats(userId, userMlmCode) {
             const directChildren = await users.find({
                 $or: [
-                    { referredBy: userId },
-                    { referredBy: userMlmCode }
+                    { referredById: userId },
+                    { referredById: userMlmCode }
                 ],
                 _type: { $ne: "__counter" }  // exclude counters
             }).toArray();
@@ -121,8 +121,8 @@ export async function GET(req) {
         if (rootUser.applicationId) {
             const directList = await users.find({
                 $or: [
-                    { referredBy: rootUser.applicationId },
-                    { referredBy: rootUser.mlmUserCode }
+                    { referredById: rootUser.applicationId },
+                    { referredById: rootUser.mlmUserCode }
                 ],
                 _type: { $ne: "__counter" }  // exclude counters
             }).toArray();

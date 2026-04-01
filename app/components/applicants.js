@@ -1293,8 +1293,8 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
-            referredById: getStr('Reffe') || 'RB000001',
-            referredByName: getStr('Declaration Note') || 'K Srinivas',
+            referredById: getStr('Referred By Id') || 'RB000001',
+            referredByName: getStr('Referred By Name') || 'K Srinivas',
             status: getStr('Status') || 'pending',
         };
     };
