@@ -12,25 +12,64 @@ export async function GET(req) {
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
-        const users = db.collection("marketing_applications");
+        const usersCol = db.collection("marketing_applications");
 
-        // Find root user: by applicationId OR mlmUserCode, excluding counters
-        const rootUser = await users.findOne({
+        // Step 1: Find the root user (excluding counters)
+        const rootUser = await usersCol.findOne({
             $or: [
                 { applicationId: identifier.toUpperCase() },
                 { mlmUserCode: identifier },
                 { userCode: identifier }
             ],
-            _type: { $ne: "__counter" }  // exclude counter documents
+            _type: { $ne: "__counter" }
         });
 
         if (!rootUser) {
             return Response.json({ error: "User not found", success: false }, { status: 404 });
         }
 
-        // Recursive function to build the tree using referredById field
-        async function buildTree(user, currentDepth, visited = new Set()) {
-            if (currentDepth >= depth || !user.applicationId) {
+        // Step 2: Fetch all users (excluding counters) and build maps
+        const allUsers = await usersCol.find(
+            { _type: { $ne: "__counter" } },
+            {
+                projection: {
+                    _id: 1,
+                    applicationId: 1,
+                    userCode: 1,
+                    mlmUserCode: 1,
+                    fullName: 1,
+                    level: 1,
+                    status: 1,
+                    wallet: 1,
+                    referredById: 1,
+                    email: 1,
+                    contactNo: 1
+                }
+            }
+        ).toArray();
+
+        // Build maps for quick lookup
+        const usersByAppId = new Map(); // applicationId -> user object
+        const usersByMlmCode = new Map(); // mlmUserCode -> user object
+        const childrenMap = new Map(); // referrerId -> array of user objects
+
+        for (const user of allUsers) {
+            const appId = user.applicationId;
+            if (appId) usersByAppId.set(appId, user);
+            const mlmCode = user.mlmUserCode;
+            if (mlmCode) usersByMlmCode.set(mlmCode, user);
+
+            const referrer = user.referredById;
+            if (referrer) {
+                if (!childrenMap.has(referrer)) childrenMap.set(referrer, []);
+                childrenMap.get(referrer).push(user);
+            }
+        }
+
+        // Step 3: Build tree recursively
+        function buildTree(user, currentDepth, visited = new Set()) {
+            const appId = user.applicationId;
+            if (currentDepth >= depth || !appId) {
                 return {
                     ...user,
                     _id: user._id.toString(),
@@ -39,7 +78,7 @@ export async function GET(req) {
             }
 
             // Prevent circular references
-            if (visited.has(user.applicationId)) {
+            if (visited.has(appId)) {
                 return {
                     ...user,
                     _id: user._id.toString(),
@@ -47,22 +86,13 @@ export async function GET(req) {
                     note: "Circular reference detected"
                 };
             }
-            visited.add(user.applicationId);
+            visited.add(appId);
 
-            // Find children: those whose referredById matches this user's applicationId OR mlmUserCode
-            const children = await users.find({
-                $or: [
-                    { referredById: user.applicationId },
-                    { referredById: user.mlmUserCode }
-                ],
-                _type: { $ne: "__counter" }  // exclude counters
-            }).toArray();
-
-            const childrenWithSubtree = await Promise.all(
-                children.map(child => buildTree(child, currentDepth + 1, new Set(visited)))
+            const children = childrenMap.get(appId) || [];
+            const childrenWithSubtree = children.map(child =>
+                buildTree(child, currentDepth + 1, new Set(visited))
             );
 
-            // Return user object with children, ensuring all fields are serializable
             return {
                 _id: user._id.toString(),
                 applicationId: user.applicationId,
@@ -79,67 +109,48 @@ export async function GET(req) {
             };
         }
 
-        // Helper to count downline stats by level using referredById
-        async function getDownlineStats(userId, userMlmCode) {
-            const directChildren = await users.find({
-                $or: [
-                    { referredById: userId },
-                    { referredById: userMlmCode }
-                ],
-                _type: { $ne: "__counter" }  // exclude counters
-            }).toArray();
-            const directCount = directChildren.length;
+        // Step 4: Build tree from root
+        const tree = buildTree(rootUser, 0);
 
-            const directByLevel = {};
-            for (const child of directChildren) {
-                const level = child.level || 'ME';
-                directByLevel[level] = (directByLevel[level] || 0) + 1;
-            }
-
-            let totalCount = directCount;
-            const totalByLevel = { ...directByLevel };
-
-            for (const child of directChildren) {
-                if (child.applicationId) {
-                    const childStats = await getDownlineStats(child.applicationId, child.mlmUserCode);
-                    totalCount += childStats.totalCount;
-                    for (const [level, cnt] of Object.entries(childStats.totalByLevel)) {
-                        totalByLevel[level] = (totalByLevel[level] || 0) + cnt;
-                    }
-                }
-            }
-
-            return { totalCount, totalByLevel };
-        }
-
-        // Calculate statistics
+        // Step 5: Calculate statistics using the children map
+        const rootAppId = rootUser.applicationId;
         let directChildren = 0;
-        let totalDownline = 0;
         let directByLevel = {};
+        let totalDownline = 0;
         let totalByLevel = {};
 
-        if (rootUser.applicationId) {
-            const directList = await users.find({
-                $or: [
-                    { referredById: rootUser.applicationId },
-                    { referredById: rootUser.mlmUserCode }
-                ],
-                _type: { $ne: "__counter" }  // exclude counters
-            }).toArray();
+        if (rootAppId) {
+            const directList = childrenMap.get(rootAppId) || [];
             directChildren = directList.length;
 
+            // Count direct by level
             directByLevel = {};
             for (const child of directList) {
                 const level = child.level || 'ME';
                 directByLevel[level] = (directByLevel[level] || 0) + 1;
             }
 
-            const downlineStats = await getDownlineStats(rootUser.applicationId, rootUser.mlmUserCode);
-            totalDownline = downlineStats.totalCount;
-            totalByLevel = downlineStats.totalByLevel;
-        }
+            // Recursively count downline
+            function countDownline(userId) {
+                const children = childrenMap.get(userId) || [];
+                let count = children.length;
+                const byLevel = {};
+                for (const child of children) {
+                    const level = child.level || 'ME';
+                    byLevel[level] = (byLevel[level] || 0) + 1;
+                    const childStats = countDownline(child.applicationId);
+                    count += childStats.count;
+                    for (const [lvl, cnt] of Object.entries(childStats.byLevel)) {
+                        byLevel[lvl] = (byLevel[lvl] || 0) + cnt;
+                    }
+                }
+                return { count, byLevel };
+            }
 
-        const tree = await buildTree(rootUser, 0);
+            const downlineStats = countDownline(rootAppId);
+            totalDownline = downlineStats.count;
+            totalByLevel = downlineStats.byLevel;
+        }
 
         return Response.json({
             success: true,
