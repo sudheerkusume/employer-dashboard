@@ -1067,8 +1067,26 @@ export default function ApplicationManagement() {
         }
     };
 
+    // Helper: convert Excel date (serial or string) to ISO string
+    function parseExcelDate(value) {
+        if (!value) return null;
+        // Excel serial number (days since 1900-01-01)
+        if (typeof value === 'number') {
+            // Excel's epoch starts at 1900-01-01; JavaScript's at 1970-01-01
+            const excelEpoch = new Date(1899, 11, 30); // Actually 1899-12-30? Let's use standard formula
+            // Alternative: (value - 25569) * 86400000, where 25569 = days between 1900-01-01 and 1970-01-01
+            const msPerDay = 86400000;
+            const jsDate = new Date((value - 25569) * msPerDay);
+            return isNaN(jsDate.getTime()) ? null : jsDate.toISOString();
+        }
+        if (typeof value === 'string') {
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? null : date.toISOString();
+        }
+        return null;
+    }
+
     const handleImportExcel = async (file) => {
-        // file is the selected file from <input type="file" />
         try {
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
@@ -1084,7 +1102,6 @@ export default function ApplicationManagement() {
                     const phone = row[`Emergency Contact ${i} Phone`];
                     const location = row[`Emergency Contact ${i} Location`];
                     const relationship = row[`Emergency Contact ${i} Relationship`];
-                    // Only add if at least one field is filled (name is a good indicator)
                     if (name || phone || location || relationship) {
                         emergencyContacts.push({
                             name: name || '',
@@ -1095,12 +1112,15 @@ export default function ApplicationManagement() {
                     }
                 }
 
+                // Parse date of birth
+                const dob = parseExcelDate(row['Date of Birth']);
+
                 return {
+                    // applicationId and userCode are optional; if provided, they will be validated
                     applicationId: row['Application ID'] || undefined,
                     userCode: row['User Code'] || undefined,
-                    'Date Of Application': row['dateOfApplication'] ? new Date(row['Date of Birth']).toISOString() : null,
                     fullName: row['Full Name'] || '',
-                    dob: row['Date of Birth'] ? new Date(row['Date of Birth']).toISOString() : null,
+                    dob,
                     fatherName: row['Father Name'] || '',
                     bloodGroup: row['Blood Group'] || '',
                     address: row['Address'] || '',
@@ -1122,14 +1142,13 @@ export default function ApplicationManagement() {
                     bankCity: row['Bank City'] || '',
                     declarationNote: row['Declaration Note'] || '',
                     declaration: row['Declaration'] === 'Yes',
-                    referredById: row['Referred By Id'] || '',
+                    referredBy: row['Referred By'] || '',      // Fixed field name
                     referredByName: row['Referred By Name'] || '',
                     level: row['Level'] || 'ME',
-                    status: row['Status'] || 'pending'
+                    status: row['Status'] || 'pending',
                 };
             });
 
-            // Send to backend – adjust your API call accordingly
             const response = await fetch('/api/application', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1138,8 +1157,7 @@ export default function ApplicationManagement() {
             const result = await response.json();
             if (result.success) {
                 showNotification('success', `Imported ${result.summary.inserted} applications`);
-                // Refresh list
-                fetchApplications();
+                fetchApplications(); // Refresh list
             } else {
                 showNotification('error', result.error || 'Import failed');
             }
