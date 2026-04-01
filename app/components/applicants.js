@@ -678,7 +678,8 @@ export default function ApplicationManagement() {
         referredById: "",
         referredByName: "",
         status: 'pending',
-        level: "ME"
+        level: "ME",
+        dateOfApplication: ""
     });
 
     const fetchApplications = async (page = 1) => {
@@ -873,6 +874,7 @@ export default function ApplicationManagement() {
                 setCurrentApplication(app);
                 setFormData({
                     applicationId: app.applicationId || '',
+                    dateOfApplication: app.dateOfApplication || "",
                     fullName: app.fullName || '',
                     dob: app.dob ? app.dob.split('T')[0] : '',
                     fatherName: app.fatherName || '',
@@ -987,7 +989,7 @@ export default function ApplicationManagement() {
 
     const resetForm = () => {
         setFormData({
-            applicationId: '', fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
+            applicationId: '', dateOfApplication: '', fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
@@ -1096,6 +1098,7 @@ export default function ApplicationManagement() {
                 return {
                     applicationId: row['Application ID'] || undefined,
                     userCode: row['User Code'] || undefined,
+                    'Date Of Application': row['dateOfApplication'] ? new Date(row['Date of Birth']).toISOString() : null,
                     fullName: row['Full Name'] || '',
                     dob: row['Date of Birth'] ? new Date(row['Date of Birth']).toISOString() : null,
                     fatherName: row['Father Name'] || '',
@@ -1288,6 +1291,7 @@ export default function ApplicationManagement() {
 
         return {
             applicationId: getStr('Application ID'),
+            dateOfApplication: getStr('dateOfApplication'),
             fullName: getStr('Full Name'),
             dob: parseDate(getStr('Date of Birth')),
             fatherName: getStr("Father's/Husband's Name"),
@@ -1322,7 +1326,8 @@ export default function ApplicationManagement() {
     const handleDownloadTemplate = () => {
         const templateData = [{
             'Application ID': 'RB000111',
-            'Referred ByName': 'K Srinivas',
+            'Date Of Application': "30-03-2026",
+            'Referred By Name': 'K Srinivas',
             'Referred By Id': 'RB000001',
             'userCode': 'ME-001',
             'mlmUserCode': 'ME-001',
@@ -1336,22 +1341,6 @@ export default function ApplicationManagement() {
             'Pin Code': '123456',
             'PAN Number': 'ABCDE1234F',
             'Aadhar Number': '123456789012',
-            'Previous Company': 'BMax Projects Pvt Ltd',
-            'Previous Designation': 'Manager',
-            'Educational Qualification': 'Graduate',
-            'Legal Cases Pending': 'No',
-            'Name as per Bank': 'Bheema',
-            'Bank Name': 'State Bank of India',
-            'Account Number': '123456789012',
-            'IFSC Code': 'SBIN0012345',
-            'Branch': 'Hyderabad Branch',
-            'Bank City': 'Hyderarab',
-            'Applicant Signature': '',
-            'Referrer Signature': '',
-            'Declaration Note': 'I confirm that all information is correct.',
-            'Declaration Accepted': 'Yes',
-            'Status': 'pending',
-
             // Emergency Contact 1
             'Emergency Contact 1 Name': 'Vinod',
             'Emergency Contact 1 Phone': '9876543211',
@@ -1363,6 +1352,24 @@ export default function ApplicationManagement() {
             'Emergency Contact 2 Phone': '9876543212',
             'Emergency Contact 2 Location': 'Secunderabad',
             'Emergency Contact 2 Relationship': 'Friend',
+
+
+            'Educational Qualification': 'Graduate',
+            'Previous Company': 'BMax Projects Pvt Ltd',
+            'Previous Designation': 'Manager',
+
+            'Legal Cases Pending': 'No',
+            'Name as per Bank': 'Bheema',
+            'Bank Name': 'State Bank of India',
+            'Account Number': '123456789012',
+            'IFSC Code': 'SBIN0012345',
+            'Branch': 'Hyderabad Branch',
+            'Bank City': 'Hyderarab',
+            'Declaration Note': 'I confirm that all information is correct.',
+            'Declaration Accepted': 'Yes',
+            'Applicant Signature': '',
+            'Referrer Signature': '',
+            'Status': 'pending',
         }];
 
         // Create workbook with a single sheet

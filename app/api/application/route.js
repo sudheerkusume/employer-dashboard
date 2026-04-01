@@ -233,6 +233,7 @@ const applicationSchema = Joi.object({
     referredByName: Joi.string().allow("").optional(),
     level: Joi.string().allow("").optional(),
     status: Joi.string().allow("").default("pending"),
+    dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
 const updateApplicationSchema = Joi.object({
@@ -273,6 +274,7 @@ const updateApplicationSchema = Joi.object({
     referredByName: Joi.string().allow("").optional(),
     level: Joi.string().allow("").optional(),
     status: Joi.string().allow("").optional(),
+    dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
 const updateStatusSchema = Joi.object({
