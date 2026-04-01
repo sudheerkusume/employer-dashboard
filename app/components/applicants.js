@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useRef, forwardRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X, CheckCircle, XCircle, Clock, ChevronsUpDown, Check } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X, CheckCircle, XCircle, Clock, ChevronsUpDown, Check, Download, Upload, ChevronDownIcon } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Combobox } from '@headlessui/react';
+import { Listbox, Combobox } from '@headlessui/react';
 import Papa from 'papaparse';
 
 // ======================
@@ -258,7 +258,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
                             required={required}
                             placeholder={placeholder || 'DD/MM/YYYY'}
                             readOnly
-                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none cursor-pointer bg-white pr-10 ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none cursor-pointer bg-white pr-10 ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         />
                         <button type="button" onClick={toggleDatePicker} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
                             <Calendar size={18} />
@@ -286,7 +286,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
                     placeholder={placeholder}
                     maxLength={maxLength}
                     pattern={pattern}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                 />
             )}
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
@@ -387,7 +387,7 @@ const TextArea = memo(forwardRef(({ label, name, value, onChange, required = fal
                 onBlur={handleBlur}
                 placeholder={placeholder}
                 rows={rows}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
             />
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
@@ -624,6 +624,17 @@ export default function ApplicationManagement() {
         { value: 'local', label: 'Local File' },
         { value: 'url', label: 'URL' }
     ];
+
+    // Options list
+    const statuses = [
+        { id: 'all', name: 'All Status' },
+        { id: 'pending', name: 'Pending' },
+        { id: 'approved', name: 'Approved' },
+        { id: 'rejected', name: 'Rejected' },
+    ];
+
+    // Find the current selected option object
+    const selectedStatus = statuses.find((status) => status.id === filter) || statuses[0];
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -1528,7 +1539,7 @@ export default function ApplicationManagement() {
                             value={remarks}
                             onChange={(e) => setRemarks(e.target.value)}
                             rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
                         />
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
@@ -1806,7 +1817,7 @@ export default function ApplicationManagement() {
                 ) : (
                     <Combobox value={selectedUser} onChange={handleChange}>
                         <div className="relative mt-1">
-                            <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500">
+                            <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-1 focus-within:ring-yellow-500 focus-within:border-yellow-500">
                                 <Combobox.Input
                                     className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
                                     displayValue={displayValue}
@@ -1923,19 +1934,36 @@ export default function ApplicationManagement() {
                             placeholder="Search by name, email, or phone..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                         />
-                        <select
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                        <button onClick={handleDownloadTemplate} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                        <Listbox value={filter} onChange={(value) => setFilter(value)}>
+                            <div className="relative">
+                                <Listbox.Button className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none w-full text-left flex justify-between items-center">
+                                    <span>{selectedStatus.name}</span>
+                                    <ChevronDownIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
+                                </Listbox.Button>
+                                <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                    {statuses.map((status) => (
+                                        <Listbox.Option
+                                            key={status.id}
+                                            value={status.id}
+                                            className={({ active, selected }) =>
+                                                `cursor-pointer select-none px-4 py-2 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
+                                                } ${selected ? 'font-medium bg-yellow-50' : ''}`
+                                            }
+                                        >
+                                            {({ selected }) => (
+                                                <span className={selected ? 'font-medium' : 'font-normal'}>
+                                                    {status.name}
+                                                </span>
+                                            )}
+                                        </Listbox.Option>
+                                    ))}
+                                </Listbox.Options>
+                            </div>
+                        </Listbox>
+                        <button onClick={handleDownloadTemplate} className="px-2 py-2 flex items-center gap-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                            <Download size={18} />
                             Template
                         </button>
 
@@ -1974,7 +2002,8 @@ export default function ApplicationManagement() {
 
                         {/* Conditional Import Controls */}
                         {importMethod === 'local' ? (
-                            <button onClick={handleImportExcel} disabled={isImporting} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
+                            <button onClick={handleImportExcel} disabled={isImporting} className="px-2 py-2 flex items-center gap-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
+                                <Download size={18} />
                                 {isImporting ? 'Importing...' : 'Import Excel'}
                             </button>
                         ) : (
@@ -1984,26 +2013,28 @@ export default function ApplicationManagement() {
                                     placeholder="Google Sheet URL or direct file URL"
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg flex-1 min-w-[300px]"
+                                    className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                                 />
                                 <button
                                     onClick={handleImportFromUrl}
                                     disabled={isImportingFromUrl || !urlInput.trim()}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-2 py-2 flex items-center gap-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
+                                    <Download size={18} />
                                     {isImportingFromUrl ? 'Importing...' : 'Import from URL'}
                                 </button>
                             </>
                         )}
 
-                        <button onClick={handleExportExcel} disabled={isExporting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                        <button onClick={handleExportExcel} disabled={isExporting} className="px-2 py-2 flex items-center gap-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                            <Upload size={18} />
                             {isExporting ? 'Exporting...' : 'Export Excel'}
                         </button>
 
                         {selectedIds.length > 0 && (
                             <button
                                 onClick={() => setShowBulkDeleteModal(true)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                                className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
                             >
                                 Delete Selected ({selectedIds.length})
                             </button>
