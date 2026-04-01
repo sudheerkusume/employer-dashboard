@@ -132,7 +132,7 @@ async function createMlmMemberFromApplication(db, application) {
 }
 
 // ----------------------------------------------------------------------
-// JOI SCHEMAS – applicationId and userCode are optional but we enforce presence logic in POST
+// JOI SCHEMAS – applicationId and userCode are optional
 // ----------------------------------------------------------------------
 
 const applicationSchema = Joi.object({
@@ -382,7 +382,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // 1. Validate each record (Joi)
+        // 1. Validate each record
         const validRecords = [];
         const validationErrors = [];
 
@@ -412,135 +412,104 @@ export async function POST(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // 2. Separate records based on ID presence
-        const both = [];       // both IDs provided
-        const onlyApp = [];    // only applicationId
-        const onlyUser = [];   // only userCode
-        const none = [];       // neither
+        // 2. Categorise records by which IDs are provided
+        const both = [];      // both applicationId and userCode provided
+        const onlyApp = [];   // only applicationId
+        const onlyUser = [];  // only userCode
+        const none = [];      // none provided
 
         for (const rec of validRecords) {
             const hasAppId = rec.value.applicationId && rec.value.applicationId.trim() !== "";
             const hasUserCode = rec.value.userCode && rec.value.userCode.trim() !== "";
-            if (hasAppId && hasUserCode) {
-                both.push(rec);
-            } else if (hasAppId && !hasUserCode) {
-                onlyApp.push(rec);
-            } else if (!hasAppId && hasUserCode) {
-                onlyUser.push(rec);
-            } else {
-                none.push(rec);
+            if (hasAppId && hasUserCode) both.push(rec);
+            else if (hasAppId && !hasUserCode) onlyApp.push(rec);
+            else if (!hasAppId && hasUserCode) onlyUser.push(rec);
+            else none.push(rec);
+        }
+
+        // 3. Generate missing IDs in batches
+        // --- Generate application IDs for records that need them (none + onlyUser)
+        const needAppId = [...none, ...onlyUser];
+        const generatedAppIds = needAppId.length > 0
+            ? await generateApplicationIds(db, needAppId.length)
+            : [];
+
+        for (let i = 0; i < needAppId.length; i++) {
+            needAppId[i].generatedAppId = generatedAppIds[i];
+        }
+
+        // --- Generate user codes for records that need them (none + onlyApp)
+        const needUserCode = [...none, ...onlyApp];
+        const levelGroups = {};
+        for (const rec of needUserCode) {
+            const lvl = rec.value.level || "ME";
+            if (!levelGroups[lvl]) levelGroups[lvl] = [];
+            levelGroups[lvl].push(rec);
+        }
+        for (const [lvl, recs] of Object.entries(levelGroups)) {
+            const codes = await generateUserCodes(db, lvl, recs.length);
+            for (let i = 0; i < recs.length; i++) {
+                recs[i].generatedUserCode = codes[i];
             }
         }
 
-        // 3. Generate missing IDs
-        // For onlyApp: generate userCode (level from value.level or default "ME")
-        // For onlyUser: generate applicationId
-        // For none: generate both
-
-        // Prepare groups for generation
-        const toGenerateUserCodes = []; // records needing userCode (onlyApp + none)
-        const toGenerateAppIds = [];    // records needing applicationId (onlyUser + none)
-
-        for (const rec of onlyApp) {
-            toGenerateUserCodes.push(rec);
-        }
-        for (const rec of none) {
-            toGenerateUserCodes.push(rec);
-            toGenerateAppIds.push(rec);
-        }
-        for (const rec of onlyUser) {
-            toGenerateAppIds.push(rec);
-        }
-
-        // Generate application IDs in batches by count (use once)
-        if (toGenerateAppIds.length > 0) {
-            const appIds = await generateApplicationIds(db, toGenerateAppIds.length);
-            for (let i = 0; i < toGenerateAppIds.length; i++) {
-                toGenerateAppIds[i].generatedAppId = appIds[i];
-            }
-        }
-
-        // Generate user codes per level
-        if (toGenerateUserCodes.length > 0) {
-            // Group by level
-            const levelGroups = {};
-            for (const rec of toGenerateUserCodes) {
-                const lvl = rec.value.level || "ME";
-                (levelGroups[lvl] = levelGroups[lvl] || []).push(rec);
-            }
-            const userCodePool = {};
-            for (const [lvl, recs] of Object.entries(levelGroups)) {
-                userCodePool[lvl] = await generateUserCodes(db, lvl, recs.length);
-            }
-            const levelCursor = Object.fromEntries(Object.keys(levelGroups).map(lvl => [lvl, 0]));
-            for (const rec of toGenerateUserCodes) {
-                const lvl = rec.value.level || "ME";
-                rec.generatedUserCode = userCodePool[lvl][levelCursor[lvl]++];
-            }
-        }
-
-        // 4. Build final documents and collect provided IDs for duplicate checks
-        const documents = [];
+        // 4. Build final documents and collect IDs for duplicate checks
+        const allDocuments = [];
+        const finalAppIds = [];
+        const finalUserCodes = [];
         const allRecords = [...both, ...onlyApp, ...onlyUser, ...none];
 
-        // Prepare for duplicate checks: collect all provided applicationIds and userCodes
-        const allProvidedAppIds = [];
-        const allProvidedUserCodes = [];
-
         for (const rec of allRecords) {
-            // Determine final IDs
             let finalAppId = rec.value.applicationId;
             let finalUserCode = rec.value.userCode;
-
             if (rec.generatedAppId) finalAppId = rec.generatedAppId;
             if (rec.generatedUserCode) finalUserCode = rec.generatedUserCode;
 
-            // Store for duplicate check
-            if (finalAppId) allProvidedAppIds.push(finalAppId);
-            if (finalUserCode) allProvidedUserCodes.push(finalUserCode);
+            if (!finalAppId || !finalUserCode) {
+                validationErrors.push({
+                    index: rec.originalIndex,
+                    name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
+                    error: "Could not generate both IDs – missing either applicationId or userCode",
+                });
+                continue;
+            }
 
-            // Build document
-            documents.push(buildDocument(rec.value, finalAppId, finalUserCode));
+            finalAppIds.push(finalAppId);
+            finalUserCodes.push(finalUserCode);
+            allDocuments.push(buildDocument(rec.value, finalAppId, finalUserCode));
         }
 
-        // 5. Duplicate checks
+        // 5. Duplicate checks (batch & DB)
         const batchDuplicateWarnings = [];
-        // Check duplicates for applicationId and userCode within batch
-        const dupAppIdsBatch = getDuplicatesInBatch(allProvidedAppIds);
-        const dupUserCodesBatch = getDuplicatesInBatch(allProvidedUserCodes);
+        const dupAppIdsBatch = getDuplicatesInBatch(finalAppIds);
+        const dupUserCodesBatch = getDuplicatesInBatch(finalUserCodes);
         dupAppIdsBatch.forEach(v => batchDuplicateWarnings.push(`Duplicate applicationId in batch: "${v}"`));
         dupUserCodesBatch.forEach(v => batchDuplicateWarnings.push(`Duplicate userCode in batch: "${v}"`));
 
-        // Check against DB
-        const existingAppIds = await getExistingInDB(col, "applicationId", allProvidedAppIds);
-        const existingUserCodes = await getExistingInDB(col, "userCode", allProvidedUserCodes);
+        const existingAppIds = await getExistingInDB(col, "applicationId", finalAppIds);
+        const existingUserCodes = await getExistingInDB(col, "userCode", finalUserCodes);
 
-        // Filter records that have duplicates
         const validDocuments = [];
         const skippedRecords = [];
 
-        for (let i = 0; i < allRecords.length; i++) {
-            const rec = allRecords[i];
-            const finalAppId = documents[i].applicationId;
-            const finalUserCode = documents[i].userCode;
-
+        for (let i = 0; i < allDocuments.length; i++) {
+            const doc = allDocuments[i];
             let dupReason = null;
-            if (finalAppId && existingAppIds.has(finalAppId)) {
-                dupReason = `applicationId already exists: "${finalAppId}"`;
-            } else if (finalUserCode && existingUserCodes.has(finalUserCode)) {
-                dupReason = `userCode already exists: "${finalUserCode}"`;
-            } else if (dupAppIdsBatch.has(finalAppId) || dupUserCodesBatch.has(finalUserCode)) {
+            if (doc.applicationId && existingAppIds.has(doc.applicationId)) {
+                dupReason = `applicationId already exists: "${doc.applicationId}"`;
+            } else if (doc.userCode && existingUserCodes.has(doc.userCode)) {
+                dupReason = `userCode already exists: "${doc.userCode}"`;
+            } else if (dupAppIdsBatch.has(doc.applicationId) || dupUserCodesBatch.has(doc.userCode)) {
                 dupReason = "Duplicate ID within batch";
             }
-
             if (dupReason) {
                 skippedRecords.push({
-                    index: rec.originalIndex,
-                    name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
+                    index: allRecords[i].originalIndex,
+                    name: doc.fullName || `Row ${allRecords[i].originalIndex + 1}`,
                     reason: dupReason,
                 });
             } else {
-                validDocuments.push(documents[i]);
+                validDocuments.push(doc);
             }
         }
 
@@ -564,40 +533,34 @@ export async function POST(req) {
                 break;
             } catch (err) {
                 if (err.code === 11000 && retries < maxRetries - 1) {
-                    console.warn("Duplicate key during insert, regenerating IDs for generated ones...");
-                    // Regenerate only the IDs that were generated (i.e., not provided by user)
-                    // We need to regenerate for all records that had a generated ID
-                    // For simplicity, we can regenerate all generated IDs for the whole batch
-                    // but that might cause new duplicates with provided ones, so we only regenerate for those with generated IDs
-                    const recordsWithGeneratedIds = allRecords.filter(r => r.generatedAppId || r.generatedUserCode);
-                    if (recordsWithGeneratedIds.length > 0) {
-                        // Regenerate application IDs for those needing them
-                        const needApp = recordsWithGeneratedIds.filter(r => r.generatedAppId);
+                    console.warn("Duplicate key during insert, regenerating IDs...");
+                    const recordsWithGenerated = allRecords.filter(r => r.generatedAppId || r.generatedUserCode);
+                    if (recordsWithGenerated.length > 0) {
+                        // Regenerate application IDs for those that need them
+                        const needApp = recordsWithGenerated.filter(r => r.generatedAppId);
                         if (needApp.length) {
                             const newAppIds = await generateApplicationIds(db, needApp.length);
                             for (let i = 0; i < needApp.length; i++) {
                                 needApp[i].generatedAppId = newAppIds[i];
                             }
                         }
-                        // Regenerate user codes per level for those needing them
-                        const needUser = recordsWithGeneratedIds.filter(r => r.generatedUserCode);
+                        // Regenerate user codes grouped by level
+                        const needUser = recordsWithGenerated.filter(r => r.generatedUserCode);
                         if (needUser.length) {
                             const levelGroups = {};
                             for (const rec of needUser) {
                                 const lvl = rec.value.level || "ME";
-                                (levelGroups[lvl] = levelGroups[lvl] || []).push(rec);
+                                if (!levelGroups[lvl]) levelGroups[lvl] = [];
+                                levelGroups[lvl].push(rec);
                             }
-                            const newUserCodes = {};
                             for (const [lvl, recs] of Object.entries(levelGroups)) {
-                                newUserCodes[lvl] = await generateUserCodes(db, lvl, recs.length);
-                            }
-                            const levelCursor = Object.fromEntries(Object.keys(levelGroups).map(lvl => [lvl, 0]));
-                            for (const rec of needUser) {
-                                const lvl = rec.value.level || "ME";
-                                rec.generatedUserCode = newUserCodes[lvl][levelCursor[lvl]++];
+                                const newCodes = await generateUserCodes(db, lvl, recs.length);
+                                for (let i = 0; i < recs.length; i++) {
+                                    recs[i].generatedUserCode = newCodes[i];
+                                }
                             }
                         }
-                        // Rebuild documents for all records
+                        // Rebuild documents
                         const newDocuments = [];
                         for (const rec of allRecords) {
                             let finalAppId = rec.value.applicationId;
@@ -606,12 +569,9 @@ export async function POST(req) {
                             if (rec.generatedUserCode) finalUserCode = rec.generatedUserCode;
                             newDocuments.push(buildDocument(rec.value, finalAppId, finalUserCode));
                         }
-                        // Filter duplicates again (since we regenerated, some might still conflict, but we'll retry)
                         validDocuments.length = 0;
                         for (let i = 0; i < newDocuments.length; i++) {
-                            const doc = newDocuments[i];
-                            // We could re‑check duplicates, but for simplicity we'll let the next insert attempt handle it
-                            validDocuments.push(doc);
+                            validDocuments.push(newDocuments[i]);
                         }
                         retries++;
                         continue;
