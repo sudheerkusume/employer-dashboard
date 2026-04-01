@@ -382,7 +382,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // 1. Validate each record
+        // 1. Validate each record (Joi)
         const validRecords = [];
         const validationErrors = [];
 
@@ -412,22 +412,10 @@ export async function POST(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // 2. Duplicate checks (batch & DB)
-        const batchDuplicateWarnings = [];
-        for (const field of DUP_FIELDS) {
-            const vals = validRecords.map(r => r.value[field]);
-            const dupes = getDuplicatesInBatch(vals);
-            dupes.forEach(v => batchDuplicateWarnings.push(`Duplicate ${field} in batch: "${v}"`));
-        }
-
-        const existingInDB = {};
-        for (const field of DUP_FIELDS) {
-            existingInDB[field] = await getExistingInDB(col, field, validRecords.map(r => r.value[field]));
-        }
-
-        // 3. Separate records with both IDs vs none
-        const withIds = [];
-        const withoutIds = [];
+        // 2. Separate records by ID presence and collect mixed ones as errors
+        const withIds = [];        // both IDs provided
+        const withoutIds = [];     // no IDs provided
+        const mixedInvalid = [];   // only one ID provided
 
         for (const rec of validRecords) {
             const hasAppId = rec.value.applicationId && rec.value.applicationId.trim() !== "";
@@ -437,6 +425,7 @@ export async function POST(req) {
             } else if (!hasAppId && !hasUserCode) {
                 withoutIds.push(rec);
             } else {
+                mixedInvalid.push(rec);
                 validationErrors.push({
                     index: rec.originalIndex,
                     name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
@@ -445,7 +434,30 @@ export async function POST(req) {
             }
         }
 
-        // 4. Validate provided IDs against DB
+        // If all records are mixed, we cannot proceed
+        if (withIds.length === 0 && withoutIds.length === 0) {
+            return Response.json({
+                success: false,
+                error: "All records are invalid (mixed IDs)",
+                validationErrors,
+            }, { status: 400 });
+        }
+
+        // 3. Duplicate checks on fields (only for records that are not mixed)
+        const recordsToProcess = [...withIds, ...withoutIds];
+        const batchDuplicateWarnings = [];
+        for (const field of DUP_FIELDS) {
+            const vals = recordsToProcess.map(r => r.value[field]);
+            const dupes = getDuplicatesInBatch(vals);
+            dupes.forEach(v => batchDuplicateWarnings.push(`Duplicate ${field} in batch: "${v}"`));
+        }
+
+        const existingInDB = {};
+        for (const field of DUP_FIELDS) {
+            existingInDB[field] = await getExistingInDB(col, field, recordsToProcess.map(r => r.value[field]));
+        }
+
+        // 4. Validate provided IDs against DB (only for withIds)
         const cleanWithIds = [];
         const skippedWithIds = [];
 
@@ -502,6 +514,16 @@ export async function POST(req) {
         }
 
         // 7. Insert with retry on duplicate key (race condition)
+        if (documents.length === 0) {
+            // Should not happen if we have valid records, but safeguard
+            return Response.json({
+                success: false,
+                error: "No valid documents to insert",
+                validationErrors,
+                skippedRecords: skippedWithIds,
+            }, { status: 400 });
+        }
+
         let insertResult;
         let retries = 0;
         const maxRetries = 3;
