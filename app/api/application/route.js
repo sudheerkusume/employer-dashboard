@@ -417,20 +417,16 @@ export async function POST(req) {
             };
         });
 
-        // 3. Generate all missing applicationIds in ONE call
-        //    Query DB max once, then hand out sequential IDs in-memory.
+        // 3. Generate missing applicationIds using helper
         const needAppIdRecords = recordsToProcess.filter(r => r.needsAppId);
         if (needAppIdRecords.length > 0) {
-            const dbMax = await getMaxApplicationIdNum(col);
-            let counter = dbMax;
-            for (const rec of needAppIdRecords) {
-                counter += 1;
-                rec.finalAppId = `RB${counter.toString().padStart(6, "0")}`;
+            const { ids } = await generateApplicationIds(col, needAppIdRecords.length);
+            for (let i = 0; i < needAppIdRecords.length; i++) {
+                needAppIdRecords[i].finalAppId = ids[i];
             }
         }
 
-        // 4. Generate all missing userCodes in ONE call per level
-        //    Query DB max once per level, then hand out sequential codes in-memory.
+        // 4. Generate missing userCodes using helper (one call per level)
         const needUserCodeRecords = recordsToProcess.filter(r => r.needsUserCode);
         if (needUserCodeRecords.length > 0) {
             // Group by level
@@ -440,13 +436,11 @@ export async function POST(req) {
                 if (!levelGroups[lvl]) levelGroups[lvl] = [];
                 levelGroups[lvl].push(rec);
             }
-            // For each level: query DB max ONCE, then assign sequentially in-memory
+            // For each level: generate codes
             for (const [lvl, recs] of Object.entries(levelGroups)) {
-                const dbMax = await getMaxUserCodeNum(col, lvl);
-                let counter = dbMax;
-                for (const rec of recs) {
-                    counter += 1;
-                    rec.finalUserCode = `${lvl}-${counter.toString().padStart(3, "0")}`;
+                const { codes } = await generateUserCodes(col, lvl, recs.length);
+                for (let i = 0; i < recs.length; i++) {
+                    recs[i].finalUserCode = codes[i];
                 }
             }
         }
@@ -582,7 +576,6 @@ export async function POST(req) {
         }, { status: 500 });
     }
 }
-
 // ----------------------------------------------------------------------
 // GET
 // ----------------------------------------------------------------------
