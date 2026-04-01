@@ -9,13 +9,14 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const applications = db.collection("marketing_applications");
 
-        // If an identifier is provided, search both fields
+        // If an identifier is provided, search both fields (exclude counters)
         if (identifier) {
             const user = await applications.findOne({
                 $or: [
                     { applicationId: identifier.toUpperCase() },
                     { mlmUserCode: identifier.toUpperCase() }
-                ]
+                ],
+                _type: { $ne: "__counter" } // exclude counter documents
             });
 
             if (!user) {
@@ -37,8 +38,8 @@ export async function GET(req) {
             });
         }
 
-        // No identifier: return all applications (admin list)
-        const allUsers = await applications.find({})
+        // No identifier: return all applications (admin list), excluding counters
+        const allUsers = await applications.find({ _type: { $ne: "__counter" } })
             .project({
                 applicationId: 1,
                 fullName: 1,
