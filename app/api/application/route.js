@@ -197,6 +197,7 @@ async function createMlmMemberFromApplication(db, application) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const applicationSchema = Joi.object({
+    applicationId: Joi.string().allow("").optional(),
     fullName: Joi.string().min(2).max(100).optional(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     fatherName: Joi.string().allow("").optional(),
@@ -238,6 +239,7 @@ const applicationSchema = Joi.object({
 
 const updateApplicationSchema = Joi.object({
     id: Joi.string().required(),
+    applicationId: Joi.string().allow("").optional(),
     fullName: Joi.string().min(2).max(100).optional(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     fatherName: Joi.string().allow("").optional(),
