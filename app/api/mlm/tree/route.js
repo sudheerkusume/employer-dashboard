@@ -14,8 +14,8 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const usersCol = db.collection("marketing_applications");
 
-        // Step 1: Find the root user (excluding counters)
-        const rootUser = await usersCol.findOne({
+        // Find the requesting user (exclude counters)
+        const requestingUser = await usersCol.findOne({
             $or: [
                 { applicationId: identifier.toUpperCase() },
                 { mlmUserCode: identifier },
@@ -24,8 +24,25 @@ export async function GET(req) {
             _type: { $ne: "__counter" }
         });
 
-        if (!rootUser) {
+        if (!requestingUser) {
             return Response.json({ error: "User not found", success: false }, { status: 404 });
+        }
+
+        // Determine the root for the tree
+        let rootUser = requestingUser;
+        if (requestingUser.role === "admin") {
+            // For admin, find the top-level root (user with no referrer)
+            // Assumption: root has referredById null/empty or a specific admin user code
+            const root = await usersCol.findOne({
+                $or: [
+                    { referredById: { $in: [null, "", undefined] } },
+                    { applicationId: "RB000001" } // fallback
+                ],
+                _type: { $ne: "__counter" }
+            });
+            if (root) {
+                rootUser = root;
+            }
         }
 
         // Step 2: Fetch all users (excluding counters) and build maps
@@ -43,7 +60,8 @@ export async function GET(req) {
                     wallet: 1,
                     referredById: 1,
                     email: 1,
-                    contactNo: 1
+                    contactNo: 1,
+                    role: 1
                 }
             }
         ).toArray();
@@ -60,7 +78,7 @@ export async function GET(req) {
             if (mlmCode) usersByMlmCode.set(mlmCode, user);
 
             const referrer = user.referredById;
-            if (referrer) {
+            if (referrer && referrer !== null && referrer !== "") {
                 if (!childrenMap.has(referrer)) childrenMap.set(referrer, []);
                 childrenMap.get(referrer).push(user);
             }
@@ -105,6 +123,7 @@ export async function GET(req) {
                 referredById: user.referredById,
                 email: user.email,
                 contactNo: user.contactNo,
+                role: user.role || "user",
                 children: childrenWithSubtree
             };
         }
@@ -161,7 +180,8 @@ export async function GET(req) {
                 directByLevel,
                 totalByLevel,
                 level: rootUser.level || "Pending",
-                status: rootUser.status
+                status: rootUser.status,
+                role: rootUser.role || "user"
             }
         });
 
