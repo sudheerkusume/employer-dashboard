@@ -941,45 +941,46 @@ export async function DELETE(req) {
             if (doc.level) affectedLevels.add(doc.level);
         }
 
-        // Recalculate max applicationId
-        const maxAppIdDoc = await col
+        // Recalculate max applicationId (numeric part)
+        const allApps = await col
             .find(
                 { applicationId: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
                 { projection: { applicationId: 1 } }
             )
-            .sort({ applicationId: -1 })
-            .limit(1)
             .toArray();
-        let newAppMax = 0;
-        if (maxAppIdDoc.length > 0) {
-            const match = maxAppIdDoc[0].applicationId.match(/^RB(\d+)$/);
-            if (match) newAppMax = parseInt(match[1], 10);
+        let maxAppNum = 0;
+        for (const doc of allApps) {
+            const match = doc.applicationId?.match(/^RB(\d+)$/);
+            if (match) {
+                const num = parseInt(match[1], 10);
+                if (num > maxAppNum) maxAppNum = num;
+            }
         }
         await col.findOneAndUpdate(
             { _type: "__counter", _key: "applicationId" },
-            { $set: { seq: newAppMax } },
+            { $set: { seq: maxAppNum } },
             { upsert: true }
         );
 
-        // Recalculate max userCode per affected level
+        // Recalculate max userCode per affected level (using the `level` field for accuracy)
         for (const level of affectedLevels) {
-            const regex = new RegExp(`^${level}-\\d+$`);
-            const maxUserDoc = await col
+            const userDocs = await col
                 .find(
-                    { userCode: { $exists: true, $nin: [null, ""], $regex: regex }, _type: { $ne: "__counter" } },
+                    { level, userCode: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
                     { projection: { userCode: 1 } }
                 )
-                .sort({ userCode: -1 })
-                .limit(1)
                 .toArray();
-            let newUserMax = 0;
-            if (maxUserDoc.length > 0) {
-                const match = maxUserDoc[0].userCode.match(new RegExp(`^${level}-(\\d+)$`));
-                if (match) newUserMax = parseInt(match[1], 10);
+            let maxUserNum = 0;
+            for (const doc of userDocs) {
+                const match = doc.userCode?.match(new RegExp(`^${level}-(\\d+)$`));
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxUserNum) maxUserNum = num;
+                }
             }
             await col.findOneAndUpdate(
                 { _type: "__counter", _key: `userCode_${level}` },
-                { $set: { seq: newUserMax } },
+                { $set: { seq: maxUserNum } },
                 { upsert: true }
             );
         }
