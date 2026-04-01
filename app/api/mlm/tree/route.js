@@ -14,13 +14,14 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const users = db.collection("marketing_applications");
 
-        // Find root user: by applicationId OR mlmUserCode
+        // Find root user: by applicationId OR mlmUserCode, excluding counters
         const rootUser = await users.findOne({
             $or: [
                 { applicationId: identifier.toUpperCase() },
                 { mlmUserCode: identifier },
                 { userCode: identifier }
-            ]
+            ],
+            _type: { $ne: "__counter" }  // exclude counter documents
         });
 
         if (!rootUser) {
@@ -53,7 +54,8 @@ export async function GET(req) {
                 $or: [
                     { referredBy: user.applicationId },
                     { referredBy: user.mlmUserCode }
-                ]
+                ],
+                _type: { $ne: "__counter" }  // exclude counters
             }).toArray();
 
             const childrenWithSubtree = await Promise.all(
@@ -83,7 +85,8 @@ export async function GET(req) {
                 $or: [
                     { referredBy: userId },
                     { referredBy: userMlmCode }
-                ]
+                ],
+                _type: { $ne: "__counter" }  // exclude counters
             }).toArray();
             const directCount = directChildren.length;
 
@@ -120,7 +123,8 @@ export async function GET(req) {
                 $or: [
                     { referredBy: rootUser.applicationId },
                     { referredBy: rootUser.mlmUserCode }
-                ]
+                ],
+                _type: { $ne: "__counter" }  // exclude counters
             }).toArray();
             directChildren = directList.length;
 
