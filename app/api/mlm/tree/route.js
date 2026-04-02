@@ -3,32 +3,84 @@ import clientPromise from "@/app/components/lib/db";
 export async function GET(req) {
     try {
         const url = new URL(req.url);
-        const identifier = url.searchParams.get("userCode");
+        let targetIdentifier = url.searchParams.get("userCode");
+        const currentUserCode = url.searchParams.get("currentUserCode");
         const depth = parseInt(url.searchParams.get("depth")) || 5;
 
-        if (!identifier) {
-            return Response.json({ error: "User code or application ID required", success: false }, { status: 400 });
+        // --- Validate current user ---
+        if (!currentUserCode) {
+            return Response.json(
+                { error: "currentUserCode is required", success: false },
+                { status: 400 }
+            );
         }
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const users = db.collection("marketing_applications");
 
-        // Find root user: by applicationId OR mlmUserCode, excluding counters
+        // Find the current logged-in user
+        const currentUser = await users.findOne({
+            $or: [
+                { applicationId: currentUserCode.toUpperCase() },
+                { mlmUserCode: currentUserCode },
+                { userCode: currentUserCode }
+            ],
+            _type: { $ne: "__counter" }
+        });
+
+        if (!currentUser) {
+            return Response.json(
+                { error: "Current user not found", success: false },
+                { status: 404 }
+            );
+        }
+
+        // Determine if current user is admin (RB000001 or role "admin")
+        const isAdmin = currentUser.applicationId === "RB000001" || currentUser.role === "admin";
+
+        // If target not provided, default based on role
+        if (!targetIdentifier) {
+            if (isAdmin) {
+                targetIdentifier = "RB000001";
+            } else {
+                targetIdentifier = currentUser.applicationId;
+            }
+        }
+
+        // --- Authorization for non-admin users ---
+        if (!isAdmin) {
+            const isSelf = (
+                targetIdentifier.toUpperCase() === currentUser.applicationId?.toUpperCase() ||
+                targetIdentifier === currentUser.userCode ||
+                targetIdentifier === currentUser.mlmUserCode
+            );
+            if (!isSelf) {
+                return Response.json(
+                    { error: "Forbidden: you can only view your own downline", success: false },
+                    { status: 403 }
+                );
+            }
+        }
+
+        // --- Find the target root user (whose tree we will build) ---
         const rootUser = await users.findOne({
             $or: [
-                { applicationId: identifier.toUpperCase() },
-                { mlmUserCode: identifier },
-                { userCode: identifier }
+                { applicationId: targetIdentifier.toUpperCase() },
+                { mlmUserCode: targetIdentifier },
+                { userCode: targetIdentifier }
             ],
-            _type: { $ne: "__counter" }  // exclude counter documents
+            _type: { $ne: "__counter" }
         });
 
         if (!rootUser) {
-            return Response.json({ error: "User not found", success: false }, { status: 404 });
+            return Response.json(
+                { error: "Target user not found", success: false },
+                { status: 404 }
+            );
         }
 
-        // Recursive function to build the tree using referredById field
+        // --- Existing recursive tree building (unchanged) ---
         async function buildTree(user, currentDepth, visited = new Set()) {
             if (currentDepth >= depth || !user.applicationId) {
                 return {
@@ -37,8 +89,6 @@ export async function GET(req) {
                     children: []
                 };
             }
-
-            // Prevent circular references
             if (visited.has(user.applicationId)) {
                 return {
                     ...user,
@@ -49,20 +99,18 @@ export async function GET(req) {
             }
             visited.add(user.applicationId);
 
-            // Find children: those whose referredById matches this user's applicationId OR mlmUserCode
             const children = await users.find({
                 $or: [
                     { referredById: user.applicationId },
                     { referredById: user.mlmUserCode }
                 ],
-                _type: { $ne: "__counter" }  // exclude counters
+                _type: { $ne: "__counter" }
             }).toArray();
 
             const childrenWithSubtree = await Promise.all(
                 children.map(child => buildTree(child, currentDepth + 1, new Set(visited)))
             );
 
-            // Return user object with children, ensuring all fields are serializable
             return {
                 _id: user._id.toString(),
                 applicationId: user.applicationId,
@@ -79,26 +127,23 @@ export async function GET(req) {
             };
         }
 
-        // Helper to count downline stats by level using referredById
+        // --- Statistics helper (unchanged) ---
         async function getDownlineStats(userId, userMlmCode) {
             const directChildren = await users.find({
                 $or: [
                     { referredById: userId },
                     { referredById: userMlmCode }
                 ],
-                _type: { $ne: "__counter" }  // exclude counters
+                _type: { $ne: "__counter" }
             }).toArray();
             const directCount = directChildren.length;
-
             const directByLevel = {};
             for (const child of directChildren) {
                 const level = child.level || 'ME';
                 directByLevel[level] = (directByLevel[level] || 0) + 1;
             }
-
             let totalCount = directCount;
             const totalByLevel = { ...directByLevel };
-
             for (const child of directChildren) {
                 if (child.applicationId) {
                     const childStats = await getDownlineStats(child.applicationId, child.mlmUserCode);
@@ -108,11 +153,9 @@ export async function GET(req) {
                     }
                 }
             }
-
             return { totalCount, totalByLevel };
         }
 
-        // Calculate statistics
         let directChildren = 0;
         let totalDownline = 0;
         let directByLevel = {};
@@ -124,16 +167,14 @@ export async function GET(req) {
                     { referredById: rootUser.applicationId },
                     { referredById: rootUser.mlmUserCode }
                 ],
-                _type: { $ne: "__counter" }  // exclude counters
+                _type: { $ne: "__counter" }
             }).toArray();
             directChildren = directList.length;
-
             directByLevel = {};
             for (const child of directList) {
                 const level = child.level || 'ME';
                 directByLevel[level] = (directByLevel[level] || 0) + 1;
             }
-
             const downlineStats = await getDownlineStats(rootUser.applicationId, rootUser.mlmUserCode);
             totalDownline = downlineStats.totalCount;
             totalByLevel = downlineStats.totalByLevel;
@@ -156,6 +197,9 @@ export async function GET(req) {
 
     } catch (err) {
         console.error("❌ Error fetching tree:", err);
-        return Response.json({ error: "Internal Server Error", success: false }, { status: 500 });
+        return Response.json(
+            { error: "Internal Server Error", success: false },
+            { status: 500 }
+        );
     }
 }
