@@ -1067,25 +1067,7 @@ export default function ApplicationManagement() {
             setIsExporting(false);
         }
     };
-
-    // Helper: convert Excel date (serial or string) to ISO string
-    function parseExcelDate(value) {
-        if (!value) return null;
-        // Excel serial number (days since 1900-01-01)
-        if (typeof value === 'number') {
-            // Excel's epoch starts at 1900-01-01; JavaScript's at 1970-01-01
-            const excelEpoch = new Date(1899, 11, 30); // Actually 1899-12-30? Let's use standard formula
-            // Alternative: (value - 25569) * 86400000, where 25569 = days between 1900-01-01 and 1970-01-01
-            const msPerDay = 86400000;
-            const jsDate = new Date((value - 25569) * msPerDay);
-            return isNaN(jsDate.getTime()) ? null : jsDate.toISOString();
-        }
-        if (typeof value === 'string') {
-            const date = new Date(value);
-            return isNaN(date.getTime()) ? null : date.toISOString();
-        }
-        return null;
-    }
+  
 
     const handleImportExcel = () => {
         const input = document.createElement('input');
@@ -2148,7 +2130,7 @@ export default function ApplicationManagement() {
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(app.status)}`}>
+                                                    <span className={`flex gap-1 py-1 text-xs rounded-full ${getStatusColor(app.status)}`}>
                                                         {getStatusIcon(app.status)} {app.status.toUpperCase()}
                                                     </span>
                                                 </td>
