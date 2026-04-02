@@ -11,9 +11,15 @@ import Papa from 'papaparse';
 // Date Picker Dropdown Component
 // ======================
 const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) => {
-    const [selectedDate, setSelectedDate] = useState(currentDate ? new Date(currentDate) : new Date());
-    const [viewMonth, setViewMonth] = useState(currentDate ? new Date(currentDate) : new Date());
+    const [viewMonth, setViewMonth] = useState(() => {
+        return currentDate ? new Date(currentDate) : new Date();
+    });
     const dropdownRef = useRef(null);
+
+    // Memoize the selected date separately from view month
+    const selectedDate = useMemo(() => {
+        return currentDate ? new Date(currentDate) : null;
+    }, [currentDate]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -25,7 +31,7 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [onClose]);
 
-    const getDaysInMonth = (date) => {
+    const getDaysInMonth = useCallback((date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
         const firstDay = new Date(year, month, 1);
@@ -33,37 +39,79 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
         const daysInMonth = lastDay.getDate();
         const startingDayOfWeek = firstDay.getDay();
         return { daysInMonth, startingDayOfWeek };
-    };
+    }, []);
 
-    const handleDateSelect = (day) => {
+    const handleDateSelect = useCallback((day) => {
         const newDate = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
-        setSelectedDate(newDate);
         onSelect(newDate);
         if (inputRef && inputRef.current) {
             inputRef.current.focus();
         }
-    };
+    }, [viewMonth, onSelect, inputRef]);
 
-    const handlePrevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
-    const handleNextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1));
-    const handlePrevYear = () => setViewMonth(new Date(viewMonth.getFullYear() - 1, viewMonth.getMonth(), 1));
-    const handleNextYear = () => setViewMonth(new Date(viewMonth.getFullYear() + 1, viewMonth.getMonth(), 1));
+    // Use functional updates to prevent unnecessary re-renders
+    const handlePrevMonth = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    }, []);
 
-    const isToday = (day) => {
+    const handleNextMonth = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    }, []);
+
+    const handlePrevYear = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setViewMonth(prev => new Date(prev.getFullYear() - 1, prev.getMonth(), 1));
+    }, []);
+
+    const handleNextYear = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setViewMonth(prev => new Date(prev.getFullYear() + 1, prev.getMonth(), 1));
+    }, []);
+
+    const isToday = useCallback((day) => {
         const today = new Date();
         return day === today.getDate() &&
             viewMonth.getMonth() === today.getMonth() &&
             viewMonth.getFullYear() === today.getFullYear();
-    };
+    }, [viewMonth]);
 
-    const isSelected = (day) => {
+    const isSelected = useCallback((day) => {
         return selectedDate &&
             day === selectedDate.getDate() &&
             viewMonth.getMonth() === selectedDate.getMonth() &&
             viewMonth.getFullYear() === selectedDate.getFullYear();
-    };
+    }, [selectedDate, viewMonth]);
 
-    const renderCalendar = () => {
+    const handleTodayClick = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const today = new Date();
+        onSelect(today);
+    }, [onSelect]);
+
+    const handleSet18Years = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const date = new Date();
+        date.setFullYear(date.getFullYear() - 18);
+        onSelect(date);
+    }, [onSelect]);
+
+    const handleSet60Years = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const date = new Date();
+        date.setFullYear(date.getFullYear() - 60);
+        onSelect(date);
+    }, [onSelect]);
+
+    const renderCalendar = useMemo(() => {
         const { daysInMonth, startingDayOfWeek } = getDaysInMonth(viewMonth);
         const days = [];
         for (let i = 0; i < startingDayOfWeek; i++) {
@@ -72,10 +120,16 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
         for (let day = 1; day <= daysInMonth; day++) {
             const isTodayDate = isToday(day);
             const isSelectedDate = isSelected(day);
+            const currentDay = day; // Capture the value
             days.push(
                 <button
                     key={day}
-                    onClick={() => handleDateSelect(day)}
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDateSelect(currentDay);
+                    }}
                     className={`h-10 w-full rounded-lg transition-colors text-sm ${isSelectedDate
                         ? 'bg-yellow-600 text-white hover:bg-yellow-700'
                         : isTodayDate
@@ -88,37 +142,102 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
             );
         }
         return days;
-    };
+    }, [viewMonth, getDaysInMonth, isToday, isSelected, handleDateSelect]);
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     return (
-        <div ref={dropdownRef} className="absolute w-full top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 w-80">
+        <div
+            ref={dropdownRef}
+            className="absolute w-full top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 w-80"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+        >
             <div className="p-4">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-semibold text-gray-900">Select Date of Birth</h3>
                     <div className="w-6"></div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1"><X size={18} /></button>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onClose();
+                        }}
+                        className="text-gray-400 hover:text-gray-600 transition p-1"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex gap-1">
-                        <button onClick={handlePrevYear} className="p-1.5 hover:bg-gray-100 rounded transition"><ChevronsLeft size={16} /></button>
-                        <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-100 rounded transition"><ChevronLeft size={16} /></button>
+                        <button
+                            type="button"
+                            onClick={handlePrevYear}
+                            className="p-1.5 hover:bg-gray-100 rounded transition"
+                        >
+                            <ChevronsLeft size={16} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handlePrevMonth}
+                            className="p-1.5 hover:bg-gray-100 rounded transition"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
                     </div>
-                    <div className="text-center"><span className="text-sm font-semibold">{monthNames[viewMonth.getMonth()]} {viewMonth.getFullYear()}</span></div>
+                    <div className="text-center">
+                        <span className="text-sm font-semibold">
+                            {monthNames[viewMonth.getMonth()]} {viewMonth.getFullYear()}
+                        </span>
+                    </div>
                     <div className="flex gap-1">
-                        <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-100 rounded transition"><ChevronRight size={16} /></button>
-                        <button onClick={handleNextYear} className="p-1.5 hover:bg-gray-100 rounded transition"><ChevronsRight size={16} /></button>
+                        <button
+                            type="button"
+                            onClick={handleNextMonth}
+                            className="p-1.5 hover:bg-gray-100 rounded transition"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleNextYear}
+                            className="p-1.5 hover:bg-gray-100 rounded transition"
+                        >
+                            <ChevronsRight size={16} />
+                        </button>
                     </div>
                 </div>
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">{day}</div>)}
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                        <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+                            {day}
+                        </div>
+                    ))}
                 </div>
-                <div className="grid grid-cols-7 gap-1">{renderCalendar()}</div>
+                <div className="grid grid-cols-7 gap-1">{renderCalendar}</div>
                 <div className="mt-4 pt-4 border-t flex gap-2">
-                    <button onClick={() => { const today = new Date(); setSelectedDate(today); onSelect(today); }} className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Today</button>
-                    <button onClick={() => { const date = new Date(); date.setFullYear(date.getFullYear() - 18); setSelectedDate(date); onSelect(date); }} className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Set 18 Years</button>
-                    <button onClick={() => { const date = new Date(); date.setFullYear(date.getFullYear() - 60); setSelectedDate(date); onSelect(date); }} className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Set 60 Years</button>
+                    <button
+                        type="button"
+                        onClick={handleTodayClick}
+                        className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                        Today
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSet18Years}
+                        className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                        Set 18 Years
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSet60Years}
+                        className="flex-1 px-2 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                        Set 60 Years
+                    </button>
                 </div>
             </div>
         </div>
@@ -1067,7 +1186,7 @@ export default function ApplicationManagement() {
             setIsExporting(false);
         }
     };
-  
+
 
     const handleImportExcel = () => {
         const input = document.createElement('input');
