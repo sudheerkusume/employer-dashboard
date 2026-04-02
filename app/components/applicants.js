@@ -803,7 +803,6 @@ export default function ApplicationManagement() {
     });
 
     const fetchApplications = async (page = 1) => {
-        setIsTableLoading(true);
         try {
             let url = `/api/application?page=${page}&limit=${limit}`;
             if (filter !== 'all') url += `&status=${filter}`;
@@ -822,8 +821,6 @@ export default function ApplicationManagement() {
         } catch (error) {
             console.log('Error fetching applications:', error);
             showNotification('error', 'Failed to fetch applications');
-        } finally {
-            setIsTableLoading(false);
         }
     };
 
@@ -2194,11 +2191,6 @@ export default function ApplicationManagement() {
                     </div>
                     {/* Table */}
                     <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
-                        {isTableLoading && (
-                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-10">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
-                            </div>
-                        )}
                         {filteredApplications.length >= 1 ? <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
@@ -2218,80 +2210,72 @@ export default function ApplicationManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredApplications.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                                                {isTableLoading ? 'Loading...' : 'No applications found'}
+                                    {filteredApplications.map((app) => (
+                                        <tr key={app._id} className="hover:bg-gray-50">
+                                            <td className="px-3 py-4 text-center">
+                                                <CustomCheckbox
+                                                    checked={selectedIds.includes(app._id)}
+                                                    onChange={() => handleSelectRow(app._id)}
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div>
+                                                    <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
+                                                    <div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-gray-900">{app.email}</div>
+                                                <div className="text-sm text-gray-500">{app.contactNo}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
+                                                <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`flex gap-1 p-1 items-center text-xs rounded-full ${getStatusColor(app.status)}`}>
+                                                    {getStatusIcon(app.status)} {app.status.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="px-1 py-4 text-sm">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleViewDetails(app)}
+                                                    className="text-blue-600 hover:text-blue-800 mr-3"
+                                                    aria-label="View Details"
+                                                >
+                                                    <Eye size={17} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEdit(app)}
+                                                    className="text-yellow-600 hover:text-yellow-800 mr-3"
+                                                    aria-label="Edit"
+                                                >
+                                                    <Edit size={17} />
+                                                </button>
+                                                {app.status === 'pending' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleStatusUpdate(app)}
+                                                        className="text-green-600 hover:text-green-800 mr-3"
+                                                        aria-label="Approve/Reject"
+                                                    >
+                                                        <CheckCircle size={17} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(app)}
+                                                    className="text-red-600 hover:text-red-800"
+                                                    aria-label="Delete"
+                                                >
+                                                    <Trash size={17} />
+                                                </button>
                                             </td>
                                         </tr>
-                                    ) : (
-                                        filteredApplications.map((app) => (
-                                            <tr key={app._id} className="hover:bg-gray-50">
-                                                <td className="px-3 py-4 text-center">
-                                                    <CustomCheckbox
-                                                        checked={selectedIds.includes(app._id)}
-                                                        onChange={() => handleSelectRow(app._id)}
-                                                    />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
-                                                        <div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">{app.email}</div>
-                                                    <div className="text-sm text-gray-500">{app.contactNo}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
-                                                    <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`flex gap-1 py-1 text-xs rounded-full ${getStatusColor(app.status)}`}>
-                                                        {getStatusIcon(app.status)} {app.status.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td className="px-1 py-4 text-sm">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleViewDetails(app)}
-                                                        className="text-blue-600 hover:text-blue-800 mr-3"
-                                                        aria-label="View Details"
-                                                    >
-                                                        <Eye size={17} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleEdit(app)}
-                                                        className="text-yellow-600 hover:text-yellow-800 mr-3"
-                                                        aria-label="Edit"
-                                                    >
-                                                        <Edit size={17} />
-                                                    </button>
-                                                    {app.status === 'pending' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleStatusUpdate(app)}
-                                                            className="text-green-600 hover:text-green-800 mr-3"
-                                                            aria-label="Approve/Reject"
-                                                        >
-                                                            <CheckCircle size={17} />
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDelete(app)}
-                                                        className="text-red-600 hover:text-red-800"
-                                                        aria-label="Delete"
-                                                    >
-                                                        <Trash size={17} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
+                                    ))}
                                 </tbody>
                             </table>
                         </div> : <div className="px-6 py-4 text-center text-gray-500">
