@@ -2312,7 +2312,7 @@ export default function ApplicationManagement() {
                                             key={pageNum}
                                             onClick={() => handlePageChange(pageNum)}
                                             className={`px-2 py-1 border rounded-md ${currentPage === pageNum
-                                                ? 'bg-yellow-600 text-white'
+                                                ? 'bg-yellow-600 text-white border brder-yellow-600'
                                                 : 'bg-white text-gray-700 hover:bg-gray-50'
                                                 }`}
                                         >
