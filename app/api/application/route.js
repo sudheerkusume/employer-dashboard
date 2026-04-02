@@ -547,8 +547,16 @@ export async function POST(req) {
                     <p><strong>User Code:</strong> ${doc.userCode}</p>
                     <p>You will be notified once your application is reviewed.</p>
                     <hr/>
-                    <p style="font-size:12px;color:#666">For queries, please contact support.</p>
-                </div>`;
+    
+                    <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                    For queries, please contact support.
+                    </div>
+    
+                    <p style="font-size:12px;">
+                    For application login, please visit the link below:<br/>
+                    <a href="https://employer.real-beez.com" style="color:#ca8a04;">https://employer.real-beez.com</a>
+                    </p>
+                   </div>`;
             sendEmail(doc.email, "Application Received – Real Beez Projects Pvt Ltd", html)
                 .catch(err => console.error(`❌ Email failed [${doc.email}]:`, err));
         }
@@ -743,10 +751,16 @@ export async function PUT(req) {
                             ${mlmUserCode
                             ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>`
                             : "<p>Your Real Beez account will be created once a sponsor is assigned.</p>"
-                        }
+                            }
                             <hr/>
-                            <p style="font-size:12px;color:#666">Thank you for joining Real Beez Projects Pvt Ltd.</p>
-                        </div>`;
+                            <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                            Thank you for joining Real Beez Projects Pvt Ltd.
+                            </div>
+                            <p style="font-size:12px;">
+                            For application login, please visit the link below:<br/>
+                            <a href="https://employer.real-beez.com" style="color:#28a745;">https://employer.real-beez.com</a>
+                            </p>
+                            </div>`;
                     sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
                         .catch(err => console.error("Email failed:", err));
                 }

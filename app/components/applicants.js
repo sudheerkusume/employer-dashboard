@@ -712,7 +712,6 @@ export default function ApplicationManagement() {
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isTableLoading, setIsTableLoading] = useState(false);
     const [notification, setNotification] = useState(null);
     const [activeTab, setActiveTab] = useState('personal');
     const [showPreview, setShowPreview] = useState(false);
@@ -766,8 +765,6 @@ export default function ApplicationManagement() {
     const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
     const currentTabIndex = tabs.indexOf(activeTab);
     const isLastTab = currentTabIndex === tabs.length - 1;
-    const fileInputRef = useRef(null);
-
     const [formData, setFormData] = useState({
         applicationId: '',
         fullName: '',
@@ -1399,7 +1396,7 @@ export default function ApplicationManagement() {
 
     const handleDownloadTemplate = () => {
         const templateData = [{
-            'Application ID': 'RB000111',
+            'Application ID': 'RB000001',
             'Date Of Application': "30-03-2026",
             'Referred By Name': 'K Srinivas',
             'Referred By Id': 'RB000001',
@@ -2289,7 +2286,7 @@ export default function ApplicationManagement() {
                             <button
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={!hasPrev}
-                                className={`px-4 py-2 border rounded-md ${hasPrev
+                                className={`px-3 py-1 border rounded-md ${hasPrev
                                     ? 'bg-white text-gray-700 hover:bg-gray-50'
                                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                     }`}
@@ -2314,7 +2311,7 @@ export default function ApplicationManagement() {
                                         <button
                                             key={pageNum}
                                             onClick={() => handlePageChange(pageNum)}
-                                            className={`px-3 py-2 border rounded-md ${currentPage === pageNum
+                                            className={`px-2 py-1 border rounded-md ${currentPage === pageNum
                                                 ? 'bg-yellow-600 text-white'
                                                 : 'bg-white text-gray-700 hover:bg-gray-50'
                                                 }`}
@@ -2327,7 +2324,7 @@ export default function ApplicationManagement() {
                             <button
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={!hasNext}
-                                className={`px-4 py-2 border rounded-md ${hasNext
+                                className={`px-3 py-1 border rounded-md ${hasNext
                                     ? 'bg-white text-gray-700 hover:bg-gray-50'
                                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                     }`}
