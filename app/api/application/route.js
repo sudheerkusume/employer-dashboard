@@ -5,19 +5,26 @@ import Joi from "joi";
 import nodemailer from "nodemailer";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EMAIL HELPER
+// EMAIL HELPER (now with configuration validation)
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function sendEmail(to, subject, html) {
+    // 🔔 FIX: Validate email configuration early
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        console.error("❌ Email not sent – missing EMAIL_USER or EMAIL_PASSWORD env variables");
+        throw new Error("Email service not configured");
+    }
+
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || "smtp.gmail.com",
-        port: process.env.EMAIL_PORT || 587,
+        port: parseInt(process.env.EMAIL_PORT) || 587,
         secure: process.env.EMAIL_SECURE === "true",
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD,
         },
     });
+
     await transporter.sendMail({
         from: `"Real Beez Projects Pvt Ltd" <${process.env.EMAIL_USER}>`,
         to,
@@ -27,63 +34,39 @@ async function sendEmail(to, subject, html) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ATOMIC COUNTER HELPERS
-// — stored as special docs inside marketing_applications itself
-// — identified by { _type: "__counter" } so they NEVER collide with real docs
+// ATOMIC COUNTER HELPERS (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Reserve `count` Application IDs atomically in ONE DB round-trip.
- *
- * Counter doc shape:
- *   { _type: "__counter", _key: "applicationId", seq: N }
- *
- * Returns: ["RB000001", "RB000002", ...]
- */
 async function reserveApplicationIds(db, count = 1) {
     const col = db.collection("marketing_applications");
-
     const result = await col.findOneAndUpdate(
-        { _type: "__counter", _key: "applicationId" },   // ← unique counter doc
+        { _type: "__counter", _key: "applicationId" },
         { $inc: { seq: count } },
         { upsert: true, returnDocument: "after" }
     );
-
     const endSeq = result?.seq ?? count;
     const startSeq = endSeq - count + 1;
-
     return Array.from({ length: count }, (_, i) =>
         `RB${(startSeq + i).toString().padStart(6, "0")}`
     );
 }
 
-/**
- * Reserve `count` User Codes for a given level atomically in ONE DB round-trip.
- *
- * Counter doc shape:
- *   { _type: "__counter", _key: "userCode_ME", seq: N }
- *
- * Returns: ["ME-001", "ME-002", ...]
- */
 async function reserveUserCodes(db, level, count = 1) {
     const col = db.collection("marketing_applications");
-
     const result = await col.findOneAndUpdate(
-        { _type: "__counter", _key: `userCode_${level}` }, // ← unique counter doc
+        { _type: "__counter", _key: `userCode_${level}` },
         { $inc: { seq: count } },
         { upsert: true, returnDocument: "after" }
     );
-
     const endSeq = result?.seq ?? count;
     const startSeq = endSeq - count + 1;
-
     return Array.from({ length: count }, (_, i) =>
         `${level}-${(startSeq + i).toString().padStart(3, "0")}`
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MLM HELPERS
+// MLM HELPERS (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PROMOTION_THRESHOLDS = {
@@ -108,14 +91,11 @@ async function promoteUserIfNeeded(db, userCode) {
     const col = db.collection("marketing_applications");
     const user = await col.findOne({ userCode, _type: { $ne: "__counter" } });
     if (!user) return false;
-
     const threshold = PROMOTION_THRESHOLDS[user.level];
     if (!threshold?.next) return false;
-
     const children = await col.find({ sponsorCode: userCode }).toArray();
     const count = children.filter(c => c.level === user.level).length;
     const meetsTarget = (user.teamSales || 0) >= (TARGETS[user.level] || 0);
-
     if (count >= threshold.required && meetsTarget) {
         await col.updateOne(
             { userCode },
@@ -132,15 +112,10 @@ async function createMlmMemberFromApplication(db, application) {
     const { referredById, userCode, fullName, email, contactNo, dob,
         fatherName, address, pinCode, panNumber, aadharNumber,
         bankName, accountNo, ifscCode, branch, bankCity, _id: appId } = application;
-
     if (!referredById) throw new Error("referredById is required to create Real Beez member.");
-
     const sponsor = await col.findOne({ userCode, _type: { $ne: "__counter" } });
     if (!sponsor) throw new Error(`Referrer code "${userCode}" not found.`);
-
-    // Reserve one user code for level ME
     const [newUserCode] = await reserveUserCodes(db, "ME", 1);
-
     const newMlmUser = {
         _id: new ObjectId(),
         userCode: newUserCode,
@@ -170,9 +145,7 @@ async function createMlmMemberFromApplication(db, application) {
         applicationId: appId,
         role: "user",
     };
-
     await col.insertOne(newMlmUser);
-
     await col.updateOne(
         { userCode },
         {
@@ -181,19 +154,16 @@ async function createMlmMemberFromApplication(db, application) {
             $set: { updatedAt: new Date().toISOString() },
         }
     );
-
     await col.updateOne(
         { _id: appId },
         { $set: { mlmUserCode: newUserCode, updatedAt: new Date().toISOString() } }
     );
-
     await promoteUserIfNeeded(db, userCode);
-
     return newUserCode;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JOI SCHEMAS
+// JOI SCHEMAS (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const applicationSchema = Joi.object({
@@ -287,27 +257,23 @@ const updateStatusSchema = Joi.object({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DUPLICATE CHECK HELPERS
+// DUPLICATE CHECK HELPERS (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DUP_FIELDS = ["email", "contactNo", "panNumber", "aadharNumber"];
 
-/** Returns Set of values already in DB for a field (excluding counter docs). */
 async function getExistingInDB(col, field, values) {
     const nonEmpty = [...new Set(values.filter(v => v && v !== "" && v !== "--"))];
     if (!nonEmpty.length) return new Set();
-
     const docs = await col
         .find(
             { _type: { $ne: "__counter" }, [field]: { $in: nonEmpty } },
             { projection: { [field]: 1 } }
         )
         .toArray();
-
     return new Set(docs.map(d => d[field]));
 }
 
-/** Returns Set of values that appear more than once inside the batch. */
 function getDuplicatesInBatch(values) {
     const seen = new Set();
     const dupes = new Set();
@@ -320,7 +286,7 @@ function getDuplicatesInBatch(values) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DOCUMENT BUILDER
+// DOCUMENT BUILDER (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function parseDob(dob) {
@@ -341,20 +307,12 @@ function maskSensitive(doc) {
     return r;
 }
 
-/**
- * Build one application document.
- *
- * ID Flow — ALL server-generated, NEVER from request body:
- *   _id           → new ObjectId()   (MongoDB default)
- *   applicationId → "RB000001"       (reserved from counter doc)
- *   userCode      → "ME-001"         (reserved from counter doc per level)
- */
 function buildDocument(value, applicationId, userCode) {
     const level = value.level || "ME";
     return {
         _id: new ObjectId(),
-        applicationId,                               // e.g. "RB000001"
-        userCode,                                    // e.g. "ME-001"
+        applicationId,
+        userCode,
         mlmUserCode: userCode,
         level,
         fullName: value.fullName ?? "",
@@ -395,14 +353,13 @@ function buildDocument(value, applicationId, userCode) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST — single object OR array (bulk)
+// POST — single object OR array (bulk) – FIXED email awaiting
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req) {
     try {
         const body = await req.json();
 
-        // ── 1. Normalise to array ─────────────────────────────────────────────
         const isBulk = Array.isArray(body);
         const rawList = isBulk ? body : [body];
 
@@ -410,20 +367,14 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // ── 2. Strip server-generated fields & validate every record ──────────
+        // Validate records (same as before)
         const validRecords = [];
         const validationErrors = [];
 
         for (let i = 0; i < rawList.length; i++) {
-            // Destructure & discard every server-generated field
             const {
-                _id, _type,           // MongoDB / counter internals
-                applicationId,        // ← ALWAYS server-generated
-                userCode,             // ← ALWAYS server-generated
-                mlmUserCode,          // ← derived from userCode
-                appliedAt,            // ← always server timestamp
-                updatedAt,            // ← always server timestamp
-                remarks, role,        // ← always server defaults
+                _id, _type, applicationId, userCode, mlmUserCode,
+                appliedAt, updatedAt, remarks, role,
                 ...rest
             } = rawList[i];
 
@@ -447,14 +398,11 @@ export async function POST(req) {
             }, { status: 400 });
         }
 
-        // ── 3. DB connection ──────────────────────────────────────────────────
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // ── 4. Duplicate detection ────────────────────────────────────────────
-
-        // 4a. Within-batch duplicates
+        // Duplicate detection (unchanged)
         const batchDuplicateWarnings = [];
         for (const field of DUP_FIELDS) {
             const vals = validRecords.map(r => r.value[field]);
@@ -464,7 +412,6 @@ export async function POST(req) {
             );
         }
 
-        // 4b. Against DB — ONE query per field for whole batch
         const existingInDB = {};
         for (const field of DUP_FIELDS) {
             existingInDB[field] = await getExistingInDB(
@@ -472,7 +419,6 @@ export async function POST(req) {
             );
         }
 
-        // 4c. Partition clean vs skipped
         const cleanRecords = [];
         const skippedRecords = [];
 
@@ -505,10 +451,9 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ── 5. Reserve IDs atomically — ONE counter call per type ─────────────
+        // Reserve IDs
         const appIds = await reserveApplicationIds(db, cleanRecords.length);
 
-        // Group by level for per-level userCode reservation
         const levelGroups = {};
         for (const rec of cleanRecords) {
             const lvl = rec.value.level || "ME";
@@ -520,7 +465,6 @@ export async function POST(req) {
             userCodePool[lvl] = await reserveUserCodes(db, lvl, recs.length);
         }
 
-        // ── 6. Assign IDs & build documents ──────────────────────────────────
         const levelCursor = Object.fromEntries(
             Object.keys(levelGroups).map(lvl => [lvl, 0])
         );
@@ -532,10 +476,10 @@ export async function POST(req) {
             return buildDocument(rec.value, applicationId, userCode);
         });
 
-        // ── 7. Bulk insert ────────────────────────────────────────────────────
         const insertResult = await col.insertMany(documents, { ordered: false });
 
-        // ── 8. Confirmation emails (fire-and-forget) ──────────────────────────
+        // 🔔 FIX: Await all emails before returning response
+        const emailPromises = [];
         for (const doc of documents) {
             if (!doc.email) continue;
             const html = `
@@ -547,13 +491,26 @@ export async function POST(req) {
                     <p><strong>User Code:</strong> ${doc.userCode}</p>
                     <p>You will be notified once your application is reviewed.</p>
                     <hr/>
-                    <p style="font-size:12px;color:#666">For queries, please contact support.</p>
+                    <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                    For queries, please contact support.
+                    </div>
+                    <p style="font-size:12px;">
+                    For application login, please visit the link below:<br/>
+                    <a href="https://employer.real-beez.com" style="color:#ca8a04;">https://employer.real-beez.com</a>
+                    </p>
                 </div>`;
-            sendEmail(doc.email, "Application Received – Real Beez Projects Pvt Ltd", html)
-                .catch(err => console.error(`❌ Email failed [${doc.email}]:`, err));
+            emailPromises.push(
+                sendEmail(doc.email, "Application Received – Real Beez Projects Pvt Ltd", html)
+                    .catch(err => console.error(`❌ Email failed for ${doc.email}:`, err))
+            );
         }
 
-        // ── 9. Response ───────────────────────────────────────────────────────
+        const emailResults = await Promise.allSettled(emailPromises);
+        const emailFailures = emailResults.filter(r => r.status === "rejected").length;
+        if (emailFailures > 0) {
+            console.warn(`⚠️ ${emailFailures} email(s) failed to send, but applications were saved.`);
+        }
+
         const maskedDocs = documents.map(maskSensitive);
 
         if (!isBulk) {
@@ -565,6 +522,7 @@ export async function POST(req) {
                 applicationId: doc.applicationId,
                 userCode: doc.userCode,
                 application: maskedDocs[0],
+                emailStatus: emailFailures === 0 ? "sent" : "partial_failure",
             });
         }
 
@@ -576,6 +534,8 @@ export async function POST(req) {
                 inserted: insertResult.insertedCount,
                 skipped: skippedRecords.length,
                 failed: validationErrors.length,
+                emailsSent: emailPromises.length - emailFailures,
+                emailsFailed: emailFailures,
             },
             applications: maskedDocs,
             ...(skippedRecords.length && { skippedRecords }),
@@ -590,7 +550,7 @@ export async function POST(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET — fetch applications (unchanged logic, counter docs excluded)
+// GET (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function GET(req) {
@@ -610,7 +570,7 @@ export async function GET(req) {
         if (applicationId) {
             const application = await col.findOne({
                 _id: new ObjectId(applicationId),
-                _type: { $ne: "__counter" },     // exclude counter docs
+                _type: { $ne: "__counter" },
             });
             if (!application) {
                 return Response.json({ error: "Application not found", success: false }, { status: 404 });
@@ -618,7 +578,6 @@ export async function GET(req) {
             return Response.json({ success: true, application });
         }
 
-        // Always exclude counter docs from queries
         const filter = { _type: { $ne: "__counter" } };
         if (email) filter.email = email;
         if (phone) filter.contactNo = phone;
@@ -654,7 +613,7 @@ export async function GET(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUT — status update OR partial field update
+// PUT — status update OR partial field update – FIXED approval email awaiting
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function PUT(req) {
@@ -664,7 +623,7 @@ export async function PUT(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // ── Branch A: Status update ───────────────────────────────────────────
+        // Branch A: Status update
         if (body.id && body.status && !body.fullName) {
             const { error, value } = updateStatusSchema.validate(body);
             if (error) {
@@ -689,7 +648,6 @@ export async function PUT(req) {
                 reviewedAt: new Date().toISOString(),
             };
 
-            // On approval: assign / generate applicationId
             let finalAppId = application.applicationId;
 
             if (status === "approved") {
@@ -701,11 +659,9 @@ export async function PUT(req) {
                     if (!existing) {
                         finalAppId = preferredAppId;
                     } else {
-                        // preferred ID taken — auto-generate
                         [finalAppId] = await reserveApplicationIds(db, 1);
                     }
                 } else if (!finalAppId) {
-                    // no existing applicationId — auto-generate
                     [finalAppId] = await reserveApplicationIds(db, 1);
                 }
                 updateFields.applicationId = finalAppId;
@@ -719,7 +675,10 @@ export async function PUT(req) {
                 return Response.json({ error: "Failed to update status", success: false }, { status: 400 });
             }
 
-            // Post-approval: create MLM member
+            // 🔔 FIX: Prepare email sending (but wait until after MLM creation for approval)
+            let emailPromise = null;
+
+            // Post-approval: create MLM member & send email
             if (status === "approved") {
                 let mlmUserCode = null;
                 let mlmCreationError = null;
@@ -733,6 +692,7 @@ export async function PUT(req) {
                     }
                 }
 
+                // Approval email
                 if (application.email) {
                     const html = `
                         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -745,10 +705,26 @@ export async function PUT(req) {
                             : "<p>Your Real Beez account will be created once a sponsor is assigned.</p>"
                         }
                             <hr/>
-                            <p style="font-size:12px;color:#666">Thank you for joining Real Beez Projects Pvt Ltd.</p>
+                            <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                            Thank you for joining Real Beez Projects Pvt Ltd.
+                            </div>
+                            <p style="font-size:12px;">
+                            For application login, please visit the link below:<br/>
+                            <a href="https://employer.real-beez.com" style="color:#28a745;">https://employer.real-beez.com</a>
+                            </p>
                         </div>`;
-                    sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
-                        .catch(err => console.error("Email failed:", err));
+                    emailPromise = sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
+                        .catch(err => {
+                            console.error("❌ Approval email failed:", err);
+                            return { error: err.message };
+                        });
+                }
+
+                // 🔔 FIX: Wait for email to be sent before returning response
+                let emailStatus = null;
+                if (emailPromise) {
+                    const result = await emailPromise;
+                    emailStatus = result?.error ? "failed" : "sent";
                 }
 
                 return Response.json({
@@ -763,6 +739,7 @@ export async function PUT(req) {
                     status,
                     remarks,
                     mlmUserCode,
+                    emailStatus: emailStatus || "not_sent",
                 });
             }
 
@@ -778,8 +755,9 @@ export async function PUT(req) {
                         <hr/>
                         <p style="font-size:12px;color:#666">Thank you for your interest.</p>
                     </div>`;
-                sendEmail(application.email, "Application Status Update – Real Beez Projects Pvt Ltd", html)
-                    .catch(err => console.error("Email failed:", err));
+                // 🔔 FIX: Await rejection email
+                await sendEmail(application.email, "Application Status Update – Real Beez Projects Pvt Ltd", html)
+                    .catch(err => console.error("❌ Rejection email failed:", err));
             }
 
             return Response.json({
@@ -792,7 +770,7 @@ export async function PUT(req) {
             });
         }
 
-        // ── Branch B: Partial field update ────────────────────────────────────
+        // Branch B: Partial field update (unchanged)
         const { error, value } = updateApplicationSchema.validate(body);
         if (error) {
             return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
@@ -800,7 +778,6 @@ export async function PUT(req) {
 
         const { id, ...updateFields } = value;
 
-        // Strip server-generated fields — never allow overwriting IDs from body
         delete updateFields.applicationId;
         delete updateFields.userCode;
         delete updateFields.mlmUserCode;
@@ -823,7 +800,6 @@ export async function PUT(req) {
             }));
         }
 
-        // Duplicate checks (exclude current doc)
         const dupCheckFields = ["email", "contactNo", "panNumber", "aadharNumber"];
         for (const field of dupCheckFields) {
             if (!filteredUpdate[field]) continue;
@@ -863,7 +839,7 @@ export async function PUT(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE
+// DELETE (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function DELETE(req) {
@@ -871,7 +847,6 @@ export async function DELETE(req) {
         const url = new URL(req.url);
         let ids = [];
 
-        // --- 1. Extract IDs from query parameter or request body ---
         const queryId = url.searchParams.get("id");
         if (queryId) {
             ids = [queryId];
@@ -879,9 +854,7 @@ export async function DELETE(req) {
             let body;
             try {
                 body = await req.json();
-            } catch {
-                // No body or invalid JSON
-            }
+            } catch { }
             if (body) {
                 if (body.id && typeof body.id === "string") {
                     ids = [body.id];
@@ -898,7 +871,6 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 2. Validate ObjectIds ---
         const objectIds = [];
         const invalidIds = [];
         for (const id of ids) {
@@ -915,12 +887,10 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 3. DB connection ---
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // --- 4. Find existing applications (exclude counter docs) ---
         const existingDocs = await col
             .find({ _id: { $in: objectIds }, _type: { $ne: "__counter" } })
             .toArray();
@@ -935,17 +905,13 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 5. Delete the documents ---
         const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
 
-        // --- 6. After deletion, recalc and update counters ---
-        // Collect levels that were deleted (to recalc max for those levels)
         const affectedLevels = new Set();
         for (const doc of existingDocs) {
             if (doc.level) affectedLevels.add(doc.level);
         }
 
-        // Recalculate max applicationId (numeric part)
         const allApps = await col
             .find(
                 { applicationId: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
@@ -966,7 +932,6 @@ export async function DELETE(req) {
             { upsert: true }
         );
 
-        // Recalculate max userCode per affected level (using the `level` field for accuracy)
         for (const level of affectedLevels) {
             const userDocs = await col
                 .find(
@@ -989,7 +954,6 @@ export async function DELETE(req) {
             );
         }
 
-        // --- 7. Build response ---
         const isSingle = ids.length === 1;
         return Response.json({
             success: true,
