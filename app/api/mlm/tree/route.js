@@ -32,7 +32,6 @@ export async function GET(req) {
         let rootUser = requestingUser;
         if (requestingUser.role === "admin") {
             // For admin, find the top-level root (user with no referrer)
-            // Assumption: root has referredById null/empty or a specific admin user code
             const root = await usersCol.findOne({
                 $or: [
                     { referredById: { $in: [null, "", undefined] } },
@@ -40,12 +39,10 @@ export async function GET(req) {
                 ],
                 _type: { $ne: "__counter" }
             });
-            if (root) {
-                rootUser = root;
-            }
+            if (root) rootUser = root;
         }
 
-        // Step 2: Fetch all users (excluding counters) and build maps
+        // Fetch all users (excluding counters)
         const allUsers = await usersCol.find(
             { _type: { $ne: "__counter" } },
             {
@@ -66,25 +63,43 @@ export async function GET(req) {
             }
         ).toArray();
 
-        // Build maps for quick lookup
+        // Build lookup maps: from mlmUserCode/userCode -> applicationId
+        const codeToAppId = new Map(); // mlmUserCode/userCode -> applicationId
         const usersByAppId = new Map(); // applicationId -> user object
-        const usersByMlmCode = new Map(); // mlmUserCode -> user object
-        const childrenMap = new Map(); // referrerId -> array of user objects
 
         for (const user of allUsers) {
             const appId = user.applicationId;
-            if (appId) usersByAppId.set(appId, user);
-            const mlmCode = user.mlmUserCode;
-            if (mlmCode) usersByMlmCode.set(mlmCode, user);
-
-            const referrer = user.referredById;
-            if (referrer && referrer !== null && referrer !== "") {
-                if (!childrenMap.has(referrer)) childrenMap.set(referrer, []);
-                childrenMap.get(referrer).push(user);
+            if (appId) {
+                usersByAppId.set(appId, user);
+                if (user.mlmUserCode) codeToAppId.set(user.mlmUserCode, appId);
+                if (user.userCode) codeToAppId.set(user.userCode, appId);
             }
         }
 
-        // Step 3: Build tree recursively
+        // Build children map using resolved applicationId as key
+        const childrenMap = new Map(); // referrerAppId -> array of child users
+
+        for (const user of allUsers) {
+            const referrer = user.referredById;
+            if (!referrer || referrer === "" || referrer === null) continue;
+
+            // Resolve referrer's applicationId
+            let referrerAppId = null;
+            if (usersByAppId.has(referrer)) {
+                referrerAppId = referrer;
+            } else if (codeToAppId.has(referrer)) {
+                referrerAppId = codeToAppId.get(referrer);
+            } else {
+                // If still not found, skip this user (orphan)
+                console.warn(`Referrer ${referrer} not found for user ${user.applicationId}`);
+                continue;
+            }
+
+            if (!childrenMap.has(referrerAppId)) childrenMap.set(referrerAppId, []);
+            childrenMap.get(referrerAppId).push(user);
+        }
+
+        // Recursive tree builder
         function buildTree(user, currentDepth, visited = new Set()) {
             const appId = user.applicationId;
             if (currentDepth >= depth || !appId) {
@@ -95,7 +110,6 @@ export async function GET(req) {
                 };
             }
 
-            // Prevent circular references
             if (visited.has(appId)) {
                 return {
                     ...user,
@@ -128,10 +142,10 @@ export async function GET(req) {
             };
         }
 
-        // Step 4: Build tree from root
+        // Build tree from the resolved root user
         const tree = buildTree(rootUser, 0);
 
-        // Step 5: Calculate statistics using the children map
+        // Calculate statistics using the children map
         const rootAppId = rootUser.applicationId;
         let directChildren = 0;
         let directByLevel = {};
@@ -142,7 +156,6 @@ export async function GET(req) {
             const directList = childrenMap.get(rootAppId) || [];
             directChildren = directList.length;
 
-            // Count direct by level
             directByLevel = {};
             for (const child of directList) {
                 const level = child.level || 'ME';
