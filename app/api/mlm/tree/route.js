@@ -4,7 +4,7 @@ export async function GET(req) {
     try {
         const url = new URL(req.url);
         let targetIdentifier = url.searchParams.get("userCode");
-        const currentUserCode = url.searchParams.get("currentUserCode");
+        const currentUserCode = url.searchParams.get("userCode");
         const depth = parseInt(url.searchParams.get("depth")) || 5;
 
         // --- Validate current user ---
