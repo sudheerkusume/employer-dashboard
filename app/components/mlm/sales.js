@@ -6,45 +6,44 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatCurrency } from "@/app/components/lib/mlmUtils";
 
-// ---------- DUMMY SALES DATA (simulating backend) ----------
+// ---------- DUMMY SALES DATA (Real Estate Focus) ----------
 // Each sale record corresponds to a transaction made by a user
 const DUMMY_SALES_BY_USER = {
-    // GM - Rajesh Kumar Reddy (RBZ1001) - self sales + downline sales? But sales records typically belong to the seller.
-    // For simplicity, we create sales records for each user as if they made the sale.
+    // GM - Rajesh Kumar Reddy (RBZ1001) - Admin user
     RB000001: [
-        { _id: "sale1", createdAt: "2026-04-05T10:30:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer A", commissionEarned: 74.98 },
-        { _id: "sale2", createdAt: "2026-04-03T14:20:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer B", commissionEarned: 124.98 },
-        { _id: "sale3", createdAt: "2026-03-30T09:15:00Z", amount: 1599, description: "Energy Booster Pack", productId: "PROD-003", customerName: "Customer C", commissionEarned: 39.98 },
-        { _id: "sale4", createdAt: "2026-03-25T16:45:00Z", amount: 3499, description: "Detox Combo", productId: "PROD-004", customerName: "Customer D", commissionEarned: 87.48 },
-        { _id: "sale5", createdAt: "2026-03-20T11:00:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer E", commissionEarned: 74.98 },
+        { _id: "sale1", createdAt: "2026-04-05T10:30:00Z", amount: 2500000, description: "Premium Villa - 300 sq.yds", productId: "RE-VIL-001", customerName: "Mr. Sharma", commissionEarned: 62500 },
+        { _id: "sale2", createdAt: "2026-04-03T14:20:00Z", amount: 1200000, description: "Corner Plot - 200 sq.yds", productId: "RE-PLT-002", customerName: "Mrs. Reddy", commissionEarned: 30000 },
+        { _id: "sale3", createdAt: "2026-03-30T09:15:00Z", amount: 3500000, description: "Farmland - 2 acres", productId: "RE-FRM-003", customerName: "Mr. Patel", commissionEarned: 87500 },
+        { _id: "sale4", createdAt: "2026-03-25T16:45:00Z", amount: 800000, description: "Godown - 5000 sq.ft", productId: "RE-GDN-004", customerName: "Mr. Khan", commissionEarned: 20000 },
+        { _id: "sale5", createdAt: "2026-03-20T11:00:00Z", amount: 5000000, description: "Luxury Villa - 500 sq.yds", productId: "RE-VIL-005", customerName: "Ms. Gupta", commissionEarned: 125000 },
     ],
     // DGM - Priya Sharma (RBZ2001)
     RBZ2001: [
-        { _id: "sale6", createdAt: "2026-04-04T12:00:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer F", commissionEarned: 124.98 },
-        { _id: "sale7", createdAt: "2026-03-28T10:15:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer G", commissionEarned: 74.98 },
-        { _id: "sale8", createdAt: "2026-03-22T09:30:00Z", amount: 1599, description: "Energy Booster Pack", productId: "PROD-003", customerName: "Customer H", commissionEarned: 39.98 },
+        { _id: "sale6", createdAt: "2026-04-04T12:00:00Z", amount: 1800000, description: "Open Land - 300 sq.yds", productId: "RE-OPN-006", customerName: "Mr. Singh", commissionEarned: 90000 },
+        { _id: "sale7", createdAt: "2026-03-28T10:15:00Z", amount: 950000, description: "Residential Plot - 150 sq.yds", productId: "RE-PLT-007", customerName: "Mrs. Nair", commissionEarned: 47500 },
+        { _id: "sale8", createdAt: "2026-03-22T09:30:00Z", amount: 2800000, description: "Farmhouse with Land - 1.5 acres", productId: "RE-FRM-008", customerName: "Mr. Desai", commissionEarned: 140000 },
     ],
     // AGM - Amit Patel (RBZ3001)
     RBZ3001: [
-        { _id: "sale9", createdAt: "2026-04-02T15:45:00Z", amount: 3499, description: "Detox Combo", productId: "PROD-004", customerName: "Customer I", commissionEarned: 87.48 },
-        { _id: "sale10", createdAt: "2026-03-27T11:20:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer J", commissionEarned: 74.98 },
+        { _id: "sale9", createdAt: "2026-04-02T15:45:00Z", amount: 750000, description: "Small Godown - 3000 sq.ft", productId: "RE-GDN-009", customerName: "Mr. Kumar", commissionEarned: 56250 },
+        { _id: "sale10", createdAt: "2026-03-27T11:20:00Z", amount: 3200000, description: "Agricultural Land - 3 acres", productId: "RE-FRM-010", customerName: "Mrs. Reddy", commissionEarned: 240000 },
     ],
     // SMM - Neha Gupta (RBZ3002)
     RBZ3002: [
-        { _id: "sale11", createdAt: "2026-04-01T09:00:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer K", commissionEarned: 124.98 },
+        { _id: "sale11", createdAt: "2026-04-01T09:00:00Z", amount: 1100000, description: "Corner Plot - 200 sq.yds", productId: "RE-PLT-011", customerName: "Mr. Verma", commissionEarned: 110000 },
     ],
     // MM - Sneha Reddy (RBZ4001)
     RBZ4001: [
-        { _id: "sale12", createdAt: "2026-03-15T14:30:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer L", commissionEarned: 74.98 },
+        { _id: "sale12", createdAt: "2026-03-15T14:30:00Z", amount: 650000, description: "Open Land - 120 sq.yds", productId: "RE-OPN-012", customerName: "Mr. Yadav", commissionEarned: 97500 },
     ],
     // ME - Kavita Nair (RBZ5001)
     RBZ5001: [
-        { _id: "sale13", createdAt: "2026-03-30T10:00:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer M", commissionEarned: 74.98 },
-        { _id: "sale14", createdAt: "2026-03-28T14:30:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer N", commissionEarned: 124.98 },
+        { _id: "sale13", createdAt: "2026-03-30T10:00:00Z", amount: 420000, description: "Budget Plot - 100 sq.yds", productId: "RE-PLT-013", customerName: "Mr. Das", commissionEarned: 210000 },
+        { _id: "sale14", createdAt: "2026-03-28T14:30:00Z", amount: 890000, description: "Small Farmland - 0.5 acres", productId: "RE-FRM-014", customerName: "Mrs. Bose", commissionEarned: 445000 },
     ],
     // ME - Lakshmi (RBZ5002)
     RBZ5002: [
-        { _id: "sale15", createdAt: "2026-03-28T14:30:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer O", commissionEarned: 124.98 },
+        { _id: "sale15", createdAt: "2026-03-28T14:30:00Z", amount: 1500000, description: "Commercial Godown - 8000 sq.ft", productId: "RE-GDN-015", customerName: "Mr. Mehta", commissionEarned: 750000 },
     ],
 };
 
@@ -256,8 +255,8 @@ export default function SalesRecords() {
                 </div>
 
                 <div className="mt-4 text-xs text-gray-400 text-center border-t pt-4">
-                    <p>📊 Showing dummy sales data for demonstration. No backend calls are made.</p>
-                    <p>✅ Filtering, stats, and totals work entirely client-side on the dummy dataset.</p>
+                    <p>🏠 Real estate sales data (plots, villas, farmlands, godowns, open lands). No backend calls – client-side demo.</p>
+                    <p>✅ Filtering, stats, and totals work entirely on the dummy dataset.</p>
                 </div>
             </div>
         </div>
