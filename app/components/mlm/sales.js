@@ -202,7 +202,7 @@ export default function SalesRecords() {
                 {/* Commission Structure Table (for reference) */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
                     <div className="bg-gray-800 px-6 py-3">
-                        <h2 className="text-white font-semibold">📊 MLM Commission Structure (as per RealBeez PPT)</h2>
+                        <h2 className="text-white font-semibold">📊 MLM Commission Structure</h2>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
