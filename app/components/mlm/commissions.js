@@ -74,7 +74,7 @@ const USERS_BY_RANK = {
     },
 };
 
-// Alternate users for variety (you can switch or add more)
+// Alternate users for variety
 const ALTERNATE_USERS = {
     DGM2: {
         name: "Vijay Malhotra",
@@ -87,7 +87,7 @@ const ALTERNATE_USERS = {
             { date: "2026-03-22", amount: 39.95, from: "Deepa Nair (SMM)", saleAmount: 1599 },
             { date: "2026-03-18", amount: 87.45, from: "Lakshmi (ME)", saleAmount: 3499 },
             { date: "2026-03-12", amount: 74.95, from: "Kiran (Pending)", saleAmount: 2999 },
-            { date: "2026-03-05", amount: 76.70, from: "Teja (Pending)", saleAmount: 3068 },  // profit ~1534, 5% = 76.70
+            { date: "2026-03-05", amount: 76.70, from: "Teja (Pending)", saleAmount: 3068 },
         ],
     },
     AGM2: {
@@ -112,7 +112,7 @@ const ALTERNATE_USERS = {
         recentCommissions: [
             { date: "2026-03-29", amount: 149.90, from: "Lakshmi (ME)", saleAmount: 2999 },
             { date: "2026-03-22", amount: 79.95, from: "Kiran (Pending)", saleAmount: 1599 },
-            { date: "2026-03-15", amount: 143.78, from: "Self sale", saleAmount: 4999, costPrice: 2800, profit: 2199, commission: 219.9 }, // Wait adjust: profit 2199, 10% = 219.9? Actually 4999-2800=2199, 10% = 219.9. But I'll correct.
+            { date: "2026-03-15", amount: 143.78, from: "Self sale", saleAmount: 4999 },
         ],
     },
     MM2: {
@@ -131,12 +131,38 @@ const ALTERNATE_USERS = {
         level: "ME",
         totalCommission: 1249.50,
         recentCommissions: [
-            { date: "2026-03-28", amount: 1249.50, from: "Self sale", saleAmount: 4999, costPrice: 2800, profit: 2199, commission: 1099.5 }, // 50% of profit
+            { date: "2026-03-28", amount: 1249.50, from: "Self sale", saleAmount: 4999 },
         ],
     },
 };
 
 const RANKS = ["GM", "DGM", "AGM", "SMM", "MM", "ME"];
+
+// Helper to get commission percentage from level
+const getCommissionPercentage = (level) => {
+    switch (level) {
+        case "GM": return 2.5;
+        case "DGM": return 5;
+        case "AGM": return 7.5;
+        case "SMM": return 10;
+        case "MM": return 15;
+        case "ME": return 50;
+        default: return 0;
+    }
+};
+
+// Helper to get full position name
+const getFullPositionName = (level) => {
+    switch (level) {
+        case "GM": return "General Manager";
+        case "DGM": return "Deputy General Manager";
+        case "AGM": return "Assistant General Manager";
+        case "SMM": return "Senior Master Member";
+        case "MM": return "Master Member";
+        case "ME": return "Member";
+        default: return "";
+    }
+};
 
 export default function RealTimeCommission() {
     const [selectedRank, setSelectedRank] = useState(null);
@@ -148,8 +174,6 @@ export default function RealTimeCommission() {
             setCurrentUser(null);
         } else {
             setSelectedRank(rank);
-            // For demo, use the primary user from USERS_BY_RANK
-            // You could also randomly pick or toggle between multiple users of same rank
             setCurrentUser(USERS_BY_RANK[rank]);
         }
     };
@@ -171,8 +195,8 @@ export default function RealTimeCommission() {
                             key={rank}
                             onClick={() => handleRankClick(rank)}
                             className={`px-6 py-2 rounded-full font-bold transition-all shadow-sm ${selectedRank === rank
-                                ? "bg-blue-600 text-white ring-2 ring-offset-2 ring-blue-400"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    ? "bg-blue-600 text-white ring-2 ring-offset-2 ring-blue-400"
+                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                                 }`}
                         >
                             {rank}
@@ -195,6 +219,24 @@ export default function RealTimeCommission() {
                                 <div className="text-right">
                                     <div className="text-sm opacity-90">Total Commission Earned</div>
                                     <div className="text-3xl font-bold">{formatCurrency(currentUser.totalCommission)}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Commission Rate Card (NEW) */}
+                        <div className="mx-6 mt-6 bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-lg p-4 shadow-sm">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <div>
+                                    <p className="text-sm text-gray-600">Your Commission Rate</p>
+                                    <p className="text-2xl font-bold text-amber-700">{getCommissionPercentage(currentUser.level)}%</p>
+                                    <p className="text-xs text-gray-500">
+                                        as a {getFullPositionName(currentUser.level)} ({currentUser.level})
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-600">You earn</p>
+                                    <p className="text-lg font-semibold text-green-700">{getCommissionPercentage(currentUser.level)}% of profit</p>
+                                    <p className="text-xs text-gray-500">on every downline sale</p>
                                 </div>
                             </div>
                         </div>
@@ -240,13 +282,7 @@ export default function RealTimeCommission() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 pt-0">
                             <div className="bg-blue-50 rounded-lg p-3 text-center">
                                 <div className="text-xs text-blue-600">Commission Rate</div>
-                                <div className="text-xl font-bold">
-                                    {currentUser.level === "GM" ? "2.5%" :
-                                        currentUser.level === "DGM" ? "5%" :
-                                            currentUser.level === "AGM" ? "7.5%" :
-                                                currentUser.level === "SMM" ? "10%" :
-                                                    currentUser.level === "MM" ? "15%" : "50%"}
-                                </div>
+                                <div className="text-xl font-bold">{getCommissionPercentage(currentUser.level)}%</div>
                             </div>
                             <div className="bg-green-50 rounded-lg p-3 text-center">
                                 <div className="text-xs text-green-600">Total Transactions</div>
