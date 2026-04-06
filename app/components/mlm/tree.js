@@ -2,7 +2,7 @@
 
 "use client";
 
-import { Fragment, useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, getLevelColor } from "@/app/components/lib/mlmUtils";
 
@@ -15,48 +15,35 @@ export default function MLMTree() {
     const [error, setError] = useState(null);
     const [searchCode, setSearchCode] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
-    const [currentUserLevel, setCurrentUserLevel] = useState(null);
-    const [originalUser, setOriginalUser] = useState(null);
     const [viewMode, setViewMode] = useState("tree");
 
-    // Helper to get the current logged-in user's info from localStorage
-    const getCurrentUserInfo = useCallback(() => {
-        const userCode = localStorage.getItem("mlm_user_code") || localStorage.getItem("applicationId");
-        const userLevel = localStorage.getItem("userLevel"); // e.g., "GM", "ME", etc.
-        return { userCode, userLevel };
-    }, []);
-
-    // Helper to get the identifier from URL or localStorage (for initial load)
-    const getIdentifier = useCallback(() => {
-        // First check URL params (for GM links)
+    // Helper to get the identifier from URL or localStorage
+    const getIdentifier = () => {
+        // Check URL param first
         const urlCode = searchParams.get("mlm_user_code") || searchParams.get("userCode");
         if (urlCode) return urlCode;
-        // Then localStorage (current user)
-        const { userCode } = getCurrentUserInfo();
-        return userCode;
-    }, [searchParams, getCurrentUserInfo]);
+        // Then localStorage
+        return localStorage.getItem("mlm_user_code") || localStorage.getItem("applicationId");
+    };
 
-    // Check if the user is allowed to view a given identifier
-    const canViewUser = useCallback((identifier) => {
-        const { userCode, userLevel } = getCurrentUserInfo();
-        // GM can view anyone
-        if (userLevel === "GM") return true;
-        // Non-GM (ME, DGM, AGM, SMM, MM) can only view their own tree
-        return identifier === userCode;
-    }, [getCurrentUserInfo]);
-
-    const fetchTreeData = useCallback(async (identifier, skipPermissionCheck = false) => {
-        // Permission check
-        if (!skipPermissionCheck && !canViewUser(identifier)) {
-            setError("You don't have permission to view this user's tree.");
+    useEffect(() => {
+        const identifier = getIdentifier();
+        if (identifier) {
+            fetchTreeData(identifier);
+            setCurrentUser(identifier);
+        } else {
+            // No identifier – show empty state
             setTreeData(null);
             setStats(null);
-            return;
+            setCurrentUser(null);
         }
+    }, []);
 
+    const fetchTreeData = async (identifier) => {
         setLoading(true);
         setError(null);
         try {
+            // Use the correct query parameter "userCode"
             const res = await fetch(`/api/mlm/tree?userCode=${encodeURIComponent(identifier)}&depth=4`);
             const data = await res.json();
 
@@ -77,53 +64,21 @@ export default function MLMTree() {
         } finally {
             setLoading(false);
         }
-    }, [canViewUser]);
-
-    // On mount, load current user info and fetch their tree
-    useEffect(() => {
-        const { userCode, userLevel } = getCurrentUserInfo();
-        if (userLevel) setCurrentUserLevel(userLevel);
-
-        const identifier = getIdentifier();
-        if (identifier) {
-            fetchTreeData(identifier, true); // skip permission check for initial load (it's the user's own)
-            setOriginalUser(identifier);
-        } else {
-            setTreeData(null);
-            setStats(null);
-            setCurrentUser(null);
-            setOriginalUser(null);
-        }
-    }, [getIdentifier, fetchTreeData, getCurrentUserInfo]);
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchCode.trim()) {
-            if (!canViewUser(searchCode.trim())) {
-                setError("You don't have permission to view this user's tree.");
-                return;
-            }
             fetchTreeData(searchCode.trim());
             setSearchCode("");
         }
     };
 
-    const handleReset = () => {
-        if (originalUser && canViewUser(originalUser)) {
-            fetchTreeData(originalUser);
-        } else if (originalUser) {
-            setError("You don't have permission to view the original user's tree.");
-        }
-    };
-
     const handleViewUser = (identifier) => {
-        if (!canViewUser(identifier)) {
-            setError("You don't have permission to view this user's downline.");
-            return;
-        }
         fetchTreeData(identifier);
     };
 
+    // Helper to safely get display name (fallback to userCode or applicationId)
     const getDisplayName = (node) => {
         return node.fullName || node.applicationId || node.userCode || "Unknown";
     };
@@ -132,13 +87,9 @@ export default function MLMTree() {
         if (!node) return null;
 
         const levelClass = node.level ? getLevelColor(node.level) : "bg-gray-400";
-        let levelDisplay = node.level;
-        if (!levelDisplay) {
-            levelDisplay = node.status === "approved" ? "Approved" : "Pending";
-        }
-
+        const levelDisplay = node.level || "Pending";
+        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
         const identifier = node.mlmUserCode || node.userCode || node.applicationId;
-        const walletAmount = node.wallet ? formatCurrency(node.wallet) : null;
 
         return (
             <div key={node._id} className="tree-node relative">
@@ -150,28 +101,18 @@ export default function MLMTree() {
                             <span className="text-sm text-gray-500 ml-2">({identifier})</span>
                         )}
                         <span className="text-xs text-gray-400 ml-2">{levelDisplay}</span>
-                        {walletAmount !== null && (
-                            <span className="text-xs text-green-600 ml-2">
-                                Wallet: {walletAmount}
-                            </span>
-                        )}
+                        <span className="text-xs text-green-600 ml-2">
+                            Wallet: {walletAmount}
+                        </span>
                     </div>
-                    {identifier && currentUserLevel === "GM" && (
+                    {/* Only show "View" button if the node has a valid identifier (mlmUserCode or applicationId) */}
+                    {identifier && (
                         <button
                             onClick={() => handleViewUser(identifier)}
-                            className="text-xs text-yellow-600 hover:text-yellow-800 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-50 transition"
+                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50 transition"
                             disabled={loading}
                         >
                             View
-                        </button>
-                    )}
-                    {identifier && currentUserLevel !== "GM" && identifier === currentUser && (
-                        <button
-                            onClick={() => handleViewUser(identifier)}
-                            className="text-xs text-yellow-600 hover:text-yellow-800 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-50 transition"
-                            disabled={loading}
-                        >
-                            Refresh
                         </button>
                     )}
                 </div>
@@ -187,13 +128,9 @@ export default function MLMTree() {
     const renderListView = (node, level = 0) => {
         if (!node) return null;
 
-        let levelDisplay = node.level;
-        if (!levelDisplay) {
-            levelDisplay = node.status === "approved" ? "Approved" : "Pending";
-        }
-
-        const identifier = node.mlmUserCode || node.userCode || node.applicationId;
+        const levelDisplay = node.level || "Pending";
         const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
+        const identifier = node.mlmUserCode || node.userCode || node.applicationId;
 
         return (
             <Fragment key={node._id}>
@@ -209,22 +146,13 @@ export default function MLMTree() {
                     </td>
                     <td className="px-4 py-2">{walletAmount}</td>
                     <td className="px-4 py-2">
-                        {identifier && currentUserLevel === "GM" && (
+                        {identifier && (
                             <button
                                 onClick={() => handleViewUser(identifier)}
-                                className="text-yellow-600 hover:text-yellow-800"
+                                className="text-blue-600 hover:text-blue-800"
                                 disabled={loading}
                             >
                                 View Downline
-                            </button>
-                        )}
-                        {identifier && currentUserLevel !== "GM" && identifier === currentUser && (
-                            <button
-                                onClick={() => handleViewUser(identifier)}
-                                className="text-yellow-600 hover:text-yellow-800"
-                                disabled={loading}
-                            >
-                                Refresh
                             </button>
                         )}
                     </td>
@@ -238,8 +166,8 @@ export default function MLMTree() {
 
     if (loading && !treeData) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
     }
@@ -253,74 +181,57 @@ export default function MLMTree() {
                             <h1 className="text-3xl font-bold text-gray-800">Real Beez Tree Structure</h1>
                             <p className="text-gray-600 mt-2">
                                 {currentUser ? `Viewing tree for: ${currentUser}` : 'No user selected'}
-                                {currentUserLevel && ` (Your level: ${currentUserLevel})`}
                             </p>
                         </div>
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setViewMode("tree")}
-                                className={`px-4 py-1.5 rounded-full transition ${viewMode === "tree" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-2 rounded transition ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 Tree View
                             </button>
                             <button
                                 onClick={() => setViewMode("list")}
-                                className={`px-4 py-1.5 rounded-full transition ${viewMode === "list" ? "bg-yellow-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                className={`px-4 py-2 rounded transition ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
                             >
                                 List View
                             </button>
                         </div>
                     </div>
-
-                    {/* Search Bar - only show for GM */}
-                    {currentUserLevel === "GM" && (
-                        <div className="mt-6">
-                            <form onSubmit={handleSearch} className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={searchCode}
-                                    onChange={(e) => setSearchCode(e.target.value)}
-                                    placeholder="Enter MLM User Code or Application ID..."
-                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={!searchCode.trim() || loading}
-                                    className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                >
-                                    Search
-                                </button>
-                                {originalUser && currentUser !== originalUser && (
-                                    <button
-                                        type="button"
-                                        onClick={handleReset}
-                                        className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-                                    >
-                                        Reset
-                                    </button>
-                                )}
-                            </form>
-                        </div>
-                    )}
-
-                    {currentUserLevel !== "GM" && (
-                        <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                            ℹ️ You are viewing only your own downline. To explore other networks, please contact your GM.
-                        </div>
-                    )}
                 </div>
 
+                {/* Search */}
+                <div className="mb-6">
+                    <form onSubmit={handleSearch} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={searchCode}
+                            onChange={(e) => setSearchCode(e.target.value)}
+                            placeholder="Enter user code or application ID (e.g., GM-001 or RB20251234)"
+                            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            type="submit"
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                        >
+                            View Tree
+                        </button>
+                    </form>
+                </div>
+
+                {/* Error */}
                 {error && (
                     <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
                         <strong>Error:</strong> {error}
                     </div>
                 )}
 
+                {/* Stats */}
                 {stats && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Direct Children</div>
-                            <div className="text-2xl font-bold text-yellow-600">{stats.directChildren}</div>
+                            <div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Total Downline</div>
@@ -329,52 +240,13 @@ export default function MLMTree() {
                         <div className="bg-white rounded-lg shadow p-4">
                             <div className="text-gray-500 text-sm">Level / Status</div>
                             <div className="text-2xl font-bold text-purple-600">
-                                {stats.level || "Pending"}
-                                {stats.status && stats.status !== "approved" && ` (${stats.status})`}
+                                {stats.level === "Pending" ? "Pending Approval" : stats.level}
                             </div>
                         </div>
                     </div>
                 )}
 
-                {stats && (stats.directByLevel || stats.totalByLevel) && (
-                    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-4">Downline Breakdown by Level</h2>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direct Downlines</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Downlines (incl. indirect)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {Object.keys(stats.directByLevel || {}).map(level => (
-                                        <tr key={level}>
-                                            <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className={`w-3 h-3 rounded-full inline-block mr-2 ${getLevelColor(level)}`}></div>
-                                                <span className="font-medium">{level}</span>
-                                            </td>
-                                            <td className="px-4 py-2">{stats.directByLevel[level] || 0}</td>
-                                            <td className="px-4 py-2">{stats.totalByLevel?.[level] || 0}</td>
-                                        </tr>
-                                    ))}
-                                    {Object.keys(stats.totalByLevel || {}).filter(level => !stats.directByLevel?.[level]).map(level => (
-                                        <tr key={level}>
-                                            <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className={`w-3 h-3 rounded-full inline-block mr-2 ${getLevelColor(level)}`}></div>
-                                                <span className="font-medium">{level}</span>
-                                            </td>
-                                            <td className="px-4 py-2">0</td>
-                                            <td className="px-4 py-2">{stats.totalByLevel[level]}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
+                {/* Tree Visualization */}
                 <div className="bg-white rounded-lg shadow-md p-6">
                     {!treeData ? (
                         <div className="text-center py-8 text-gray-500">
@@ -404,6 +276,7 @@ export default function MLMTree() {
                     )}
                 </div>
 
+                {/* Legend */}
                 <div className="mt-4 text-sm text-gray-600 text-center">
                     <p>Click "View" to explore downline | Each node shows Name (Identifier) and Level</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
