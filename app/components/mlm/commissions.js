@@ -2,9 +2,81 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatCurrency } from "@/app/components/lib/mlmUtils";
+
+// ---------- DUMMY COMMISSION DATA (simulating backend) ----------
+// Each entry matches the expected commission object from API
+const DUMMY_COMMISSIONS_BY_USER = {
+    // GM - Rajesh Kumar Reddy (RBZ1001)
+    RBZ1001: [
+        { _id: "comm1", createdAt: "2026-03-30T10:00:00Z", level: "GM", saleAmount: 2999, percentage: 2.5, commissionAmount: 37.48, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
+        { _id: "comm2", createdAt: "2026-03-28T14:30:00Z", level: "GM", saleAmount: 4999, percentage: 2.5, commissionAmount: 54.98, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
+        { _id: "comm3", createdAt: "2026-03-25T09:15:00Z", level: "GM", saleAmount: 1599, percentage: 2.5, commissionAmount: 19.98, fromUser: "RBZ5003", description: "Sale by Rekha" },
+        { _id: "comm4", createdAt: "2026-03-20T16:45:00Z", level: "GM", saleAmount: 3499, percentage: 2.5, commissionAmount: 39.98, fromUser: "RBZ5004", description: "Sale by Suresh" },
+        { _id: "comm5", createdAt: "2026-03-15T11:20:00Z", level: "GM", saleAmount: 2999, percentage: 2.5, commissionAmount: 37.48, fromUser: "RBZ4001", description: "Sale by Sneha Reddy" },
+        { _id: "comm6", createdAt: "2026-03-10T08:00:00Z", level: "GM", saleAmount: 4999, percentage: 2.5, commissionAmount: 54.98, fromUser: "RBZ4002", description: "Sale by Vikram Singh" },
+        { _id: "comm7", createdAt: "2026-03-05T13:30:00Z", level: "GM", saleAmount: 1599, percentage: 2.5, commissionAmount: 19.98, fromUser: "RBZ4003", description: "Sale by Divya K" },
+        { _id: "comm8", createdAt: "2026-02-28T09:45:00Z", level: "GM", saleAmount: 3499, percentage: 2.5, commissionAmount: 39.98, fromUser: "RBZ4004", description: "Sale by Arjun Nair" },
+    ],
+    // DGM - Priya Sharma (RBZ2001)
+    RBZ2001: [
+        { _id: "comm9", createdAt: "2026-03-30T10:00:00Z", level: "DGM", saleAmount: 2999, percentage: 5, commissionAmount: 74.95, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
+        { _id: "comm10", createdAt: "2026-03-28T14:30:00Z", level: "DGM", saleAmount: 4999, percentage: 5, commissionAmount: 124.95, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
+        { _id: "comm11", createdAt: "2026-03-25T09:15:00Z", level: "DGM", saleAmount: 1599, percentage: 5, commissionAmount: 39.95, fromUser: "RBZ5003", description: "Sale by Rekha" },
+        { _id: "comm12", createdAt: "2026-03-20T16:45:00Z", level: "DGM", saleAmount: 3499, percentage: 5, commissionAmount: 87.45, fromUser: "RBZ5004", description: "Sale by Suresh" },
+    ],
+    // DGM - Vijay Malhotra (RBZ2002)
+    RBZ2002: [
+        { _id: "comm13", createdAt: "2026-03-29T11:30:00Z", level: "DGM", saleAmount: 2999, percentage: 5, commissionAmount: 74.95, fromUser: "RBZ4005", description: "Sale by Pooja Desai" },
+        { _id: "comm14", createdAt: "2026-03-27T15:20:00Z", level: "DGM", saleAmount: 4999, percentage: 5, commissionAmount: 124.95, fromUser: "RBZ4006", description: "Sale by Ravi Shankar" },
+        { _id: "comm15", createdAt: "2026-03-22T10:10:00Z", level: "DGM", saleAmount: 1599, percentage: 5, commissionAmount: 39.95, fromUser: "RBZ4007", description: "Sale by Deepa Nair" },
+    ],
+    // AGM - Amit Patel (RBZ3001)
+    RBZ3001: [
+        { _id: "comm16", createdAt: "2026-03-30T10:00:00Z", level: "AGM", saleAmount: 2999, percentage: 7.5, commissionAmount: 112.43, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
+        { _id: "comm17", createdAt: "2026-03-28T14:30:00Z", level: "AGM", saleAmount: 4999, percentage: 7.5, commissionAmount: 187.43, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
+    ],
+    // AGM - Anjali Mehta (RBZ3004)
+    RBZ3004: [
+        { _id: "comm18", createdAt: "2026-03-29T11:30:00Z", level: "AGM", saleAmount: 2999, percentage: 7.5, commissionAmount: 112.43, fromUser: "RBZ4005", description: "Sale by Pooja Desai" },
+        { _id: "comm19", createdAt: "2026-03-27T15:20:00Z", level: "AGM", saleAmount: 4999, percentage: 7.5, commissionAmount: 187.43, fromUser: "RBZ4006", description: "Sale by Ravi Shankar" },
+    ],
+    // SMM - Neha Gupta (RBZ3002)
+    RBZ3002: [
+        { _id: "comm20", createdAt: "2026-03-30T10:00:00Z", level: "SMM", saleAmount: 2999, percentage: 10, commissionAmount: 149.90, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
+    ],
+    // SMM - Pooja Desai (RBZ4005)
+    RBZ4005: [
+        { _id: "comm21", createdAt: "2026-03-29T11:30:00Z", level: "SMM", saleAmount: 2999, percentage: 10, commissionAmount: 149.90, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
+    ],
+    // MM - Sneha Reddy (RBZ4001)
+    RBZ4001: [
+        { _id: "comm22", createdAt: "2026-03-15T11:20:00Z", level: "MM", saleAmount: 2999, percentage: 15, commissionAmount: 224.85, fromUser: "RBZ6001", description: "Sale by Rohan Das" },
+    ],
+    // ME - Kavita Nair (RBZ5001)
+    RBZ5001: [
+        { _id: "comm23", createdAt: "2026-03-30T10:00:00Z", level: "ME", saleAmount: 2999, percentage: 50, commissionAmount: 749.50, fromUser: null, description: "Self sale" },
+    ],
+    // ME - Lakshmi (RBZ5002)
+    RBZ5002: [
+        { _id: "comm24", createdAt: "2026-03-28T14:30:00Z", level: "ME", saleAmount: 4999, percentage: 50, commissionAmount: 1249.50, fromUser: null, description: "Self sale" },
+    ],
+    // ME - Rekha (RBZ5003)
+    RBZ5003: [
+        { _id: "comm25", createdAt: "2026-03-25T09:15:00Z", level: "ME", saleAmount: 1599, percentage: 50, commissionAmount: 399.50, fromUser: null, description: "Self sale" },
+    ],
+    // ME - Suresh (RBZ5004)
+    RBZ5004: [
+        { _id: "comm26", createdAt: "2026-03-20T16:45:00Z", level: "ME", saleAmount: 3499, percentage: 50, commissionAmount: 874.50, fromUser: null, description: "Self sale" },
+    ],
+};
+
+// Fallback empty array for unknown user
+const getDummyCommissions = (userCode) => {
+    return DUMMY_COMMISSIONS_BY_USER[userCode] || [];
+};
 
 export default function CommissionsPage() {
     const searchParams = useSearchParams();
@@ -14,45 +86,52 @@ export default function CommissionsPage() {
     const [userCode, setUserCode] = useState("");
     const [filter, setFilter] = useState({
         fromDate: "",
-        toDate: ""
+        toDate: "",
     });
     const [stats, setStats] = useState({
         today: 0,
         week: 0,
-        month: 0
+        month: 0,
     });
 
+    // Load user code and dummy data
     useEffect(() => {
         const code = searchParams.get("userCode") || localStorage.getItem("mlm_user_code");
         if (code) {
             setUserCode(code);
-            fetchCommissions(code);
+            loadCommissions(code);
         } else {
             setLoading(false);
         }
     }, [searchParams]);
 
-    const fetchCommissions = async (code) => {
-        try {
-            setLoading(true);
-            let url = `/api/mlm/commission?userCode=${code}&limit=100`;
+    // Load commissions from dummy data (with optional date filtering)
+    const loadCommissions = (code, dateFilter = filter) => {
+        setLoading(true);
+        // Simulate async delay
+        setTimeout(() => {
+            let allCommissions = getDummyCommissions(code);
 
-            if (filter.fromDate) url += `&fromDate=${filter.fromDate}`;
-            if (filter.toDate) url += `&toDate=${filter.toDate}`;
-
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (data.success) {
-                setCommissions(data.commissions);
-                setTotalCommission(data.totalCommission);
-                calculateStats(data.commissions);
+            // Apply date filters
+            if (dateFilter.fromDate) {
+                const from = new Date(dateFilter.fromDate);
+                allCommissions = allCommissions.filter(c => new Date(c.createdAt) >= from);
             }
-        } catch (err) {
-            console.log("Error fetching commissions:", err);
-        } finally {
+            if (dateFilter.toDate) {
+                const to = new Date(dateFilter.toDate);
+                to.setHours(23, 59, 59, 999);
+                allCommissions = allCommissions.filter(c => new Date(c.createdAt) <= to);
+            }
+
+            // Sort by date descending (newest first)
+            allCommissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            const total = allCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+            setCommissions(allCommissions);
+            setTotalCommission(total);
+            calculateStats(allCommissions);
             setLoading(false);
-        }
+        }, 300); // simulate network delay
     };
 
     const calculateStats = (commissionsData) => {
@@ -77,27 +156,28 @@ export default function CommissionsPage() {
         setStats({
             today: todayTotal,
             week: weekTotal,
-            month: monthTotal
+            month: monthTotal,
         });
     };
 
     const handleFilterChange = (e) => {
         setFilter({
             ...filter,
-            [e.target.name]: e.target.value
+            [e.target.name]: e.target.value,
         });
     };
 
     const applyFilter = () => {
         if (userCode) {
-            fetchCommissions(userCode);
+            loadCommissions(userCode, filter);
         }
     };
 
     const resetFilter = () => {
-        setFilter({ fromDate: "", toDate: "" });
+        const emptyFilter = { fromDate: "", toDate: "" };
+        setFilter(emptyFilter);
         if (userCode) {
-            fetchCommissions(userCode);
+            loadCommissions(userCode, emptyFilter);
         }
     };
 
@@ -115,10 +195,11 @@ export default function CommissionsPage() {
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Commission History</h1>
                     <p className="text-gray-600 mt-2">
-                        User: <span className="font-semibold">{userCode}</span>
+                        User: <span className="font-semibold">{userCode || "Not specified"}</span>
                     </p>
                     <p className="text-gray-600">
-                        Total Commission Earned: <span className="text-2xl font-bold text-green-600">{formatCurrency(totalCommission)}</span>
+                        Total Commission Earned:{" "}
+                        <span className="text-2xl font-bold text-green-600">{formatCurrency(totalCommission)}</span>
                     </p>
                 </div>
 
@@ -190,12 +271,13 @@ export default function CommissionsPage() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Amount</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission %</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission Amount</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">From / Description</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {commissions.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
                                             No commissions found
                                         </td>
                                     </tr>
@@ -206,23 +288,33 @@ export default function CommissionsPage() {
                                                 {new Date(commission.createdAt).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 text-xs rounded-full ${commission.level === 'GM' ? 'bg-red-100 text-red-700' :
-                                                    commission.level === 'DGM' ? 'bg-orange-100 text-orange-700' :
-                                                        commission.level === 'AGM' ? 'bg-yellow-100 text-yellow-700' :
-                                                            commission.level === 'SMM' ? 'bg-green-100 text-green-700' :
-                                                                commission.level === 'MM' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                                    }`}>
+                                                <span
+                                                    className={`px-2 py-1 text-xs rounded-full ${commission.level === "GM"
+                                                            ? "bg-red-100 text-red-700"
+                                                            : commission.level === "DGM"
+                                                                ? "bg-orange-100 text-orange-700"
+                                                                : commission.level === "AGM"
+                                                                    ? "bg-yellow-100 text-yellow-700"
+                                                                    : commission.level === "SMM"
+                                                                        ? "bg-green-100 text-green-700"
+                                                                        : commission.level === "MM"
+                                                                            ? "bg-blue-100 text-blue-700"
+                                                                            : "bg-purple-100 text-purple-700"
+                                                        }`}
+                                                >
                                                     {commission.level}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-900">
                                                 {formatCurrency(commission.saleAmount)}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900">
-                                                {commission.percentage}%
-                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">{commission.percentage}%</td>
                                             <td className="px-6 py-4 text-sm font-semibold text-green-600">
                                                 {formatCurrency(commission.commissionAmount)}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {commission.fromUser ? `User: ${commission.fromUser}` : "Self sale"}<br />
+                                                <span className="text-xs">{commission.description}</span>
                                             </td>
                                         </tr>
                                     ))
@@ -231,15 +323,24 @@ export default function CommissionsPage() {
                             {commissions.length > 0 && (
                                 <tfoot className="bg-gray-50">
                                     <tr>
-                                        <td colSpan="4" className="px-6 py-3 text-right font-semibold">Total:</td>
+                                        <td colSpan="4" className="px-6 py-3 text-right font-semibold">
+                                            Total:
+                                        </td>
                                         <td className="px-6 py-3 font-bold text-green-600">
                                             {formatCurrency(commissions.reduce((sum, c) => sum + c.commissionAmount, 0))}
                                         </td>
+                                        <td></td>
                                     </tr>
                                 </tfoot>
                             )}
                         </table>
                     </div>
+                </div>
+
+                {/* Note about dummy data */}
+                <div className="mt-4 text-xs text-gray-400 text-center border-t pt-4">
+                    <p>📊 Showing dummy commission data for demonstration. No backend calls are made.</p>
+                    <p>✅ Filtering, stats, and totals work entirely client-side on the dummy dataset.</p>
                 </div>
             </div>
         </div>
