@@ -11,7 +11,7 @@ import { formatCurrency } from "@/app/components/lib/mlmUtils";
 const DUMMY_SALES_BY_USER = {
     // GM - Rajesh Kumar Reddy (RBZ1001) - self sales + downline sales? But sales records typically belong to the seller.
     // For simplicity, we create sales records for each user as if they made the sale.
-    RBZ1001: [
+    RB000001: [
         { _id: "sale1", createdAt: "2026-04-05T10:30:00Z", amount: 2999, description: "Premium Health Supplement", productId: "PROD-001", customerName: "Customer A", commissionEarned: 74.98 },
         { _id: "sale2", createdAt: "2026-04-03T14:20:00Z", amount: 4999, description: "Wellness Kit", productId: "PROD-002", customerName: "Customer B", commissionEarned: 124.98 },
         { _id: "sale3", createdAt: "2026-03-30T09:15:00Z", amount: 1599, description: "Energy Booster Pack", productId: "PROD-003", customerName: "Customer C", commissionEarned: 39.98 },
