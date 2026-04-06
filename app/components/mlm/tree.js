@@ -11,10 +11,10 @@ const DUMMY_TREE_RESPONSE = {
     success: true,
     tree: {
         _id: "rbz_root_001",
-        fullName: "Rajesh Kumar Reddy",
+        fullName: "Bheema",
         applicationId: "RBZ-APP-001",
-        mlmUserCode: "RBZ1001",
-        userCode: "RBZ1001",
+        mlmUserCode: "RB000001",
+        userCode: "RB000001",
         level: "GM",
         wallet: 525000,
         children: [
@@ -560,7 +560,7 @@ export default function MLMTree() {
                             type="text"
                             value={searchCode}
                             onChange={(e) => setSearchCode(e.target.value)}
-                            placeholder="Enter user code (e.g., RBZ1001, RBZ3002)"
+                            placeholder="Enter user code (e.g., RB000001, RBZ3002)"
                             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button

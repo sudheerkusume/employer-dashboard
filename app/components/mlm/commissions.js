@@ -12,8 +12,8 @@ import { formatCurrency } from "@/app/components/lib/mlmUtils";
 const USERS_BY_RANK = {
     // GM: earns 2.5% of profit from all downline sales (from ME, MM, SMM, AGM, DGM)
     GM: {
-        name: "Rajesh Kumar Reddy",
-        userCode: "RBZ1001",
+        name: "Bheema",
+        userCode: "RB000001",
         level: "GM",
         totalCommission: 1250.75, // sum of all commissions below
         recentCommissions: [
