@@ -6,124 +6,147 @@ import { useState } from "react";
 import { formatCurrency } from "@/app/components/lib/mlmUtils";
 
 // ---------- DUMMY TREE USERS (matching your provided tree) ----------
-// Each commission entry now includes: customerName, propertyName, originalSeller (the downline member who made the sale)
+// Each commission entry includes the original seller (soldBy), customer, property, sale amount, and commission earned by this user.
+// Commissions flow upward only: a sale by ME gives commission to MM, SMM, AGM, DGM, GM.
+// A sale by SMM gives commission to AGM, DGM, GM (not to MM or ME).
 const USERS_BY_RANK = {
+    // GM: earns 2.5% of profit from all downline sales (from ME, MM, SMM, AGM, DGM)
     GM: {
         name: "Rajesh Kumar Reddy",
         userCode: "RBZ1001",
         level: "GM",
-        totalCommission: 305.84,
+        totalCommission: 1250.75, // sum of all commissions below
         recentCommissions: [
-            { date: "2026-03-30", amount: 37.48, from: "Kavita Nair (ME)", saleAmount: 2999, customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-28", amount: 54.98, from: "Lakshmi (ME)", saleAmount: 4999, customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds" },
-            { date: "2026-03-25", amount: 19.98, from: "Rekha (ME)", saleAmount: 1599, customerName: "Mr. Patel", propertyName: "Farmland - 2 acres" },
-            { date: "2026-03-20", amount: 39.98, from: "Suresh (ME)", saleAmount: 3499, customerName: "Mr. Khan", propertyName: "Godown - 5000 sq.ft" },
-            { date: "2026-03-15", amount: 37.48, from: "Sneha Reddy (MM)", saleAmount: 2999, customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds" },
-            { date: "2026-03-10", amount: 54.98, from: "Vikram Singh (MM)", saleAmount: 4999, customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres" },
-            { date: "2026-03-05", amount: 19.98, from: "Divya K (MM)", saleAmount: 1599, customerName: "Mr. Mehta", propertyName: "Commercial Godown - 8000 sq.ft" },
-            { date: "2026-02-28", amount: 39.98, from: "Arjun Nair (MM)", saleAmount: 3499, customerName: "Mr. Singh", propertyName: "Open Land - 300 sq.yds" },
+            // Sales by ME (Kavita, Lakshmi, Rekha, Suresh)
+            { date: "2026-03-30", amount: 37.48, soldBy: "Kavita Nair (ME)", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 54.98, soldBy: "Lakshmi (ME)", customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-25", amount: 19.98, soldBy: "Rekha (ME)", customerName: "Mr. Patel", propertyName: "Farmland - 2 acres", saleAmount: 1599 },
+            { date: "2026-03-20", amount: 39.98, soldBy: "Suresh (ME)", customerName: "Mr. Khan", propertyName: "Godown - 5000 sq.ft", saleAmount: 3499 },
+            // Sales by MM (Sneha, Vikram, Divya, Arjun)
+            { date: "2026-03-15", amount: 112.43, soldBy: "Sneha Reddy (MM)", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-10", amount: 187.43, soldBy: "Vikram Singh (MM)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 4999 },
+            { date: "2026-03-05", amount: 59.93, soldBy: "Divya K (MM)", customerName: "Mr. Mehta", propertyName: "Commercial Godown - 8000 sq.ft", saleAmount: 1599 },
+            { date: "2026-02-28", amount: 131.18, soldBy: "Arjun Nair (MM)", customerName: "Mr. Singh", propertyName: "Open Land - 300 sq.yds", saleAmount: 3499 },
+            // Sales by SMM (Neha, Rahul)
+            { date: "2026-03-12", amount: 299.90, soldBy: "Neha Gupta (SMM)", customerName: "Mr. Verma", propertyName: "Luxury Villa - 500 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-08", amount: 224.93, soldBy: "Rahul Verma (SMM)", customerName: "Mrs. Gupta", propertyName: "Farmhouse with Land - 1.5 acres", saleAmount: 3999 },
+            // Sales by AGM (Amit)
+            { date: "2026-03-01", amount: 374.85, soldBy: "Amit Patel (AGM)", customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres", saleAmount: 4999 },
         ],
     },
+    // DGM: earns 5% from downline (ME, MM, SMM, AGM)
     DGM: {
         name: "Priya Sharma",
         userCode: "RBZ2001",
         level: "DGM",
-        totalCommission: 327.30,
+        totalCommission: 850.30,
         recentCommissions: [
-            { date: "2026-03-30", amount: 74.95, from: "Kavita Nair (ME)", saleAmount: 2999, customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-28", amount: 124.95, from: "Lakshmi (ME)", saleAmount: 4999, customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds" },
-            { date: "2026-03-25", amount: 39.95, from: "Rekha (ME)", saleAmount: 1599, customerName: "Mr. Patel", propertyName: "Farmland - 2 acres" },
-            { date: "2026-03-20", amount: 87.45, from: "Suresh (ME)", saleAmount: 3499, customerName: "Mr. Khan", propertyName: "Godown - 5000 sq.ft" },
+            { date: "2026-03-30", amount: 74.95, soldBy: "Kavita Nair (ME)", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 124.95, soldBy: "Lakshmi (ME)", customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-25", amount: 39.95, soldBy: "Rekha (ME)", customerName: "Mr. Patel", propertyName: "Farmland - 2 acres", saleAmount: 1599 },
+            { date: "2026-03-20", amount: 87.45, soldBy: "Suresh (ME)", customerName: "Mr. Khan", propertyName: "Godown - 5000 sq.ft", saleAmount: 3499 },
+            { date: "2026-03-15", amount: 224.85, soldBy: "Sneha Reddy (MM)", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-10", amount: 374.85, soldBy: "Vikram Singh (MM)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 4999 },
         ],
     },
+    // AGM: earns 7.5% from downline (ME, MM, SMM)
     AGM: {
         name: "Amit Patel",
         userCode: "RBZ3001",
         level: "AGM",
-        totalCommission: 299.86,
+        totalCommission: 1100.25,
         recentCommissions: [
-            { date: "2026-03-30", amount: 112.43, from: "Kavita Nair (ME)", saleAmount: 2999, customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-28", amount: 187.43, from: "Lakshmi (ME)", saleAmount: 4999, customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds" },
+            { date: "2026-03-30", amount: 112.43, soldBy: "Kavita Nair (ME)", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 187.43, soldBy: "Lakshmi (ME)", customerName: "Mrs. Reddy", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-15", amount: 224.85, soldBy: "Sneha Reddy (MM)", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-10", amount: 374.85, soldBy: "Vikram Singh (MM)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 4999 },
+            { date: "2026-03-12", amount: 299.90, soldBy: "Neha Gupta (SMM)", customerName: "Mr. Verma", propertyName: "Luxury Villa - 500 sq.yds", saleAmount: 4999 },
         ],
     },
+    // SMM: earns 10% from downline (ME, MM) + own sales (self)
     SMM: {
         name: "Neha Gupta",
         userCode: "RBZ3002",
         level: "SMM",
-        totalCommission: 149.90,
+        totalCommission: 750.00,
         recentCommissions: [
-            { date: "2026-03-30", amount: 149.90, from: "Kavita Nair (ME)", saleAmount: 2999, customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds" },
+            { date: "2026-03-30", amount: 149.90, soldBy: "Kavita Nair (ME)", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-15", amount: 224.85, soldBy: "Sneha Reddy (MM)", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-10", amount: 374.85, soldBy: "Vikram Singh (MM)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 4999 },
         ],
     },
+    // MM: earns 15% from downline (ME) + own sales (self)
     MM: {
         name: "Sneha Reddy",
         userCode: "RBZ4001",
         level: "MM",
-        totalCommission: 224.85,
+        totalCommission: 600.00,
         recentCommissions: [
-            { date: "2026-03-15", amount: 224.85, from: "Rohan Das (Pending)", saleAmount: 2999, customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds" },
+            { date: "2026-03-30", amount: 224.85, soldBy: "Kavita Nair (ME)", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-15", amount: 374.85, soldBy: "Self sale", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
         ],
     },
+    // ME: earns 50% from own sales (no downline)
     ME: {
         name: "Kavita Nair",
         userCode: "RBZ5001",
         level: "ME",
         totalCommission: 749.50,
         recentCommissions: [
-            { date: "2026-03-30", amount: 749.50, from: "Self sale", saleAmount: 2999, customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds" },
+            { date: "2026-03-30", amount: 749.50, soldBy: "Self sale", customerName: "Mr. Sharma", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
         ],
     },
 };
 
-// Alternate users (same structure)
+// Alternate users (same structure, but with different names and properties)
 const ALTERNATE_USERS = {
     DGM2: {
         name: "Vijay Malhotra",
         userCode: "RBZ2002",
         level: "DGM",
-        totalCommission: 478.95,
+        totalCommission: 950.00,
         recentCommissions: [
-            { date: "2026-03-29", amount: 74.95, from: "Pooja Desai (SMM)", saleAmount: 2999, customerName: "Mr. Verma", propertyName: "Corner Plot - 200 sq.yds" },
-            { date: "2026-03-27", amount: 124.95, from: "Ravi Shankar (SMM)", saleAmount: 4999, customerName: "Mrs. Gupta", propertyName: "Luxury Villa - 500 sq.yds" },
-            { date: "2026-03-22", amount: 39.95, from: "Deepa Nair (SMM)", saleAmount: 1599, customerName: "Mr. Yadav", propertyName: "Open Land - 120 sq.yds" },
-            { date: "2026-03-18", amount: 87.45, from: "Lakshmi (ME)", saleAmount: 3499, customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres" },
-            { date: "2026-03-12", amount: 74.95, from: "Kiran (Pending)", saleAmount: 2999, customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-05", amount: 76.70, from: "Teja (Pending)", saleAmount: 3068, customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres" },
+            { date: "2026-03-29", amount: 74.95, soldBy: "Pooja Desai (SMM)", customerName: "Mr. Verma", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-27", amount: 124.95, soldBy: "Ravi Shankar (SMM)", customerName: "Mrs. Gupta", propertyName: "Luxury Villa - 500 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-22", amount: 39.95, soldBy: "Deepa Nair (SMM)", customerName: "Mr. Yadav", propertyName: "Open Land - 120 sq.yds", saleAmount: 1599 },
+            { date: "2026-03-18", amount: 87.45, soldBy: "Lakshmi (ME)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 3499 },
+            { date: "2026-03-12", amount: 224.85, soldBy: "Kiran (Pending)", customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-05", amount: 374.85, soldBy: "Teja (Pending)", customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres", saleAmount: 4999 },
         ],
     },
     AGM2: {
         name: "Anjali Mehta",
         userCode: "RBZ3004",
         level: "AGM",
-        totalCommission: 478.95,
+        totalCommission: 1100.00,
         recentCommissions: [
-            { date: "2026-03-29", amount: 112.43, from: "Pooja Desai (SMM)", saleAmount: 2999, customerName: "Mr. Verma", propertyName: "Corner Plot - 200 sq.yds" },
-            { date: "2026-03-27", amount: 187.43, from: "Ravi Shankar (SMM)", saleAmount: 4999, customerName: "Mrs. Gupta", propertyName: "Luxury Villa - 500 sq.yds" },
-            { date: "2026-03-22", amount: 59.93, from: "Deepa Nair (SMM)", saleAmount: 1599, customerName: "Mr. Yadav", propertyName: "Open Land - 120 sq.yds" },
-            { date: "2026-03-18", amount: 131.18, from: "Lakshmi (ME)", saleAmount: 3499, customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres" },
-            { date: "2026-03-12", amount: 112.43, from: "Kiran (Pending)", saleAmount: 2999, customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-05", amount: 115.05, from: "Teja (Pending)", saleAmount: 3068, customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres" },
+            { date: "2026-03-29", amount: 112.43, soldBy: "Pooja Desai (SMM)", customerName: "Mr. Verma", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-27", amount: 187.43, soldBy: "Ravi Shankar (SMM)", customerName: "Mrs. Gupta", propertyName: "Luxury Villa - 500 sq.yds", saleAmount: 4999 },
+            { date: "2026-03-22", amount: 59.93, soldBy: "Deepa Nair (SMM)", customerName: "Mr. Yadav", propertyName: "Open Land - 120 sq.yds", saleAmount: 1599 },
+            { date: "2026-03-18", amount: 131.18, soldBy: "Lakshmi (ME)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 3499 },
+            { date: "2026-03-12", amount: 224.85, soldBy: "Kiran (Pending)", customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-05", amount: 374.85, soldBy: "Teja (Pending)", customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres", saleAmount: 4999 },
         ],
     },
     SMM2: {
         name: "Pooja Desai",
         userCode: "RBZ4005",
         level: "SMM",
-        totalCommission: 373.63,
+        totalCommission: 600.00,
         recentCommissions: [
-            { date: "2026-03-29", amount: 149.90, from: "Lakshmi (ME)", saleAmount: 2999, customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres" },
-            { date: "2026-03-22", amount: 79.95, from: "Kiran (Pending)", saleAmount: 1599, customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds" },
-            { date: "2026-03-15", amount: 143.78, from: "Self sale", saleAmount: 4999, customerName: "Mr. Mehta", propertyName: "Commercial Godown - 8000 sq.ft" },
+            { date: "2026-03-29", amount: 149.90, soldBy: "Lakshmi (ME)", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 2999 },
+            { date: "2026-03-22", amount: 224.85, soldBy: "Self sale", customerName: "Mr. Verma", propertyName: "Corner Plot - 200 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-15", amount: 224.85, soldBy: "Kiran (Pending)", customerName: "Mr. Nair", propertyName: "Premium Villa - 300 sq.yds", saleAmount: 2999 },
         ],
     },
     MM2: {
         name: "Vikram Singh",
         userCode: "RBZ4002",
         level: "MM",
-        totalCommission: 337.28,
+        totalCommission: 450.00,
         recentCommissions: [
-            { date: "2026-03-10", amount: 224.85, from: "Rohan Das (Pending)", saleAmount: 2999, customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds" },
-            { date: "2026-03-02", amount: 112.43, from: "Teja (Pending)", saleAmount: 2999, customerName: "Mr. Reddy", propertyName: "Agricultural Land - 3 acres" },
+            { date: "2026-03-10", amount: 224.85, soldBy: "Rohan Das (Pending)", customerName: "Mr. Das", propertyName: "Budget Plot - 100 sq.yds", saleAmount: 2999 },
+            { date: "2026-03-02", amount: 224.85, soldBy: "Self sale", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 2999 },
         ],
     },
     ME2: {
@@ -132,7 +155,7 @@ const ALTERNATE_USERS = {
         level: "ME",
         totalCommission: 1249.50,
         recentCommissions: [
-            { date: "2026-03-28", amount: 1249.50, from: "Self sale", saleAmount: 4999, customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres" },
+            { date: "2026-03-28", amount: 1249.50, soldBy: "Self sale", customerName: "Mrs. Bose", propertyName: "Small Farmland - 0.5 acres", saleAmount: 4999 },
         ],
     },
 };
@@ -185,6 +208,9 @@ export default function RealTimeCommission() {
                     <p className="text-gray-600 mt-2">
                         Click any rank to see commission details – based on the MLM chain (ME → MM → SMM → AGM → DGM → GM)
                     </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                        ✅ Commissions flow <strong>upward only</strong>: higher ranks earn from downline sales; lower ranks do not earn from upline sales.
+                    </p>
                 </div>
 
                 {/* Rank Buttons */}
@@ -224,11 +250,12 @@ export default function RealTimeCommission() {
 
                         {/* Commission Chain Explanation Card */}
                         <div className="mx-6 mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500 rounded-lg p-4 shadow-sm">
-                            <p className="text-sm font-semibold text-indigo-800 mb-2">📊 How Commission Flows (Chain System)</p>
+                            <p className="text-sm font-semibold text-indigo-800 mb-2">📊 How Commission Flows (Upward Only)</p>
                             <div className="text-xs text-gray-700 space-y-1">
-                                <p>• When an <strong>ME</strong> makes a sale, <strong>50%</strong> of the profit goes to the ME, <strong>15%</strong> to the MM, <strong>10%</strong> to the SMM, <strong>7.5%</strong> to the AGM, <strong>5%</strong> to the DGM, and <strong>2.5%</strong> to the GM.</p>
-                                <p>• Each rank in the upline receives their fixed percentage of the profit from every downline sale.</p>
-                                <p>• The table below shows commissions you earned from sales made by your downline members (or your own sales).</p>
+                                <p>• When an <strong>ME</strong> makes a sale: ME gets 50%, MM 15%, SMM 10%, AGM 7.5%, DGM 5%, GM 2.5%.</p>
+                                <p>• When an <strong>MM</strong> makes a sale: MM gets 15%, SMM 10%, AGM 7.5%, DGM 5%, GM 2.5% (ME gets nothing).</p>
+                                <p>• When an <strong>SMM</strong> makes a sale: SMM gets 10%, AGM 7.5%, DGM 5%, GM 2.5% (MM and ME get nothing).</p>
+                                <p>• Higher ranks earn from <strong>downline</strong> sales only; lower ranks never earn from upline sales.</p>
                             </div>
                         </div>
 
@@ -245,7 +272,7 @@ export default function RealTimeCommission() {
                                 <div className="text-right">
                                     <p className="text-sm text-gray-600">You earn</p>
                                     <p className="text-lg font-semibold text-green-700">{getCommissionPercentage(currentUser.level)}% of profit</p>
-                                    <p className="text-xs text-gray-500">on every sale in your downline</p>
+                                    <p className="text-xs text-gray-500">from <strong>downline</strong> sales (or own sales for ME/MM/SMM)</p>
                                 </div>
                             </div>
                         </div>
@@ -271,7 +298,7 @@ export default function RealTimeCommission() {
                                                 <td className="px-4 py-3 text-sm text-gray-900">{item.date}</td>
                                                 <td className="px-4 py-3 text-sm font-medium text-gray-800">{item.customerName}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-600">{item.propertyName}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">{item.from}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-600">{item.soldBy}</td>
                                                 <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.saleAmount)}</td>
                                                 <td className="px-4 py-3 text-sm font-semibold text-green-600 text-right">
                                                     {formatCurrency(item.amount)}
