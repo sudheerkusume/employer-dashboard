@@ -36,8 +36,26 @@ const DUMMY_TREE_RESPONSE = {
                         level: "AGM",
                         wallet: 118000,
                         children: [
-                            { _id: "rbz_mm_sneha", fullName: "Sneha Reddy", applicationId: "RBZ-APP-301", mlmUserCode: "RBZ4001", userCode: "RBZ4001", level: "MM", wallet: 48750, children: [] },
-                            { _id: "rbz_mm_vikram", fullName: "Vikram Singh", applicationId: "RBZ-APP-302", mlmUserCode: "RBZ4002", userCode: "RBZ4002", level: "MM", wallet: 45200, children: [] },
+                            {
+                                _id: "rbz_mm_sneha",
+                                fullName: "Sneha Reddy",
+                                applicationId: "RBZ-APP-301",
+                                mlmUserCode: "RBZ4001",
+                                userCode: "RBZ4001",
+                                level: "MM",
+                                wallet: 48750,
+                                children: [],
+                            },
+                            {
+                                _id: "rbz_mm_vikram",
+                                fullName: "Vikram Singh",
+                                applicationId: "RBZ-APP-302",
+                                mlmUserCode: "RBZ4002",
+                                userCode: "RBZ4002",
+                                level: "MM",
+                                wallet: 45200,
+                                children: [],
+                            },
                         ],
                     },
                     {
@@ -58,12 +76,30 @@ const DUMMY_TREE_RESPONSE = {
                                 level: "ME",
                                 wallet: 29500,
                                 children: [
-                                    { _id: "rbz_pending_rohan", fullName: "Rohan Das", applicationId: "RBZ-APP-501", mlmUserCode: "RBZ6001", userCode: "RBZ6001", level: "Pending", wallet: 4850, children: [] },
+                                    {
+                                        _id: "rbz_pending_rohan",
+                                        fullName: "Rohan Das",
+                                        applicationId: "RBZ-APP-501",
+                                        mlmUserCode: "RBZ6001",
+                                        userCode: "RBZ6001",
+                                        level: "Pending",
+                                        wallet: 4850,
+                                        children: [],
+                                    },
                                 ],
                             },
                         ],
                     },
-                    { _id: "rbz_smm_rahul", fullName: "Rahul Verma", applicationId: "RBZ-APP-203", mlmUserCode: "RBZ3003", userCode: "RBZ3003", level: "SMM", wallet: 75300, children: [] },
+                    {
+                        _id: "rbz_smm_rahul",
+                        fullName: "Rahul Verma",
+                        applicationId: "RBZ-APP-203",
+                        mlmUserCode: "RBZ3003",
+                        userCode: "RBZ3003",
+                        level: "SMM",
+                        wallet: 75300,
+                        children: [],
+                    },
                 ],
             },
             {
@@ -84,8 +120,26 @@ const DUMMY_TREE_RESPONSE = {
                         level: "AGM",
                         wallet: 109250,
                         children: [
-                            { _id: "rbz_mm_divya", fullName: "Divya K", applicationId: "RBZ-APP-303", mlmUserCode: "RBZ4003", userCode: "RBZ4003", level: "MM", wallet: 47600, children: [] },
-                            { _id: "rbz_mm_arjun", fullName: "Arjun Nair", applicationId: "RBZ-APP-304", mlmUserCode: "RBZ4004", userCode: "RBZ4004", level: "MM", wallet: 46800, children: [] },
+                            {
+                                _id: "rbz_mm_divya",
+                                fullName: "Divya K",
+                                applicationId: "RBZ-APP-303",
+                                mlmUserCode: "RBZ4003",
+                                userCode: "RBZ4003",
+                                level: "MM",
+                                wallet: 47600,
+                                children: [],
+                            },
+                            {
+                                _id: "rbz_mm_arjun",
+                                fullName: "Arjun Nair",
+                                applicationId: "RBZ-APP-304",
+                                mlmUserCode: "RBZ4004",
+                                userCode: "RBZ4004",
+                                level: "MM",
+                                wallet: 46800,
+                                children: [],
+                            },
                         ],
                     },
                     {
@@ -115,12 +169,30 @@ const DUMMY_TREE_RESPONSE = {
                                         level: "ME",
                                         wallet: 27650,
                                         children: [
-                                            { _id: "rbz_pending_kiran", fullName: "Kiran", applicationId: "RBZ-APP-502", mlmUserCode: "RBZ6002", userCode: "RBZ6002", level: "Pending", wallet: 3950, children: [] },
+                                            {
+                                                _id: "rbz_pending_kiran",
+                                                fullName: "Kiran",
+                                                applicationId: "RBZ-APP-502",
+                                                mlmUserCode: "RBZ6002",
+                                                userCode: "RBZ6002",
+                                                level: "Pending",
+                                                wallet: 3950,
+                                                children: [],
+                                            },
                                         ],
                                     },
                                 ],
                             },
-                            { _id: "rbz_smm_ravi", fullName: "Ravi Shankar", applicationId: "RBZ-APP-306", mlmUserCode: "RBZ4006", userCode: "RBZ4006", level: "SMM", wallet: 68400, children: [] },
+                            {
+                                _id: "rbz_smm_ravi",
+                                fullName: "Ravi Shankar",
+                                applicationId: "RBZ-APP-306",
+                                mlmUserCode: "RBZ4006",
+                                userCode: "RBZ4006",
+                                level: "SMM",
+                                wallet: 68400,
+                                children: [],
+                            },
                         ],
                     },
                 ],
@@ -152,13 +224,40 @@ const DUMMY_TREE_RESPONSE = {
                                 level: "ME",
                                 wallet: 31800,
                                 children: [
-                                    { _id: "rbz_pending_teja", fullName: "Teja", applicationId: "RBZ-APP-503", mlmUserCode: "RBZ6003", userCode: "RBZ6003", level: "Pending", wallet: 5925, children: [] },
+                                    {
+                                        _id: "rbz_pending_teja",
+                                        fullName: "Teja",
+                                        applicationId: "RBZ-APP-503",
+                                        mlmUserCode: "RBZ6003",
+                                        userCode: "RBZ6003",
+                                        level: "Pending",
+                                        wallet: 5925,
+                                        children: [],
+                                    },
                                 ],
                             },
-                            { _id: "rbz_me_suresh", fullName: "Suresh", applicationId: "RBZ-APP-404", mlmUserCode: "RBZ5004", userCode: "RBZ5004", level: "ME", wallet: 30750, children: [] },
+                            {
+                                _id: "rbz_me_suresh",
+                                fullName: "Suresh",
+                                applicationId: "RBZ-APP-404",
+                                mlmUserCode: "RBZ5004",
+                                userCode: "RBZ5004",
+                                level: "ME",
+                                wallet: 30750,
+                                children: [],
+                            },
                         ],
                     },
-                    { _id: "rbz_smm_manish", fullName: "Manish Gupta", applicationId: "RBZ-APP-308", mlmUserCode: "RBZ4008", userCode: "RBZ4008", level: "SMM", wallet: 78750, children: [] },
+                    {
+                        _id: "rbz_smm_manish",
+                        fullName: "Manish Gupta",
+                        applicationId: "RBZ-APP-308",
+                        mlmUserCode: "RBZ4008",
+                        userCode: "RBZ4008",
+                        level: "SMM",
+                        wallet: 78750,
+                        children: [],
+                    },
                 ],
             },
         ],
@@ -188,6 +287,19 @@ function findNodeByCode(node, code) {
         }
     }
     return null;
+}
+
+// Helper: get upline chain (ancestors) from root to the given node
+function getUplineChain(root, targetNode, currentChain = []) {
+    if (!root) return [];
+    if (root === targetNode) return currentChain;
+    if (root.children) {
+        for (const child of root.children) {
+            const result = getUplineChain(child, targetNode, [...currentChain, root]);
+            if (result.length) return result;
+        }
+    }
+    return [];
 }
 
 // Helper: compute statistics for a given node (direct children, total downline, rank distribution)
@@ -224,27 +336,28 @@ export default function MLMTree() {
     const searchParams = useSearchParams();
 
     const [treeData, setTreeData] = useState(null);
+    const [currentNode, setCurrentNode] = useState(null);
+    const [upline, setUpline] = useState([]);
     const [stats, setStats] = useState(null);
     const [rankDist, setRankDist] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchCode, setSearchCode] = useState("");
-    const [currentUser, setCurrentUser] = useState(null);
     const [viewMode, setViewMode] = useState("tree");
 
     // Initialize with dummy data (root)
     useEffect(() => {
         const root = DUMMY_TREE_RESPONSE.tree;
         setTreeData(root);
+        setCurrentNode(root);
+        setUpline([]); // root has no upline
         setStats(DUMMY_TREE_RESPONSE.statistics);
         const computed = computeNodeStats(root);
         setRankDist(computed.rankDistribution);
-        const rootId = root.mlmUserCode || root.userCode || root.applicationId;
-        setCurrentUser(rootId);
         setError(null);
     }, []);
 
-    // Function to set a new root based on a user identifier
+    // Function to set a new current user (by identifier)
     const setViewToUser = (identifier) => {
         if (!identifier) {
             setError("Invalid identifier");
@@ -253,13 +366,17 @@ export default function MLMTree() {
         const node = findNodeByCode(DUMMY_TREE_RESPONSE.tree, identifier);
         if (!node) {
             setError(`User with code "${identifier}" not found in the tree.`);
-            setTreeData(null);
+            setCurrentNode(null);
+            setUpline([]);
             setStats(null);
             setRankDist(null);
-            setCurrentUser(identifier);
             return;
         }
-        setTreeData(node);
+        setCurrentNode(node);
+        // Compute upline (ancestors)
+        const uplineChain = getUplineChain(DUMMY_TREE_RESPONSE.tree, node);
+        setUpline(uplineChain);
+        // Compute stats for this node (downline only)
         const nodeStats = computeNodeStats(node);
         setStats({
             directChildren: nodeStats.directChildren,
@@ -267,7 +384,6 @@ export default function MLMTree() {
             level: nodeStats.level,
         });
         setRankDist(nodeStats.rankDistribution);
-        setCurrentUser(identifier);
         setError(null);
     };
 
@@ -287,7 +403,7 @@ export default function MLMTree() {
         return node.fullName || node.applicationId || node.userCode || "Unknown";
     };
 
-    // Recursive tree renderer
+    // Recursive tree renderer (for downline)
     const renderTree = (node, level = 0) => {
         if (!node) return null;
 
@@ -329,7 +445,38 @@ export default function MLMTree() {
         );
     };
 
-    // Recursive list view renderer
+    // Render upline (simple linear list, can be styled as a chain)
+    const renderUpline = () => {
+        if (!upline.length) return null;
+        return (
+            <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <h2 className="text-md font-semibold text-blue-800 mb-2">⬆️ Upline (Sponsor Chain)</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                    {upline.map((node, idx) => (
+                        <Fragment key={node._id}>
+                            <button
+                                onClick={() => handleViewUser(node.mlmUserCode || node.userCode)}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border hover:bg-blue-100 transition"
+                            >
+                                <div className={`w-2 h-2 rounded-full ${node.level ? getLevelColor(node.level) : "bg-gray-400"}`} />
+                                <span className="text-sm font-medium">{getDisplayName(node)}</span>
+                                <span className="text-xs text-gray-500">({node.level})</span>
+                            </button>
+                            {idx < upline.length - 1 && <span className="text-gray-400">→</span>}
+                        </Fragment>
+                    ))}
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 rounded-full shadow-sm">
+                        <div className={`w-2 h-2 rounded-full ${currentNode?.level ? getLevelColor(currentNode.level) : "bg-gray-400"}`} />
+                        <span className="text-sm font-bold">{getDisplayName(currentNode)}</span>
+                        <span className="text-xs text-gray-600">({currentNode?.level})</span>
+                        <span className="text-xs text-green-600 ml-1">← You are here</span>
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+    // Recursive list view renderer (for downline)
     const renderListView = (node, level = 0) => {
         if (!node) return null;
 
@@ -380,7 +527,7 @@ export default function MLMTree() {
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800">Real Beez Tree Structure</h1>
                             <p className="text-gray-600 mt-2">
-                                {currentUser ? `Viewing tree for: ${currentUser}` : "No user selected"}
+                                {currentNode ? `Showing upline & downline for: ${getDisplayName(currentNode)} (${currentNode.level})` : "No user selected"}
                             </p>
                         </div>
                         <div className="flex gap-2">
@@ -413,7 +560,7 @@ export default function MLMTree() {
                             type="text"
                             value={searchCode}
                             onChange={(e) => setSearchCode(e.target.value)}
-                            placeholder="Enter user code or application ID (e.g., RBZ1001, RBZ-APP-101)"
+                            placeholder="Enter user code (e.g., RBZ1001, RBZ3002)"
                             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
@@ -432,11 +579,14 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Stats Cards (original) */}
-                {stats && treeData && (
+                {/* Upline Section */}
+                {currentNode && renderUpline()}
+
+                {/* Stats Cards (downline) */}
+                {stats && currentNode && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Direct Children</div>
+                            <div className="text-gray-500 text-sm">Direct Downline</div>
                             <div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-4">
@@ -444,7 +594,7 @@ export default function MLMTree() {
                             <div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Level / Status</div>
+                            <div className="text-gray-500 text-sm">Your Level</div>
                             <div className="text-2xl font-bold text-purple-600">
                                 {stats.level === "Pending" ? "Pending Approval" : stats.level}
                             </div>
@@ -452,11 +602,11 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* NEW: Rank-wise Downline Distribution */}
-                {rankDist && treeData && (
+                {/* Rank-wise Downline Distribution */}
+                {rankDist && currentNode && (
                     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
                         <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            📊 Downline Breakdown by Rank
+                            📊 Downline Breakdown by Rank (Total: {stats.totalDownline})
                         </h2>
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                             {Object.entries(rankDist).map(([rank, count]) => (
@@ -477,11 +627,11 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* NEW: Direct Downline List */}
-                {treeData && treeData.children && treeData.children.length > 0 && (
+                {/* Direct Downline List */}
+                {currentNode && currentNode.children && currentNode.children.length > 0 && (
                     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
                         <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            👥 Direct Downline Members ({treeData.children.length})
+                            👥 Direct Downline Members ({currentNode.children.length})
                         </h2>
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
@@ -495,7 +645,7 @@ export default function MLMTree() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {treeData.children.map((child) => (
+                                    {currentNode.children.map((child) => (
                                         <tr key={child._id} className="border-b hover:bg-gray-50">
                                             <td className="px-4 py-2 font-medium">{getDisplayName(child)}</td>
                                             <td className="px-4 py-2">{child.mlmUserCode || child.userCode}</td>
@@ -522,37 +672,38 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Tree / List Visualization */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                    {!treeData ? (
-                        <div className="text-center py-8 text-gray-500">
-                            <p>No user selected. Please enter a user code or application ID above.</p>
-                        </div>
-                    ) : viewMode === "tree" ? (
-                        <div className="overflow-x-auto">{renderTree(treeData)}</div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Identifier</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level/Status</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wallet</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {renderListView(treeData)}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                {/* Downline Tree / List Visualization */}
+                {currentNode && (
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                            ⬇️ Downline Network
+                        </h2>
+                        {viewMode === "tree" ? (
+                            <div className="overflow-x-auto">{renderTree(currentNode)}</div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Identifier</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level/Status</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wallet</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {renderListView(currentNode)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Legend */}
                 <div className="mt-4 text-sm text-gray-600 text-center">
-                    <p>Click "View" to explore downline | Each node shows Name (Identifier) and Level</p>
+                    <p>Click "View" to explore any user's upline & downline | Upline shown above, downline below</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
