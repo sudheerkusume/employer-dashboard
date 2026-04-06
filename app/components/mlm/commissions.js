@@ -6,25 +6,21 @@ import { useState } from "react";
 import { formatCurrency } from "@/app/components/lib/mlmUtils";
 
 // ---------- DUMMY TREE USERS (matching your provided tree) ----------
-// Each user object now includes `selfCommission` and `downlineCommission` for demo.
-// The `recentCommissions` array uses `from` field to indicate source.
 const USERS_BY_RANK = {
     GM: {
         name: "Rajesh Kumar Reddy",
         userCode: "RBZ1001",
         level: "GM",
         totalCommission: 305.84,
-        selfCommission: 0,        // GM has no self sales in this demo
-        downlineCommission: 305.84,
         recentCommissions: [
-            { date: "2026-03-30", amount: 37.48, from: "Kavita Nair (ME)", saleAmount: 2999, type: "downline" },
-            { date: "2026-03-28", amount: 54.98, from: "Lakshmi (ME)", saleAmount: 4999, type: "downline" },
-            { date: "2026-03-25", amount: 19.98, from: "Rekha (ME)", saleAmount: 1599, type: "downline" },
-            { date: "2026-03-20", amount: 39.98, from: "Suresh (ME)", saleAmount: 3499, type: "downline" },
-            { date: "2026-03-15", amount: 37.48, from: "Sneha Reddy (MM)", saleAmount: 2999, type: "downline" },
-            { date: "2026-03-10", amount: 54.98, from: "Vikram Singh (MM)", saleAmount: 4999, type: "downline" },
-            { date: "2026-03-05", amount: 19.98, from: "Divya K (MM)", saleAmount: 1599, type: "downline" },
-            { date: "2026-02-28", amount: 39.98, from: "Arjun Nair (MM)", saleAmount: 3499, type: "downline" },
+            { date: "2026-03-30", amount: 37.48, from: "Kavita Nair (ME)", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 54.98, from: "Lakshmi (ME)", saleAmount: 4999 },
+            { date: "2026-03-25", amount: 19.98, from: "Rekha (ME)", saleAmount: 1599 },
+            { date: "2026-03-20", amount: 39.98, from: "Suresh (ME)", saleAmount: 3499 },
+            { date: "2026-03-15", amount: 37.48, from: "Sneha Reddy (MM)", saleAmount: 2999 },
+            { date: "2026-03-10", amount: 54.98, from: "Vikram Singh (MM)", saleAmount: 4999 },
+            { date: "2026-03-05", amount: 19.98, from: "Divya K (MM)", saleAmount: 1599 },
+            { date: "2026-02-28", amount: 39.98, from: "Arjun Nair (MM)", saleAmount: 3499 },
         ],
     },
     DGM: {
@@ -32,13 +28,11 @@ const USERS_BY_RANK = {
         userCode: "RBZ2001",
         level: "DGM",
         totalCommission: 327.30,
-        selfCommission: 0,
-        downlineCommission: 327.30,
         recentCommissions: [
-            { date: "2026-03-30", amount: 74.95, from: "Kavita Nair (ME)", saleAmount: 2999, type: "downline" },
-            { date: "2026-03-28", amount: 124.95, from: "Lakshmi (ME)", saleAmount: 4999, type: "downline" },
-            { date: "2026-03-25", amount: 39.95, from: "Rekha (ME)", saleAmount: 1599, type: "downline" },
-            { date: "2026-03-20", amount: 87.45, from: "Suresh (ME)", saleAmount: 3499, type: "downline" },
+            { date: "2026-03-30", amount: 74.95, from: "Kavita Nair (ME)", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 124.95, from: "Lakshmi (ME)", saleAmount: 4999 },
+            { date: "2026-03-25", amount: 39.95, from: "Rekha (ME)", saleAmount: 1599 },
+            { date: "2026-03-20", amount: 87.45, from: "Suresh (ME)", saleAmount: 3499 },
         ],
     },
     AGM: {
@@ -46,11 +40,9 @@ const USERS_BY_RANK = {
         userCode: "RBZ3001",
         level: "AGM",
         totalCommission: 299.86,
-        selfCommission: 0,
-        downlineCommission: 299.86,
         recentCommissions: [
-            { date: "2026-03-30", amount: 112.43, from: "Kavita Nair (ME)", saleAmount: 2999, type: "downline" },
-            { date: "2026-03-28", amount: 187.43, from: "Lakshmi (ME)", saleAmount: 4999, type: "downline" },
+            { date: "2026-03-30", amount: 112.43, from: "Kavita Nair (ME)", saleAmount: 2999 },
+            { date: "2026-03-28", amount: 187.43, from: "Lakshmi (ME)", saleAmount: 4999 },
         ],
     },
     SMM: {
@@ -58,10 +50,8 @@ const USERS_BY_RANK = {
         userCode: "RBZ3002",
         level: "SMM",
         totalCommission: 149.90,
-        selfCommission: 0,
-        downlineCommission: 149.90,
         recentCommissions: [
-            { date: "2026-03-30", amount: 149.90, from: "Kavita Nair (ME)", saleAmount: 2999, type: "downline" },
+            { date: "2026-03-30", amount: 149.90, from: "Kavita Nair (ME)", saleAmount: 2999 },
         ],
     },
     MM: {
@@ -69,10 +59,8 @@ const USERS_BY_RANK = {
         userCode: "RBZ4001",
         level: "MM",
         totalCommission: 224.85,
-        selfCommission: 0,
-        downlineCommission: 224.85,
         recentCommissions: [
-            { date: "2026-03-15", amount: 224.85, from: "Rohan Das (Pending)", saleAmount: 2999, type: "downline" },
+            { date: "2026-03-15", amount: 224.85, from: "Rohan Das (Pending)", saleAmount: 2999 },
         ],
     },
     ME: {
@@ -80,10 +68,70 @@ const USERS_BY_RANK = {
         userCode: "RBZ5001",
         level: "ME",
         totalCommission: 749.50,
-        selfCommission: 749.50,   // ME earns from own sales
-        downlineCommission: 0,
         recentCommissions: [
-            { date: "2026-03-30", amount: 749.50, from: "Self sale", saleAmount: 2999, type: "self" },
+            { date: "2026-03-30", amount: 749.50, from: "Self sale", saleAmount: 2999 },
+        ],
+    },
+};
+
+// Alternate users for variety
+const ALTERNATE_USERS = {
+    DGM2: {
+        name: "Vijay Malhotra",
+        userCode: "RBZ2002",
+        level: "DGM",
+        totalCommission: 478.95,
+        recentCommissions: [
+            { date: "2026-03-29", amount: 74.95, from: "Pooja Desai (SMM)", saleAmount: 2999 },
+            { date: "2026-03-27", amount: 124.95, from: "Ravi Shankar (SMM)", saleAmount: 4999 },
+            { date: "2026-03-22", amount: 39.95, from: "Deepa Nair (SMM)", saleAmount: 1599 },
+            { date: "2026-03-18", amount: 87.45, from: "Lakshmi (ME)", saleAmount: 3499 },
+            { date: "2026-03-12", amount: 74.95, from: "Kiran (Pending)", saleAmount: 2999 },
+            { date: "2026-03-05", amount: 76.70, from: "Teja (Pending)", saleAmount: 3068 },
+        ],
+    },
+    AGM2: {
+        name: "Anjali Mehta",
+        userCode: "RBZ3004",
+        level: "AGM",
+        totalCommission: 478.95,
+        recentCommissions: [
+            { date: "2026-03-29", amount: 112.43, from: "Pooja Desai (SMM)", saleAmount: 2999 },
+            { date: "2026-03-27", amount: 187.43, from: "Ravi Shankar (SMM)", saleAmount: 4999 },
+            { date: "2026-03-22", amount: 59.93, from: "Deepa Nair (SMM)", saleAmount: 1599 },
+            { date: "2026-03-18", amount: 131.18, from: "Lakshmi (ME)", saleAmount: 3499 },
+            { date: "2026-03-12", amount: 112.43, from: "Kiran (Pending)", saleAmount: 2999 },
+            { date: "2026-03-05", amount: 115.05, from: "Teja (Pending)", saleAmount: 3068 },
+        ],
+    },
+    SMM2: {
+        name: "Pooja Desai",
+        userCode: "RBZ4005",
+        level: "SMM",
+        totalCommission: 373.63,
+        recentCommissions: [
+            { date: "2026-03-29", amount: 149.90, from: "Lakshmi (ME)", saleAmount: 2999 },
+            { date: "2026-03-22", amount: 79.95, from: "Kiran (Pending)", saleAmount: 1599 },
+            { date: "2026-03-15", amount: 143.78, from: "Self sale", saleAmount: 4999 },
+        ],
+    },
+    MM2: {
+        name: "Vikram Singh",
+        userCode: "RBZ4002",
+        level: "MM",
+        totalCommission: 337.28,
+        recentCommissions: [
+            { date: "2026-03-10", amount: 224.85, from: "Rohan Das (Pending)", saleAmount: 2999 },
+            { date: "2026-03-02", amount: 112.43, from: "Teja (Pending)", saleAmount: 2999 },
+        ],
+    },
+    ME2: {
+        name: "Lakshmi",
+        userCode: "RBZ5002",
+        level: "ME",
+        totalCommission: 1249.50,
+        recentCommissions: [
+            { date: "2026-03-28", amount: 1249.50, from: "Self sale", saleAmount: 4999 },
         ],
     },
 };
@@ -175,7 +223,7 @@ export default function RealTimeCommission() {
                             </div>
                         </div>
 
-                        {/* Commission Rate Card */}
+                        {/* Commission Rate Card (NEW) */}
                         <div className="mx-6 mt-6 bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-lg p-4 shadow-sm">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                                 <div>
@@ -188,49 +236,22 @@ export default function RealTimeCommission() {
                                 <div className="text-right">
                                     <p className="text-sm text-gray-600">You earn</p>
                                     <p className="text-lg font-semibold text-green-700">{getCommissionPercentage(currentUser.level)}% of profit</p>
-                                    <p className="text-xs text-gray-500">on every sale (self + downline)</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Self vs Downline Commission Breakdown */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mx-6 mt-4">
-                            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-green-700 font-medium">💰 Self Commission</p>
-                                        <p className="text-xs text-green-600">From your own sales</p>
-                                    </div>
-                                    <div className="text-2xl font-bold text-green-700">
-                                        {formatCurrency(currentUser.selfCommission || 0)}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-blue-700 font-medium">👥 Downline Commission</p>
-                                        <p className="text-xs text-blue-600">From your team's sales</p>
-                                    </div>
-                                    <div className="text-2xl font-bold text-blue-700">
-                                        {formatCurrency(currentUser.downlineCommission || 0)}
-                                    </div>
+                                    <p className="text-xs text-gray-500">on every downline sale</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Recent Commissions Table */}
                         <div className="p-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">📋 Commission Transaction History</h3>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">📋 Recent Commission Transactions</h3>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">From / Description</th>
                                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Sale Amount</th>
                                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Commission</th>
-                                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -242,13 +263,6 @@ export default function RealTimeCommission() {
                                                 <td className="px-4 py-3 text-sm font-semibold text-green-600 text-right">
                                                     {formatCurrency(item.amount)}
                                                 </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {item.type === "self" ? (
-                                                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Self</span>
-                                                    ) : (
-                                                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Downline</span>
-                                                    )}
-                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -258,7 +272,6 @@ export default function RealTimeCommission() {
                                             <td className="px-4 py-3 text-right font-bold text-green-600">
                                                 {formatCurrency(currentUser.recentCommissions.reduce((sum, c) => sum + c.amount, 0))}
                                             </td>
-                                            <td></td>
                                         </tr>
                                     </tfoot>
                                 </table>
