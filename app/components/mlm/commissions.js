@@ -1,346 +1,224 @@
-// app/mlm/commissions/page.jsx
+// app/mlm/commission-structure/page.jsx
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { formatCurrency } from "@/app/components/lib/mlmUtils";
+import { useState } from "react";
 
-// ---------- DUMMY COMMISSION DATA (simulating backend) ----------
-// Each entry matches the expected commission object from API
-const DUMMY_COMMISSIONS_BY_USER = {
-    // GM - Rajesh Kumar Reddy (RBZ1001)
-    RBZ1001: [
-        { _id: "comm1", createdAt: "2026-03-30T10:00:00Z", level: "GM", saleAmount: 2999, percentage: 2.5, commissionAmount: 37.48, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
-        { _id: "comm2", createdAt: "2026-03-28T14:30:00Z", level: "GM", saleAmount: 4999, percentage: 2.5, commissionAmount: 54.98, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
-        { _id: "comm3", createdAt: "2026-03-25T09:15:00Z", level: "GM", saleAmount: 1599, percentage: 2.5, commissionAmount: 19.98, fromUser: "RBZ5003", description: "Sale by Rekha" },
-        { _id: "comm4", createdAt: "2026-03-20T16:45:00Z", level: "GM", saleAmount: 3499, percentage: 2.5, commissionAmount: 39.98, fromUser: "RBZ5004", description: "Sale by Suresh" },
-        { _id: "comm5", createdAt: "2026-03-15T11:20:00Z", level: "GM", saleAmount: 2999, percentage: 2.5, commissionAmount: 37.48, fromUser: "RBZ4001", description: "Sale by Sneha Reddy" },
-        { _id: "comm6", createdAt: "2026-03-10T08:00:00Z", level: "GM", saleAmount: 4999, percentage: 2.5, commissionAmount: 54.98, fromUser: "RBZ4002", description: "Sale by Vikram Singh" },
-        { _id: "comm7", createdAt: "2026-03-05T13:30:00Z", level: "GM", saleAmount: 1599, percentage: 2.5, commissionAmount: 19.98, fromUser: "RBZ4003", description: "Sale by Divya K" },
-        { _id: "comm8", createdAt: "2026-02-28T09:45:00Z", level: "GM", saleAmount: 3499, percentage: 2.5, commissionAmount: 39.98, fromUser: "RBZ4004", description: "Sale by Arjun Nair" },
-    ],
-    // DGM - Priya Sharma (RBZ2001)
-    RBZ2001: [
-        { _id: "comm9", createdAt: "2026-03-30T10:00:00Z", level: "DGM", saleAmount: 2999, percentage: 5, commissionAmount: 74.95, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
-        { _id: "comm10", createdAt: "2026-03-28T14:30:00Z", level: "DGM", saleAmount: 4999, percentage: 5, commissionAmount: 124.95, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
-        { _id: "comm11", createdAt: "2026-03-25T09:15:00Z", level: "DGM", saleAmount: 1599, percentage: 5, commissionAmount: 39.95, fromUser: "RBZ5003", description: "Sale by Rekha" },
-        { _id: "comm12", createdAt: "2026-03-20T16:45:00Z", level: "DGM", saleAmount: 3499, percentage: 5, commissionAmount: 87.45, fromUser: "RBZ5004", description: "Sale by Suresh" },
-    ],
-    // DGM - Vijay Malhotra (RBZ2002)
-    RBZ2002: [
-        { _id: "comm13", createdAt: "2026-03-29T11:30:00Z", level: "DGM", saleAmount: 2999, percentage: 5, commissionAmount: 74.95, fromUser: "RBZ4005", description: "Sale by Pooja Desai" },
-        { _id: "comm14", createdAt: "2026-03-27T15:20:00Z", level: "DGM", saleAmount: 4999, percentage: 5, commissionAmount: 124.95, fromUser: "RBZ4006", description: "Sale by Ravi Shankar" },
-        { _id: "comm15", createdAt: "2026-03-22T10:10:00Z", level: "DGM", saleAmount: 1599, percentage: 5, commissionAmount: 39.95, fromUser: "RBZ4007", description: "Sale by Deepa Nair" },
-    ],
-    // AGM - Amit Patel (RBZ3001)
-    RBZ3001: [
-        { _id: "comm16", createdAt: "2026-03-30T10:00:00Z", level: "AGM", saleAmount: 2999, percentage: 7.5, commissionAmount: 112.43, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
-        { _id: "comm17", createdAt: "2026-03-28T14:30:00Z", level: "AGM", saleAmount: 4999, percentage: 7.5, commissionAmount: 187.43, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
-    ],
-    // AGM - Anjali Mehta (RBZ3004)
-    RBZ3004: [
-        { _id: "comm18", createdAt: "2026-03-29T11:30:00Z", level: "AGM", saleAmount: 2999, percentage: 7.5, commissionAmount: 112.43, fromUser: "RBZ4005", description: "Sale by Pooja Desai" },
-        { _id: "comm19", createdAt: "2026-03-27T15:20:00Z", level: "AGM", saleAmount: 4999, percentage: 7.5, commissionAmount: 187.43, fromUser: "RBZ4006", description: "Sale by Ravi Shankar" },
-    ],
-    // SMM - Neha Gupta (RBZ3002)
-    RBZ3002: [
-        { _id: "comm20", createdAt: "2026-03-30T10:00:00Z", level: "SMM", saleAmount: 2999, percentage: 10, commissionAmount: 149.90, fromUser: "RBZ5001", description: "Sale by Kavita Nair" },
-    ],
-    // SMM - Pooja Desai (RBZ4005)
-    RBZ4005: [
-        { _id: "comm21", createdAt: "2026-03-29T11:30:00Z", level: "SMM", saleAmount: 2999, percentage: 10, commissionAmount: 149.90, fromUser: "RBZ5002", description: "Sale by Lakshmi" },
-    ],
-    // MM - Sneha Reddy (RBZ4001)
-    RBZ4001: [
-        { _id: "comm22", createdAt: "2026-03-15T11:20:00Z", level: "MM", saleAmount: 2999, percentage: 15, commissionAmount: 224.85, fromUser: "RBZ6001", description: "Sale by Rohan Das" },
-    ],
-    // ME - Kavita Nair (RBZ5001)
-    RBZ5001: [
-        { _id: "comm23", createdAt: "2026-03-30T10:00:00Z", level: "ME", saleAmount: 2999, percentage: 50, commissionAmount: 749.50, fromUser: null, description: "Self sale" },
-    ],
-    // ME - Lakshmi (RBZ5002)
-    RBZ5002: [
-        { _id: "comm24", createdAt: "2026-03-28T14:30:00Z", level: "ME", saleAmount: 4999, percentage: 50, commissionAmount: 1249.50, fromUser: null, description: "Self sale" },
-    ],
-    // ME - Rekha (RBZ5003)
-    RBZ5003: [
-        { _id: "comm25", createdAt: "2026-03-25T09:15:00Z", level: "ME", saleAmount: 1599, percentage: 50, commissionAmount: 399.50, fromUser: null, description: "Self sale" },
-    ],
-    // ME - Suresh (RBZ5004)
-    RBZ5004: [
-        { _id: "comm26", createdAt: "2026-03-20T16:45:00Z", level: "ME", saleAmount: 3499, percentage: 50, commissionAmount: 874.50, fromUser: null, description: "Self sale" },
-    ],
+// Commission data for each rank
+const COMMISSION_DATA = {
+    GM: {
+        fullName: "General Manager",
+        percentage: 2.5,
+        description: "Top-level leadership, oversees entire region.",
+        note: "Receives 2.5% of the profit difference from all downline sales.",
+        color: "bg-red-100 border-red-300 text-red-800",
+        buttonColor: "bg-red-600 hover:bg-red-700",
+        icon: "👑",
+    },
+    DGM: {
+        fullName: "Deputy General Manager",
+        percentage: 5,
+        description: "Senior management, handles multiple teams.",
+        note: "Receives 5% of the profit difference from sales in their downline.",
+        color: "bg-orange-100 border-orange-300 text-orange-800",
+        buttonColor: "bg-orange-600 hover:bg-orange-700",
+        icon: "⭐",
+    },
+    AGM: {
+        fullName: "Assistant General Manager",
+        percentage: 7.5,
+        description: "Manages regional operations and teams.",
+        note: "Receives 7.5% of the profit difference from downline sales.",
+        color: "bg-yellow-100 border-yellow-300 text-yellow-800",
+        buttonColor: "bg-yellow-600 hover:bg-yellow-700",
+        icon: "🌟",
+    },
+    SMM: {
+        fullName: "Senior Master Member",
+        percentage: 10,
+        description: "Advanced leader with significant downline.",
+        note: "Receives 10% of the profit difference from sales in their network.",
+        color: "bg-green-100 border-green-300 text-green-800",
+        buttonColor: "bg-green-600 hover:bg-green-700",
+        icon: "💎",
+    },
+    MM: {
+        fullName: "Master Member",
+        percentage: 15,
+        description: "Mid-level leader, building a strong team.",
+        note: "Receives 15% of the profit difference from downline sales.",
+        color: "bg-blue-100 border-blue-300 text-blue-800",
+        buttonColor: "bg-blue-600 hover:bg-blue-700",
+        icon: "🏆",
+    },
+    ME: {
+        fullName: "Member",
+        percentage: 50,
+        description: "Entry-level member, starting their journey.",
+        note: "Receives 50% of the profit difference from their own sales.",
+        color: "bg-purple-100 border-purple-300 text-purple-800",
+        buttonColor: "bg-purple-600 hover:bg-purple-700",
+        icon: "🌱",
+    },
 };
 
-// Fallback empty array for unknown user
-const getDummyCommissions = (userCode) => {
-    return DUMMY_COMMISSIONS_BY_USER[userCode] || [];
-};
+const RANKS = ["GM", "DGM", "AGM", "SMM", "MM", "ME"];
 
-export default function CommissionsPage() {
-    const searchParams = useSearchParams();
-    const [commissions, setCommissions] = useState([]);
-    const [totalCommission, setTotalCommission] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [userCode, setUserCode] = useState("");
-    const [filter, setFilter] = useState({
-        fromDate: "",
-        toDate: "",
-    });
-    const [stats, setStats] = useState({
-        today: 0,
-        week: 0,
-        month: 0,
-    });
+export default function CommissionStructurePage() {
+    const [selectedRank, setSelectedRank] = useState(null);
 
-    // Load user code and dummy data
-    useEffect(() => {
-        const code = searchParams.get("userCode") || localStorage.getItem("mlm_user_code");
-        if (code) {
-            setUserCode(code);
-            loadCommissions(code);
-        } else {
-            setLoading(false);
-        }
-    }, [searchParams]);
-
-    // Load commissions from dummy data (with optional date filtering)
-    const loadCommissions = (code, dateFilter = filter) => {
-        setLoading(true);
-        // Simulate async delay
-        setTimeout(() => {
-            let allCommissions = getDummyCommissions(code);
-
-            // Apply date filters
-            if (dateFilter.fromDate) {
-                const from = new Date(dateFilter.fromDate);
-                allCommissions = allCommissions.filter(c => new Date(c.createdAt) >= from);
-            }
-            if (dateFilter.toDate) {
-                const to = new Date(dateFilter.toDate);
-                to.setHours(23, 59, 59, 999);
-                allCommissions = allCommissions.filter(c => new Date(c.createdAt) <= to);
-            }
-
-            // Sort by date descending (newest first)
-            allCommissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            const total = allCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
-            setCommissions(allCommissions);
-            setTotalCommission(total);
-            calculateStats(allCommissions);
-            setLoading(false);
-        }, 300); // simulate network delay
+    const handleRankClick = (rank) => {
+        setSelectedRank(rank === selectedRank ? null : rank);
     };
 
-    const calculateStats = (commissionsData) => {
-        const today = new Date().toDateString();
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const monthAgo = new Date();
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-        const todayTotal = commissionsData
-            .filter(c => new Date(c.createdAt).toDateString() === today)
-            .reduce((sum, c) => sum + c.commissionAmount, 0);
-
-        const weekTotal = commissionsData
-            .filter(c => new Date(c.createdAt) >= weekAgo)
-            .reduce((sum, c) => sum + c.commissionAmount, 0);
-
-        const monthTotal = commissionsData
-            .filter(c => new Date(c.createdAt) >= monthAgo)
-            .reduce((sum, c) => sum + c.commissionAmount, 0);
-
-        setStats({
-            today: todayTotal,
-            week: weekTotal,
-            month: monthTotal,
-        });
+    // Calculate example commission for a given profit
+    const getExampleCommission = (profit, percentage) => {
+        return (profit * percentage) / 100;
     };
-
-    const handleFilterChange = (e) => {
-        setFilter({
-            ...filter,
-            [e.target.name]: e.target.value,
-        });
-    };
-
-    const applyFilter = () => {
-        if (userCode) {
-            loadCommissions(userCode, filter);
-        }
-    };
-
-    const resetFilter = () => {
-        const emptyFilter = { fromDate: "", toDate: "" };
-        setFilter(emptyFilter);
-        if (userCode) {
-            loadCommissions(userCode, emptyFilter);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
-            <div className="bg-white text-gray-900 w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">Commission History</h1>
+            <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold text-gray-800">MLM Commission Structure</h1>
                     <p className="text-gray-600 mt-2">
-                        User: <span className="font-semibold">{userCode || "Not specified"}</span>
+                        Based on Profit Difference (Sale Price - Product Cost)
                     </p>
-                    <p className="text-gray-600">
-                        Total Commission Earned:{" "}
-                        <span className="text-2xl font-bold text-green-600">{formatCurrency(totalCommission)}</span>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Total payout: 90% of profit | Company retains: 10%
                     </p>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg shadow p-4">
-                        <div className="text-sm opacity-90">Today's Commission</div>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.today)}</div>
-                    </div>
-                    <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow p-4">
-                        <div className="text-sm opacity-90">This Week</div>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.week)}</div>
-                    </div>
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg shadow p-4">
-                        <div className="text-sm opacity-90">This Month</div>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.month)}</div>
-                    </div>
-                </div>
-
-                {/* Filters */}
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <h3 className="font-semibold mb-3">Filter Commissions</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">From Date</label>
-                            <input
-                                type="date"
-                                name="fromDate"
-                                value={filter.fromDate}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">To Date</label>
-                            <input
-                                type="date"
-                                name="toDate"
-                                value={filter.toDate}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div className="flex gap-2 items-end">
+                {/* Main Card */}
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    {/* Rank Toggle Buttons */}
+                    <div className="flex flex-wrap justify-center gap-3 mb-8">
+                        {RANKS.map((rank) => (
                             <button
-                                onClick={applyFilter}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                key={rank}
+                                onClick={() => handleRankClick(rank)}
+                                className={`px-6 py-2 rounded-full font-bold transition-all shadow-sm flex items-center gap-2 ${selectedRank === rank
+                                        ? COMMISSION_DATA[rank].buttonColor + " text-white ring-2 ring-offset-2 ring-gray-400"
+                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    }`}
                             >
-                                Apply Filter
+                                <span>{COMMISSION_DATA[rank].icon}</span>
+                                <span>{rank}</span>
                             </button>
-                            <button
-                                onClick={resetFilter}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                            >
-                                Reset
-                            </button>
-                        </div>
+                        ))}
                     </div>
-                </div>
 
-                {/* Commissions Table */}
-                <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Amount</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission %</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission Amount</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">From / Description</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {commissions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                                            No commissions found
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    commissions.map((commission) => (
-                                        <tr key={commission._id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 text-sm text-gray-900">
-                                                {new Date(commission.createdAt).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span
-                                                    className={`px-2 py-1 text-xs rounded-full ${commission.level === "GM"
-                                                            ? "bg-red-100 text-red-700"
-                                                            : commission.level === "DGM"
-                                                                ? "bg-orange-100 text-orange-700"
-                                                                : commission.level === "AGM"
-                                                                    ? "bg-yellow-100 text-yellow-700"
-                                                                    : commission.level === "SMM"
-                                                                        ? "bg-green-100 text-green-700"
-                                                                        : commission.level === "MM"
-                                                                            ? "bg-blue-100 text-blue-700"
-                                                                            : "bg-purple-100 text-purple-700"
-                                                        }`}
-                                                >
-                                                    {commission.level}
+                    {/* Selected Rank Details */}
+                    {selectedRank && (
+                        <div
+                            className={`p-6 rounded-xl border-2 transition-all duration-300 ${COMMISSION_DATA[selectedRank].color}`}
+                        >
+                            <div className="flex justify-between items-start flex-wrap gap-4">
+                                <div>
+                                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                                        <span>{COMMISSION_DATA[selectedRank].icon}</span>
+                                        <span>
+                                            {selectedRank} – {COMMISSION_DATA[selectedRank].fullName}
+                                        </span>
+                                    </h2>
+                                    <p className="text-sm mt-2 opacity-80">{COMMISSION_DATA[selectedRank].description}</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-4xl font-extrabold">{COMMISSION_DATA[selectedRank].percentage}%</div>
+                                    <div className="text-xs uppercase tracking-wide">Commission Rate</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-current border-opacity-20">
+                                <p className="text-sm">
+                                    <span className="font-semibold">📌 How it works:</span>{" "}
+                                    {COMMISSION_DATA[selectedRank].note}
+                                </p>
+                            </div>
+
+                            {/* Interactive Example Calculator */}
+                            <div className="mt-4 bg-white bg-opacity-40 rounded-lg p-4">
+                                <p className="font-semibold text-sm mb-2">💰 Live Example:</p>
+                                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-medium mb-1">Profit Amount (₹)</label>
+                                        <input
+                                            type="number"
+                                            id="profitInput"
+                                            defaultValue="1000"
+                                            className="w-full px-3 py-1 border rounded text-sm"
+                                            onChange={(e) => {
+                                                const profit = parseFloat(e.target.value) || 0;
+                                                const commission = getExampleCommission(profit, COMMISSION_DATA[selectedRank].percentage);
+                                                document.getElementById("commissionResult").innerText = commission.toFixed(2);
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-gray-600">
+                                            {selectedRank} gets:{" "}
+                                            <strong className="text-lg">
+                                                ₹<span id="commissionResult">
+                                                    {getExampleCommission(1000, COMMISSION_DATA[selectedRank].percentage).toFixed(2)}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900">
-                                                {formatCurrency(commission.saleAmount)}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900">{commission.percentage}%</td>
-                                            <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                                                {formatCurrency(commission.commissionAmount)}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500">
-                                                {commission.fromUser ? `User: ${commission.fromUser}` : "Self sale"}<br />
-                                                <span className="text-xs">{commission.description}</span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                            {commissions.length > 0 && (
-                                <tfoot className="bg-gray-50">
-                                    <tr>
-                                        <td colSpan="4" className="px-6 py-3 text-right font-semibold">
-                                            Total:
-                                        </td>
-                                        <td className="px-6 py-3 font-bold text-green-600">
-                                            {formatCurrency(commissions.reduce((sum, c) => sum + c.commissionAmount, 0))}
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            )}
-                        </table>
-                    </div>
-                </div>
+                                            </strong>
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="text-xs mt-2 opacity-75">
+                                    * Commission = Profit × ({COMMISSION_DATA[selectedRank].percentage} / 100)
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
-                {/* Note about dummy data */}
-                <div className="mt-4 text-xs text-gray-400 text-center border-t pt-4">
-                    <p>📊 Showing dummy commission data for demonstration. No backend calls are made.</p>
-                    <p>✅ Filtering, stats, and totals work entirely client-side on the dummy dataset.</p>
+                    {!selectedRank && (
+                        <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg">
+                            <div className="text-4xl mb-2">👆</div>
+                            <p>Click on any rank button above to see its commission structure and details.</p>
+                        </div>
+                    )}
+
+                    {/* Summary Table (always visible) */}
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">📋 Commission Summary</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left">Rank</th>
+                                        <th className="px-4 py-2 text-left">Position</th>
+                                        <th className="px-4 py-2 text-right">Commission %</th>
+                                        <th className="px-4 py-2 text-left">On Profit Difference</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {RANKS.map((rank) => (
+                                        <tr key={rank} className="border-b border-gray-100 hover:bg-gray-50">
+                                            <td className="px-4 py-2 font-medium">{rank}</td>
+                                            <td className="px-4 py-2 text-gray-600">{COMMISSION_DATA[rank].fullName}</td>
+                                            <td className="px-4 py-2 text-right font-mono">{COMMISSION_DATA[rank].percentage}%</td>
+                                            <td className="px-4 py-2 text-gray-500 text-xs">of (Sale Price - Product Cost)</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-gray-100 font-semibold">
+                                        <td className="px-4 py-2">Total</td>
+                                        <td className="px-4 py-2">Payout</td>
+                                        <td className="px-4 py-2 text-right">90%</td>
+                                        <td className="px-4 py-2 text-xs text-gray-600">Remaining 10% is company profit</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Additional Note */}
+                    <div className="mt-5 text-xs text-gray-400 bg-gray-50 p-3 rounded-lg text-center">
+                        ✅ Commission is distributed only to ranks that exist in the upline chain of the seller.
+                        <br />
+                        Example: If the seller is an ME, their upline (MM, SMM, AGM, DGM, GM) each receive their fixed percentage.
+                    </div>
                 </div>
             </div>
         </div>
