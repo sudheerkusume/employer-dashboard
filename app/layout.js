@@ -38,12 +38,11 @@ export default function RootLayout({ children }) {
     },
   });
 
+  // 1. Load user from localStorage (only once)
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
-
     if (storedUser) {
       const userData = JSON.parse(storedUser);
-
       setRootContext((prev) => ({
         ...prev,
         authenticated: true,
@@ -53,7 +52,34 @@ export default function RootLayout({ children }) {
     } else {
       setRootContext((prev) => ({ ...prev, loader: false }));
     }
-  }, [pathname, router]);
+  }, []); // empty deps → runs once
+
+  // 2. Handle redirects based on auth status and current path
+  useEffect(() => {
+    if (rootContext.loader) return; // wait until loading is done
+
+    const isAuthenticated = rootContext.authenticated;
+    const isLoginPage = pathname === "/login";
+
+    if (!isAuthenticated && !isLoginPage) {
+      router.replace("/login");
+    } else if (isAuthenticated && isLoginPage) {
+      router.replace("/");
+    }
+  }, [rootContext.loader, rootContext.authenticated, pathname, router]);
+
+  // Show a global loader while checking authentication
+  if (rootContext.loader) {
+    return (
+      <html lang="en">
+        <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-white text-xl">Loading...</div>
+          </div>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en">

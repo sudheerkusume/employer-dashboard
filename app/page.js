@@ -1,24 +1,16 @@
 'use client';
 
-
-import { useEffect, useState } from 'react';
+import { useContext } from 'react';
 import { useRouter } from 'next/navigation';
+import RootContext from './components/config/rootcontext';
 
 export default function HomePage() {
+  const { rootContext } = useContext(RootContext);
   const router = useRouter();
-  const [role, setRole] = useState(null);
-
-  useEffect(() => {
-    // Get role from localStorage
-    const user_details =
-      typeof window !== "undefined" &&
-      JSON.parse(localStorage.getItem("user_details"));
-    const storedRole = user_details?.role;
-    if (storedRole) setRole(storedRole);
-  }, []);
+  const user = rootContext.user;
+  const role = user?.role;
 
   const handleGoToDashboard = () => {
-    if (!role) return;
     switch (role) {
       case 'employee':
         router.push('/dashboard/employee');
@@ -30,11 +22,9 @@ export default function HomePage() {
         router.push('/dashboard/admin');
         break;
       default:
-        router.push('/dashboard'); // fallback
+        router.push('/dashboard');
     }
   };
-
-  if (!role) return <div className='min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-red-300'>Loading...</div>;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
