@@ -36,7 +36,13 @@ export default function LoginPage() {
             localStorage.setItem('mlm_user_name', SUPER_ADMIN_NAME);
             localStorage.setItem('mlm_user_level', 'GM');
             localStorage.setItem('mlm_is_super_admin', 'true');
-
+            localStorage.setItem('mlm_is_super_admin', {
+                isLoggedIn: true,
+                userCode: SUPER_ADMIN_CODE,
+                fullName: SUPER_ADMIN_NAME,
+                level: "GM",
+                role: "super_admin"
+            });
             // Update context
             setRootContext(prev => ({
                 ...prev,
@@ -65,8 +71,14 @@ export default function LoginPage() {
                 localStorage.setItem('mlm_user_role', data.user.role || 'user');
                 localStorage.setItem('mlm_user_name', data.user.fullName);
                 localStorage.setItem('mlm_user_level', data.user.level);
-                localStorage.setItem('mlm_is_super_admin', 'false');
-
+                localStorage.setItem('mlm_is_super_admin', {
+                    isLoggedIn: true,
+                    userCode: data.user.applicationId,
+                    fullName: data.user.fullName,
+                    level: data.user.level,
+                    role: data.user.role || 'user'
+                });
+                localStorage.setItem('user_details', 'false');
                 // Update context
                 setRootContext(prev => ({
                     ...prev,

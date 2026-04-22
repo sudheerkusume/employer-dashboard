@@ -37,7 +37,7 @@ export default function Header() {
                         Tree
                     </Link>
                     {isSuperAdmin && (
-                        <Link href="/mlm/applications" className="text-gray-700 hover:text-yellow-600 font-medium">
+                        <Link href="/applicants" className="text-gray-700 hover:text-yellow-600 font-medium">
                             Applications
                         </Link>
                     )}
