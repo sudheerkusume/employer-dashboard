@@ -6,6 +6,7 @@ import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 import Head from "next/head";
+import Header from "./components/mlm/header";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,7 +39,7 @@ export default function RootLayout({ children }) {
     },
   });
 
-  // 1. Load user from localStorage (only once)
+  // Load user from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
     if (storedUser) {
@@ -52,12 +53,11 @@ export default function RootLayout({ children }) {
     } else {
       setRootContext((prev) => ({ ...prev, loader: false }));
     }
-  }, []); // empty deps → runs once
+  }, []);
 
-  // 2. Handle redirects based on auth status and current path
+  // Redirect based on auth
   useEffect(() => {
-    if (rootContext.loader) return; // wait until loading is done
-
+    if (rootContext.loader) return;
     const isAuthenticated = rootContext.authenticated;
     const isLoginPage = pathname === "/login";
 
@@ -68,7 +68,6 @@ export default function RootLayout({ children }) {
     }
   }, [rootContext.loader, rootContext.authenticated, pathname, router]);
 
-  // Show a global loader while checking authentication
   if (rootContext.loader) {
     return (
       <html lang="en">
@@ -81,6 +80,8 @@ export default function RootLayout({ children }) {
     );
   }
 
+  const showHeader = rootContext.authenticated && pathname !== "/login";
+
   return (
     <html lang="en">
       <Head>
@@ -89,7 +90,10 @@ export default function RootLayout({ children }) {
       </Head>
       <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
-          {children}
+          {showHeader && <Header />}
+          <main className={showHeader ? "pt-4" : ""}>
+            {children}
+          </main>
           {rootContext?.toast?.show && <Toast />}
         </RootContext.Provider>
       </body>

@@ -13,9 +13,14 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const { setRootContext } = useContext(RootContext);
 
+    // Static super admin credentials
+    const SUPER_ADMIN_CODE = "SB000001";
+    const SUPER_ADMIN_NAME = "Bheema";
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!applicationId.trim()) {
+        const enteredCode = applicationId.trim().toUpperCase();
+        if (!enteredCode) {
             setError('Please enter your user applicationId');
             return;
         }
@@ -23,30 +28,57 @@ export default function LoginPage() {
         setLoading(true);
         setError('');
 
+        // 🔐 STATIC SUPER ADMIN LOGIN
+        if (enteredCode === SUPER_ADMIN_CODE) {
+            // Store admin data in localStorage
+            localStorage.setItem('mlm_user_code', SUPER_ADMIN_CODE);
+            localStorage.setItem('mlm_user_role', 'super_admin');
+            localStorage.setItem('mlm_user_name', SUPER_ADMIN_NAME);
+            localStorage.setItem('mlm_user_level', 'GM');
+            localStorage.setItem('mlm_is_super_admin', 'true');
+
+            // Update context
+            setRootContext(prev => ({
+                ...prev,
+                mlmUser: {
+                    isLoggedIn: true,
+                    userCode: SUPER_ADMIN_CODE,
+                    fullName: SUPER_ADMIN_NAME,
+                    level: "GM",
+                    role: "super_admin"
+                }
+            }));
+
+            setLoading(false);
+            router.push('/mlm/admin-dashboard'); // or '/mlm/dashboard' if admin uses same dashboard
+            return;
+        }
+
+        // Normal user login via API
         try {
-            const res = await fetch(`/api/mlm/users?userId=${encodeURIComponent(applicationId.toUpperCase())}`);
+            const res = await fetch(`/api/mlm/users?userId=${encodeURIComponent(enteredCode)}`);
             const data = await res.json();
 
             if (data.success) {
                 // Store user data in localStorage
                 localStorage.setItem('mlm_user_code', data.user.applicationId);
-                localStorage.setItem('mlm_user_role', data.user.role);
+                localStorage.setItem('mlm_user_role', data.user.role || 'user');
                 localStorage.setItem('mlm_user_name', data.user.fullName);
                 localStorage.setItem('mlm_user_level', data.user.level);
+                localStorage.setItem('mlm_is_super_admin', 'false');
 
                 // Update context
                 setRootContext(prev => ({
                     ...prev,
                     mlmUser: {
-                        isLoggedIn: false,
-                        userCode: "",
-                        fullName: "",
-                        level: "",
-                        role: ""
+                        isLoggedIn: true,
+                        userCode: data.user.applicationId,
+                        fullName: data.user.fullName,
+                        level: data.user.level,
+                        role: data.user.role || 'user'
                     }
                 }));
 
-                // Redirect to dashboard
                 router.push('/mlm/dashboard');
             } else {
                 setError(data.error || 'Invalid user applicationId');
@@ -60,8 +92,8 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative text-gray-900 flex h-[91.2vh] w-full items-center justify-center overflow-hidden bg-[#FFC107] p-4">
-            {/* Glass morphism background */}
+        <div className="relative text-gray-900 flex h-[100vh] w-full items-center justify-center overflow-hidden bg-[#FFC107] p-4">
+            {/* Glass morphism background (unchanged) */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5"></div>
                 <div className="absolute inset-0">
@@ -106,7 +138,6 @@ export default function LoginPage() {
                         }}
                     />
                 ))}
-
             </div>
 
             <div className="relative z-10 w-full max-w-md">
@@ -128,6 +159,9 @@ export default function LoginPage() {
                         <p className="mt-2 text-center text-sm text-gray-600">
                             Enter your user applicationId to access your dashboard
                         </p>
+                        <p className="mt-1 text-center text-xs text-gray-500">
+                            (Super Admin: SB000001)
+                        </p>
                     </div>
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         <div>
@@ -142,7 +176,7 @@ export default function LoginPage() {
                                 required
                                 value={applicationId}
                                 onChange={(e) => setApplicationId(e.target.value.toUpperCase())}
-                                placeholder="e.g., RB001"
+                                placeholder="e.g., RB001 or SB000001"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                             />
                         </div>
