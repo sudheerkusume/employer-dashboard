@@ -1,319 +1,37 @@
-// app/mlm/tree/page.jsx
-
 "use client";
 
-import { Fragment, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { formatCurrency, getLevelColor } from "@/app/components/lib/mlmUtils";
+import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
+import { Fragment, useState, useEffect, useMemo } from "react";
 
-// --------------------- DUMMY DATA (provided) ---------------------
-const DUMMY_TREE_RESPONSE = {
-    success: true,
-    tree: {
-        _id: "rbz_root_001",
-        fullName: "Bheema",
-        applicationId: "RBZ-APP-001",
-        mlmUserCode: "RB000001",
-        userCode: "RB000001",
-        level: "GM",
-        wallet: 525000,
-        children: [
-            {
-                _id: "rbz_dgm_priya",
-                fullName: "Priya Sharma",
-                applicationId: "RBZ-APP-101",
-                mlmUserCode: "RBZ2001",
-                userCode: "RBZ2001",
-                level: "DGM",
-                wallet: 247500,
-                children: [
-                    {
-                        _id: "rbz_agm_amit",
-                        fullName: "Amit Patel",
-                        applicationId: "RBZ-APP-201",
-                        mlmUserCode: "RBZ3001",
-                        userCode: "RBZ3001",
-                        level: "AGM",
-                        wallet: 118000,
-                        children: [
-                            {
-                                _id: "rbz_mm_sneha",
-                                fullName: "Sneha Reddy",
-                                applicationId: "RBZ-APP-301",
-                                mlmUserCode: "RBZ4001",
-                                userCode: "RBZ4001",
-                                level: "MM",
-                                wallet: 48750,
-                                children: [],
-                            },
-                            {
-                                _id: "rbz_mm_vikram",
-                                fullName: "Vikram Singh",
-                                applicationId: "RBZ-APP-302",
-                                mlmUserCode: "RBZ4002",
-                                userCode: "RBZ4002",
-                                level: "MM",
-                                wallet: 45200,
-                                children: [],
-                            },
-                        ],
-                    },
-                    {
-                        _id: "rbz_smm_neha",
-                        fullName: "Neha Gupta",
-                        applicationId: "RBZ-APP-202",
-                        mlmUserCode: "RBZ3002",
-                        userCode: "RBZ3002",
-                        level: "SMM",
-                        wallet: 81250,
-                        children: [
-                            {
-                                _id: "rbz_me_kavita",
-                                fullName: "Kavita Nair",
-                                applicationId: "RBZ-APP-401",
-                                mlmUserCode: "RBZ5001",
-                                userCode: "RBZ5001",
-                                level: "ME",
-                                wallet: 29500,
-                                children: [
-                                    {
-                                        _id: "rbz_pending_rohan",
-                                        fullName: "Rohan Das",
-                                        applicationId: "RBZ-APP-501",
-                                        mlmUserCode: "RBZ6001",
-                                        userCode: "RBZ6001",
-                                        level: "Pending",
-                                        wallet: 4850,
-                                        children: [],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        _id: "rbz_smm_rahul",
-                        fullName: "Rahul Verma",
-                        applicationId: "RBZ-APP-203",
-                        mlmUserCode: "RBZ3003",
-                        userCode: "RBZ3003",
-                        level: "SMM",
-                        wallet: 75300,
-                        children: [],
-                    },
-                ],
-            },
-            {
-                _id: "rbz_dgm_vijay",
-                fullName: "Vijay Malhotra",
-                applicationId: "RBZ-APP-102",
-                mlmUserCode: "RBZ2002",
-                userCode: "RBZ2002",
-                level: "DGM",
-                wallet: 231000,
-                children: [
-                    {
-                        _id: "rbz_agm_anjali",
-                        fullName: "Anjali Mehta",
-                        applicationId: "RBZ-APP-204",
-                        mlmUserCode: "RBZ3004",
-                        userCode: "RBZ3004",
-                        level: "AGM",
-                        wallet: 109250,
-                        children: [
-                            {
-                                _id: "rbz_mm_divya",
-                                fullName: "Divya K",
-                                applicationId: "RBZ-APP-303",
-                                mlmUserCode: "RBZ4003",
-                                userCode: "RBZ4003",
-                                level: "MM",
-                                wallet: 47600,
-                                children: [],
-                            },
-                            {
-                                _id: "rbz_mm_arjun",
-                                fullName: "Arjun Nair",
-                                applicationId: "RBZ-APP-304",
-                                mlmUserCode: "RBZ4004",
-                                userCode: "RBZ4004",
-                                level: "MM",
-                                wallet: 46800,
-                                children: [],
-                            },
-                        ],
-                    },
-                    {
-                        _id: "rbz_agm_sanjay",
-                        fullName: "Sanjay Joshi",
-                        applicationId: "RBZ-APP-205",
-                        mlmUserCode: "RBZ3005",
-                        userCode: "RBZ3005",
-                        level: "AGM",
-                        wallet: 104750,
-                        children: [
-                            {
-                                _id: "rbz_smm_pooja",
-                                fullName: "Pooja Desai",
-                                applicationId: "RBZ-APP-305",
-                                mlmUserCode: "RBZ4005",
-                                userCode: "RBZ4005",
-                                level: "SMM",
-                                wallet: 71900,
-                                children: [
-                                    {
-                                        _id: "rbz_me_lakshmi",
-                                        fullName: "Lakshmi",
-                                        applicationId: "RBZ-APP-402",
-                                        mlmUserCode: "RBZ5002",
-                                        userCode: "RBZ5002",
-                                        level: "ME",
-                                        wallet: 27650,
-                                        children: [
-                                            {
-                                                _id: "rbz_pending_kiran",
-                                                fullName: "Kiran",
-                                                applicationId: "RBZ-APP-502",
-                                                mlmUserCode: "RBZ6002",
-                                                userCode: "RBZ6002",
-                                                level: "Pending",
-                                                wallet: 3950,
-                                                children: [],
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                            {
-                                _id: "rbz_smm_ravi",
-                                fullName: "Ravi Shankar",
-                                applicationId: "RBZ-APP-306",
-                                mlmUserCode: "RBZ4006",
-                                userCode: "RBZ4006",
-                                level: "SMM",
-                                wallet: 68400,
-                                children: [],
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                _id: "rbz_agm_sunil",
-                fullName: "Sunil Reddy",
-                applicationId: "RBZ-APP-103",
-                mlmUserCode: "RBZ3006",
-                userCode: "RBZ3006",
-                level: "AGM",
-                wallet: 128500,
-                children: [
-                    {
-                        _id: "rbz_smm_deepa",
-                        fullName: "Deepa Nair",
-                        applicationId: "RBZ-APP-307",
-                        mlmUserCode: "RBZ4007",
-                        userCode: "RBZ4007",
-                        level: "SMM",
-                        wallet: 81600,
-                        children: [
-                            {
-                                _id: "rbz_me_rekha",
-                                fullName: "Rekha",
-                                applicationId: "RBZ-APP-403",
-                                mlmUserCode: "RBZ5003",
-                                userCode: "RBZ5003",
-                                level: "ME",
-                                wallet: 31800,
-                                children: [
-                                    {
-                                        _id: "rbz_pending_teja",
-                                        fullName: "Teja",
-                                        applicationId: "RBZ-APP-503",
-                                        mlmUserCode: "RBZ6003",
-                                        userCode: "RBZ6003",
-                                        level: "Pending",
-                                        wallet: 5925,
-                                        children: [],
-                                    },
-                                ],
-                            },
-                            {
-                                _id: "rbz_me_suresh",
-                                fullName: "Suresh",
-                                applicationId: "RBZ-APP-404",
-                                mlmUserCode: "RBZ5004",
-                                userCode: "RBZ5004",
-                                level: "ME",
-                                wallet: 30750,
-                                children: [],
-                            },
-                        ],
-                    },
-                    {
-                        _id: "rbz_smm_manish",
-                        fullName: "Manish Gupta",
-                        applicationId: "RBZ-APP-308",
-                        mlmUserCode: "RBZ4008",
-                        userCode: "RBZ4008",
-                        level: "SMM",
-                        wallet: 78750,
-                        children: [],
-                    },
-                ],
-            },
-        ],
-    },
-    statistics: {
-        directChildren: 3,
-        totalDownline: 20,
-        level: "GM",
-    },
-};
-
-// Helper: find a node by any identifier
-function findNodeByCode(node, code) {
-    if (!node) return null;
-    if (
-        node.mlmUserCode === code ||
-        node.userCode === code ||
-        node.applicationId === code ||
-        node._id === code
-    ) {
-        return node;
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            const found = findNodeByCode(child, code);
-            if (found) return found;
-        }
-    }
-    return null;
+// ----------------------------------------------------------------------
+// Utility functions (kept as they are, no static data)
+// ----------------------------------------------------------------------
+function formatCurrency(amount) {
+    if (amount === undefined || amount === null) return "₹0";
+    return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
 }
 
-// Helper: get upline chain (ancestors) from root to the given node
-function getUplineChain(root, targetNode, currentChain = []) {
-    if (!root) return [];
-    if (root === targetNode) return currentChain;
-    if (root.children) {
-        for (const child of root.children) {
-            const result = getUplineChain(child, targetNode, [...currentChain, root]);
-            if (result.length) return result;
-        }
-    }
-    return [];
+function getLevelColor(level) {
+    const colors = {
+        GM: "bg-red-500",
+        DGM: "bg-orange-500",
+        AGM: "bg-yellow-500",
+        SMM: "bg-green-500",
+        MM: "bg-blue-500",
+        ME: "bg-purple-500",
+        Pending: "bg-gray-400",
+    };
+    return colors[level] || "bg-gray-400";
 }
 
-// Helper: compute statistics for a given node (direct children, total downline, rank distribution)
 function computeNodeStats(node) {
     let totalDownline = 0;
-    const rankCount = {
-        GM: 0,
-        DGM: 0,
-        AGM: 0,
-        SMM: 0,
-        MM: 0,
-        ME: 0,
-        Pending: 0,
-    };
+    const rankCount = { GM: 0, DGM: 0, AGM: 0, SMM: 0, MM: 0, ME: 0, Pending: 0 };
     const stack = [...(node.children || [])];
     while (stack.length) {
         const current = stack.pop();
@@ -331,121 +49,338 @@ function computeNodeStats(node) {
     };
 }
 
-export default function MLMTree() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+// ----------------------------------------------------------------------
+// Commission Configuration (unchanged)
+// ----------------------------------------------------------------------
+const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
+const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 
+function computeCommissionFromNode(node, viewerRank) {
+    const depthMap = new Map();
+    for (let d = 1; d <= 6; d++) depthMap.set(d, { sumSaleValue: 0, commission: 0 });
+
+    function traverse(currentNode, depth) {
+        if (!currentNode || depth > 6) return;
+        const saleAmt = currentNode.saleValue || 2000;
+        const depthData = depthMap.get(depth);
+        if (depthData) depthData.sumSaleValue += saleAmt;
+        if (currentNode.children) {
+            for (const child of currentNode.children) traverse(child, depth + 1);
+        }
+    }
+
+    if (node.children) {
+        for (const child of node.children) traverse(child, 1);
+    }
+
+    const maxDepth = RANK_UNLOCKED_DEPTHS[viewerRank] || 1;
+    let totalCommission = 0;
+    for (let depth = 1; depth <= maxDepth; depth++) {
+        const data = depthMap.get(depth);
+        const percent = COMMISSION_PERCENTS[depth] || 0;
+        data.commission = data.sumSaleValue * percent;
+        totalCommission += data.commission;
+    }
+    for (let depth = maxDepth + 1; depth <= 6; depth++) {
+        depthMap.get(depth).commission = 0;
+    }
+    return { byDepth: Object.fromEntries(depthMap), totalCommission };
+}
+
+function RealTimeCommission({ currentNode }) {
+    const commissionData = useMemo(() => {
+        if (!currentNode) return null;
+        return computeCommissionFromNode(currentNode, currentNode.level);
+    }, [currentNode]);
+
+    if (!commissionData) return null;
+    const maxDepth = RANK_UNLOCKED_DEPTHS[currentNode.level] || 1;
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h2 className="text-lg font-semibold mb-3">
+                💰 Real-Time Commission for {currentNode.fullName} ({currentNode.level})
+            </h2>
+            <table className="min-w-full text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-4 py-2 text-left">Depth Level</th>
+                        <th className="px-4 py-2 text-left">Commission %</th>
+                        <th className="px-4 py-2 text-right">Total Sale Value</th>
+                        <th className="px-4 py-2 text-right">Commission Earned</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {[1, 2, 3, 4, 5, 6].map((depth) => {
+                        const data = commissionData.byDepth[depth];
+                        if (!data || data.sumSaleValue === 0) return null;
+                        const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
+                        const isEarned = depth <= maxDepth;
+                        return (
+                            <tr key={depth} className="border-b">
+                                <td className="px-4 py-2">Level {depth}</td>
+                                <td className="px-4 py-2">{percent}%</td>
+                                <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-green-600">
+                                    {isEarned ? formatCurrency(data.commission) : "₹0"}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+                <tfoot className="bg-gray-100">
+                    <tr>
+                        <td colSpan="3" className="px-4 py-2 text-right font-bold">Total Commission:</td>
+                        <td className="px-4 py-2 text-right font-bold text-green-700">{formatCurrency(commissionData.totalCommission)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p className="text-xs text-gray-500 mt-2">
+                * As a {currentNode.level}, you earn commission only up to depth level {maxDepth}.
+                <br />
+                Depth 1: 5%, Depth 2: 2.5%, Depth 3: 2%, Depth 4: 1.5%, Depth 5: 1%, Depth 6: 0.5%
+            </p>
+        </div>
+    );
+}
+
+function RankDashboard({ userNode, directCount, totalDownline }) {
+    const rank = userNode?.level || "Pending";
+    const rankOrder = ["ME", "MM", "SMM", "DGM", "AGM", "GM"];
+    const currentIdx = rankOrder.indexOf(rank);
+    const nextRank = currentIdx < rankOrder.length - 1 ? rankOrder[currentIdx + 1] : null;
+    const maxDepth = RANK_UNLOCKED_DEPTHS[rank] || 1;
+
+    let promotedDirectCount = 0;
+    if (nextRank && userNode.children) {
+        const nextRankIdx = rankOrder.indexOf(nextRank);
+        promotedDirectCount = userNode.children.filter(child => {
+            const childIdx = rankOrder.indexOf(child.level);
+            return childIdx >= nextRankIdx;
+        }).length;
+    }
+    const totalDirect = userNode.children?.length || 0;
+    const promotionNeeded = totalDirect;
+    const progressPercent = promotionNeeded > 0 ? (promotedDirectCount / promotionNeeded) * 100 : 0;
+
+    const getExampleText = () => {
+        if (rank === "ME") return `Enroll ${10 - totalDirect} more direct members to become MM.`;
+        if (rank === "MM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
+        if (rank === "SMM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
+        if (rank === "DGM") return `All direct members must become DGM to reach AGM.`;
+        if (rank === "AGM") return `All direct members must become AGM to reach GM.`;
+        return "Congratulations! You are at the highest rank.";
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+                <h2 className="text-2xl font-bold">Your Dashboard</h2>
+                <div className="mt-2 text-4xl font-extrabold">{rank}</div>
+                <p className="mt-1 opacity-90">{nextRank ? `Next rank: ${nextRank}` : "Highest rank achieved"}</p>
+            </div>
+
+            {nextRank && (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Promotion to {nextRank}</h3>
+                    <div className="mt-2">
+                        <div className="flex justify-between text-sm text-gray-600">
+                            <span>{promotedDirectCount} of {promotionNeeded} direct members have reached {nextRank}</span>
+                            <span>{Math.round(progressPercent)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div>
+                        </div>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-3">{getExampleText()}</p>
+                </div>
+            )}
+
+            <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">💰 Commission Structure</h3>
+                <p className="text-sm text-gray-600 mb-3">As a {rank}, you earn from downline up to depth level {maxDepth}.</p>
+                <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50">
+                        <tr><th className="px-3 py-2">Depth Level</th><th className="px-3 py-2">Commission</th><th className="px-3 py-2">Eligible?</th></tr>
+                    </thead>
+                    <tbody>
+                        {[1, 2, 3, 4, 5, 6].map(depth => {
+                            const percent = COMMISSION_PERCENTS[depth] * 100;
+                            const eligible = depth <= maxDepth;
+                            return (
+                                <tr key={depth} className="border-b">
+                                    <td className="px-3 py-2">Level {depth}</td>
+                                    <td className="px-3 py-2">{percent}%</td>
+                                    <td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-800">📊 Network Summary</h3>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div><div className="text-gray-500 text-sm">Direct Members</div><div className="text-2xl font-bold text-blue-600">{directCount}</div></div>
+                    <div><div className="text-gray-500 text-sm">Total Downline</div><div className="text-2xl font-bold text-green-600">{totalDownline}</div></div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ----------------------------------------------------------------------
+// Main Component – Fully dynamic with API calls
+// ----------------------------------------------------------------------
+export default function MLMTree() {
     const [treeData, setTreeData] = useState(null);
     const [currentNode, setCurrentNode] = useState(null);
     const [upline, setUpline] = useState([]);
     const [stats, setStats] = useState(null);
     const [rankDist, setRankDist] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [searchCode, setSearchCode] = useState("");
     const [viewMode, setViewMode] = useState("tree");
+    const [error, setError] = useState(null);
+    const [expandedNodes, setExpandedNodes] = useState({});
+    const [loading, setLoading] = useState(true);
 
-    // Initialize with dummy data (root)
+    // Fetch the tree for a given user (as root)
+    const fetchTree = async (userCode, viewerCode = null) => {
+        setLoading(true);
+        try {
+            const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            const tree = data.tree;
+
+            setTreeData(tree);
+            setCurrentNode(tree);
+            const nodeStats = computeNodeStats(tree);
+            setStats({
+                directChildren: nodeStats.directChildren,
+                totalDownline: nodeStats.totalDownline,
+                level: nodeStats.level,
+            });
+            setRankDist(nodeStats.rankDistribution);
+            setError(null);
+
+            // Expand all nodes initially
+            const allIds = getAllNodeIds(tree);
+            const expanded = {};
+            allIds.forEach(id => { expanded[id] = true; });
+            setExpandedNodes(expanded);
+        } catch (err) {
+            console.error("Fetch tree error:", err);
+            setError(err.message);
+            setCurrentNode(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch upline chain for a user
+    const fetchUpline = async (userCode) => {
+        if (!userCode) return;
+        try {
+            const res = await fetch(`/api/mlm/upline?userCode=${encodeURIComponent(userCode)}`);
+            const data = await res.json();
+            if (data.success) setUpline(data.upline);
+            else setUpline([]);
+        } catch (err) {
+            console.error("Fetch upline error:", err);
+            setUpline([]);
+        }
+    };
+
+    // On mount, load root tree (VANI001) and its upline (empty for root)
     useEffect(() => {
-        const root = DUMMY_TREE_RESPONSE.tree;
-        setTreeData(root);
-        setCurrentNode(root);
-        setUpline([]); // root has no upline
-        setStats(DUMMY_TREE_RESPONSE.statistics);
-        const computed = computeNodeStats(root);
-        setRankDist(computed.rankDistribution);
-        setError(null);
+        fetchTree("VANI001");
     }, []);
 
-    // Function to set a new current user (by identifier)
-    const setViewToUser = (identifier) => {
-        if (!identifier) {
-            setError("Invalid identifier");
-            return;
+    // When currentNode changes, fetch its upline
+    useEffect(() => {
+        if (currentNode) {
+            fetchUpline(currentNode.userCode);
         }
-        const node = findNodeByCode(DUMMY_TREE_RESPONSE.tree, identifier);
-        if (!node) {
-            setError(`User with code "${identifier}" not found in the tree.`);
-            setCurrentNode(null);
-            setUpline([]);
-            setStats(null);
-            setRankDist(null);
-            return;
+    }, [currentNode]);
+
+    function getAllNodeIds(node) {
+        let ids = [node._id];
+        if (node.children) {
+            node.children.forEach(child => {
+                ids = ids.concat(getAllNodeIds(child));
+            });
         }
-        setCurrentNode(node);
-        // Compute upline (ancestors)
-        const uplineChain = getUplineChain(DUMMY_TREE_RESPONSE.tree, node);
-        setUpline(uplineChain);
-        // Compute stats for this node (downline only)
-        const nodeStats = computeNodeStats(node);
-        setStats({
-            directChildren: nodeStats.directChildren,
-            totalDownline: nodeStats.totalDownline,
-            level: nodeStats.level,
-        });
-        setRankDist(nodeStats.rankDistribution);
-        setError(null);
+        return ids;
+    }
+
+    const setViewToUser = async (identifier) => {
+        if (!identifier) return;
+        await fetchTree(identifier, identifier);
     };
 
     const handleSearch = (e) => {
         e.preventDefault();
-        if (searchCode.trim()) {
-            setViewToUser(searchCode.trim());
-            setSearchCode("");
-        }
+        if (searchCode.trim()) setViewToUser(searchCode.trim());
+        setSearchCode("");
     };
 
-    const handleViewUser = (identifier) => {
-        setViewToUser(identifier);
+    const getDisplayName = (node) => node.fullName || node.userCode || "Unknown";
+
+    const toggleNode = (nodeId, e) => {
+        e.stopPropagation();
+        setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    const getDisplayName = (node) => {
-        return node.fullName || node.applicationId || node.userCode || "Unknown";
-    };
-
-    // Recursive tree renderer (for downline)
-    const renderTree = (node, level = 0) => {
+    // Recursive tree render (uses dynamic currentNode)
+    const renderTree = (node, viewerNode) => {
         if (!node) return null;
-
-        const levelClass = node.level ? getLevelColor(node.level) : "bg-gray-400";
-        const levelDisplay = node.level || "Pending";
-        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
-        const identifier = node.mlmUserCode || node.userCode || node.applicationId;
+        const highRanks = ["DGM", "AGM", "GM"];
+        if (highRanks.includes(node.level) && node !== viewerNode) {
+            return (
+                <div key={node._id} className="p-2 text-gray-500 italic border-l-2 border-gray-300 ml-4">
+                    ⚡ {getDisplayName(node)} (reached {node.level}) – hidden per MLM rules
+                </div>
+            );
+        }
+        const levelClass = getLevelColor(node.level);
+        const identifier = node.userCode;
+        const hasChildren = node.children && node.children.length > 0;
+        const isExpanded = expandedNodes[node._id] === true;
 
         return (
             <div key={node._id} className="tree-node relative">
-                <div className="flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                <div onClick={(e) => toggleNode(node._id, e)} className={`flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg ${hasChildren && "cursor-pointer"}`}>
+                    {hasChildren && (
+                        <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
+                            {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
+                        </button>
+                    )}
+                    {!hasChildren && <div className="w-6"></div>}
                     <div className={`w-3 h-3 rounded-full ${levelClass}`} />
                     <div className="flex-1">
                         <span className="font-medium text-gray-800">{getDisplayName(node)}</span>
-                        {identifier && (
-                            <span className="text-sm text-gray-500 ml-2">({identifier})</span>
-                        )}
-                        <span className="text-xs text-gray-400 ml-2">{levelDisplay}</span>
-                        <span className="text-xs text-green-600 ml-2">
-                            Wallet: {walletAmount}
-                        </span>
+                        {identifier && <span className="text-sm text-gray-500 ml-2">({identifier})</span>}
+                        <span className="text-xs text-gray-400 ml-2">{node.level}</span>
+                        <span className="text-xs text-green-600 ml-2">Sale: {formatCurrency(node.saleValue || 2000)}</span>
                     </div>
                     {identifier && (
-                        <button
-                            onClick={() => handleViewUser(identifier)}
-                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50 transition"
-                            disabled={loading}
-                        >
+                        <button onClick={() => setViewToUser(identifier)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200">
                             View
                         </button>
                     )}
                 </div>
-                {node.children && node.children.length > 0 && (
+                {hasChildren && isExpanded && (
                     <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">
-                        {node.children.map((child) => renderTree(child, level + 1))}
+                        {node.children.map((child) => renderTree(child, viewerNode))}
                     </div>
                 )}
             </div>
         );
     };
 
-    // Render upline (simple linear list, can be styled as a chain)
     const renderUpline = () => {
         if (!upline.length) return null;
         return (
@@ -454,11 +389,8 @@ export default function MLMTree() {
                 <div className="flex flex-wrap items-center gap-2">
                     {upline.map((node, idx) => (
                         <Fragment key={node._id}>
-                            <button
-                                onClick={() => handleViewUser(node.mlmUserCode || node.userCode)}
-                                className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border hover:bg-blue-100 transition"
-                            >
-                                <div className={`w-2 h-2 rounded-full ${node.level ? getLevelColor(node.level) : "bg-gray-400"}`} />
+                            <button onClick={() => setViewToUser(node.userCode)} className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border">
+                                <div className={`w-2 h-2 rounded-full ${getLevelColor(node.level)}`} />
                                 <span className="text-sm font-medium">{getDisplayName(node)}</span>
                                 <span className="text-xs text-gray-500">({node.level})</span>
                             </button>
@@ -466,7 +398,7 @@ export default function MLMTree() {
                         </Fragment>
                     ))}
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 rounded-full shadow-sm">
-                        <div className={`w-2 h-2 rounded-full ${currentNode?.level ? getLevelColor(currentNode.level) : "bg-gray-400"}`} />
+                        <div className={`w-2 h-2 rounded-full ${getLevelColor(currentNode?.level)}`} />
                         <span className="text-sm font-bold">{getDisplayName(currentNode)}</span>
                         <span className="text-xs text-gray-600">({currentNode?.level})</span>
                         <span className="text-xs text-green-600 ml-1">← You are here</span>
@@ -476,150 +408,96 @@ export default function MLMTree() {
         );
     };
 
-    // Recursive list view renderer (for downline)
-    const renderListView = (node, level = 0) => {
+    const renderListView = (node, viewerNode, level = 0) => {
         if (!node) return null;
-
-        const levelDisplay = node.level || "Pending";
-        const walletAmount = node.wallet ? formatCurrency(node.wallet) : "-";
-        const identifier = node.mlmUserCode || node.userCode || node.applicationId;
+        const highRanks = ["DGM", "AGM", "GM"];
+        if (highRanks.includes(node.level) && node !== viewerNode) {
+            return (
+                <tr key={node._id}>
+                    <td colSpan="6" className="px-4 py-2 text-gray-500 italic">
+                        ⚡ {getDisplayName(node)} (reached {node.level}) – hidden
+                    </td>
+                </tr>
+            );
+        }
+        const identifier = node.userCode;
+        const hasChildren = node.children && node.children.length > 0;
+        const isExpanded = expandedNodes[node._id] === true;
 
         return (
             <Fragment key={node._id}>
-                <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-2" style={{ paddingLeft: level * 30 + 16 }}>
-                        {getDisplayName(node)}
-                    </td>
-                    <td className="px-4 py-2">{identifier || "-"}</td>
-                    <td className="px-4 py-2">
-                        <span
-                            className={`px-2 py-1 text-xs rounded-full ${node.level ? getLevelColor(node.level) : "bg-gray-400 text-white"
-                                }`}
-                        >
-                            {levelDisplay}
-                        </span>
-                    </td>
-                    <td className="px-4 py-2">{walletAmount}</td>
-                    <td className="px-4 py-2">
-                        {identifier && (
-                            <button
-                                onClick={() => handleViewUser(identifier)}
-                                className="text-blue-600 hover:text-blue-800"
-                                disabled={loading}
-                            >
-                                View Downline
+                <tr onClick={(e) => toggleNode(node._id, e)} className={`hover:bg-gray-50 ${hasChildren && "cursor-pointer"}`}>
+                    <td className="px-2 py-2 text-center">
+                        {hasChildren && (
+                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
+                                {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
                             </button>
                         )}
                     </td>
+                    <td className="px-4 py-2" style={{ paddingLeft: level * 30 + 16 }}>{getDisplayName(node)}</td>
+                    <td className="px-4 py-2">{identifier || "-"}</td>
+                    <td className="px-4 py-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${getLevelColor(node.level)} text-white`}>{node.level}</span>
+                    </td>
+                    <td className="px-4 py-2">{formatCurrency(node.saleValue || 2000)}</td>
+                    <td className="px-4 py-2">
+                        {identifier && (
+                            <button onClick={() => setViewToUser(identifier)} className="text-blue-600 hover:text-blue-800">View</button>
+                        )}
+                    </td>
                 </tr>
-                {node.children &&
-                    node.children.length > 0 &&
-                    node.children.map((child) => renderListView(child, level + 1))}
+                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, level + 1))}
             </Fragment>
         );
     };
 
+    if (loading && !currentNode) {
+        return <div className="min-h-screen flex items-center justify-center">Loading network tree...</div>;
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
-            <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <div className="flex justify-between items-center flex-wrap gap-4">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800">Real Beez Tree Structure</h1>
-                            <p className="text-gray-600 mt-2">
-                                {currentNode ? `Showing upline & downline for: ${getDisplayName(currentNode)} (${currentNode.level})` : "No user selected"}
-                            </p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setViewMode("tree")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "tree"
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                    }`}
-                            >
-                                Tree View
-                            </button>
-                            <button
-                                onClick={() => setViewMode("list")}
-                                className={`px-4 py-2 rounded transition ${viewMode === "list"
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                    }`}
-                            >
-                                List View
-                            </button>
-                        </div>
+            <div className="w-full sm:w-[80%] mx-auto px-4 py-8">
+                <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800">Sales Beez Tree – A.Vani Network</h1>
+                        <p className="text-gray-600 mt-2">
+                            {currentNode ? `Viewing: ${getDisplayName(currentNode)} (${currentNode.level})` : "Select a user"}
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setViewMode("tree")} className={`px-4 py-2 rounded ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Tree View</button>
+                        <button onClick={() => setViewMode("list")} className={`px-4 py-2 rounded ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>List View</button>
+                        <button onClick={() => setViewMode("dashboard")} className={`px-4 py-2 rounded ${viewMode === "dashboard" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Dashboard</button>
                     </div>
                 </div>
 
-                {/* Search */}
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={searchCode}
-                            onChange={(e) => setSearchCode(e.target.value)}
-                            placeholder="Enter user code (e.g., RB000001, RBZ3002)"
-                            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                            type="submit"
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-                        >
-                            View Tree
-                        </button>
+                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name or code (e.g., Eswari, VANI001)" className="flex-1 px-4 py-2 border rounded-lg" />
+                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
                     </form>
                 </div>
 
-                {/* Error */}
-                {error && (
-                    <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                        <strong>Error:</strong> {error}
-                    </div>
-                )}
+                {error && <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">{error}</div>}
 
-                {/* Upline Section */}
                 {currentNode && renderUpline()}
 
-                {/* Stats Cards (downline) */}
                 {stats && currentNode && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Direct Downline</div>
-                            <div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div>
-                        </div>
-                        <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Total Downline</div>
-                            <div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div>
-                        </div>
-                        <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Your Level</div>
-                            <div className="text-2xl font-bold text-purple-600">
-                                {stats.level === "Pending" ? "Pending Approval" : stats.level}
-                            </div>
-                        </div>
+                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Direct Downline</div><div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div></div>
+                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Total Downline</div><div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div></div>
+                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Your Level</div><div className="text-2xl font-bold text-purple-600">{stats.level}</div></div>
                     </div>
                 )}
 
-                {/* Rank-wise Downline Distribution */}
                 {rankDist && currentNode && (
                     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            📊 Downline Breakdown by Rank (Total: {stats.totalDownline})
-                        </h2>
+                        <h2 className="text-lg font-semibold mb-3">📊 Rank Distribution (Downline)</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                             {Object.entries(rankDist).map(([rank, count]) => (
                                 <div key={rank} className="text-center p-2 rounded-lg bg-gray-50">
-                                    <div className={`text-sm font-bold ${rank === "GM" ? "text-red-600" :
-                                            rank === "DGM" ? "text-orange-600" :
-                                                rank === "AGM" ? "text-yellow-600" :
-                                                    rank === "SMM" ? "text-green-600" :
-                                                        rank === "MM" ? "text-blue-600" :
-                                                            rank === "ME" ? "text-purple-600" : "text-gray-600"
-                                        }`}>
-                                        {rank}
-                                    </div>
+                                    <div className="text-sm font-bold">{rank}</div>
                                     <div className="text-2xl font-bold">{count}</div>
                                 </div>
                             ))}
@@ -627,83 +505,39 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Direct Downline List */}
-                {currentNode && currentNode.children && currentNode.children.length > 0 && (
-                    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            👥 Direct Downline Members ({currentNode.children.length})
-                        </h2>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left">Name</th>
-                                        <th className="px-4 py-2 text-left">User Code</th>
-                                        <th className="px-4 py-2 text-left">Rank</th>
-                                        <th className="px-4 py-2 text-right">Wallet</th>
-                                        <th className="px-4 py-2 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {currentNode.children.map((child) => (
-                                        <tr key={child._id} className="border-b hover:bg-gray-50">
-                                            <td className="px-4 py-2 font-medium">{getDisplayName(child)}</td>
-                                            <td className="px-4 py-2">{child.mlmUserCode || child.userCode}</td>
-                                            <td className="px-4 py-2">
-                                                <span className={`px-2 py-1 text-xs rounded-full ${child.level ? getLevelColor(child.level) : "bg-gray-400 text-white"
-                                                    }`}>
-                                                    {child.level || "Pending"}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-2 text-right">{formatCurrency(child.wallet || 0)}</td>
-                                            <td className="px-4 py-2 text-center">
-                                                <button
-                                                    onClick={() => handleViewUser(child.mlmUserCode || child.userCode)}
-                                                    className="text-blue-600 hover:text-blue-800 text-xs"
-                                                >
-                                                    View Downline
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                {currentNode && <RealTimeCommission currentNode={currentNode} />}
+
+                {viewMode === "dashboard" && currentNode && (
+                    <RankDashboard userNode={currentNode} directCount={stats?.directChildren} totalDownline={stats?.totalDownline} />
                 )}
 
-                {/* Downline Tree / List Visualization */}
-                {currentNode && (
+                {viewMode !== "dashboard" && currentNode && (
                     <div className="bg-white rounded-lg shadow-md p-6">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            ⬇️ Downline Network
-                        </h2>
+                        <h2 className="text-lg font-semibold mb-3">⬇️ Downline Network</h2>
                         {viewMode === "tree" ? (
-                            <div className="overflow-x-auto">{renderTree(currentNode)}</div>
+                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode)}</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Identifier</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level/Status</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wallet</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                            <th className="px-2 py-3 text-left w-10"></th>
+                                            <th className="px-4 py-3 text-left">Name</th>
+                                            <th className="px-4 py-3 text-left">Code</th>
+                                            <th className="px-4 py-3 text-left">Rank</th>
+                                            <th className="px-4 py-3 text-left">Sale Value</th>
+                                            <th className="px-4 py-3 text-left">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {renderListView(currentNode)}
-                                    </tbody>
+                                    <tbody>{renderListView(currentNode, currentNode)}</tbody>
                                 </table>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Legend */}
                 <div className="mt-4 text-sm text-gray-600 text-center">
-                    <p>Click "View" to explore any user's upline & downline | Upline shown above, downline below</p>
+                    <p>Click "View" to explore any user | Upline shown above | DGM/AGM/GM are hidden from downline view</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
@@ -715,31 +549,13 @@ export default function MLMTree() {
                     </div>
                 </div>
             </div>
-
             <style jsx>{`
-        .tree-node {
-          position: relative;
-        }
-        .tree-node:not(:last-child) > .tree-children::before {
-          content: "";
-          position: absolute;
-          left: -10px;
-          top: 0;
-          bottom: 0;
-          width: 2px;
-          background: #e5e7eb;
-        }
-        .tree-node:last-child > .tree-children::before {
-          display: none;
-        }
-        .tree-children {
-          position: relative;
-          margin-top: 0.5rem;
-        }
-        .tree-children .tree-node {
-          margin-left: 1rem;
-        }
-      `}</style>
+                .tree-node{position:relative}
+                .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
+                .tree-node:last-child>.tree-children::before{display:none}
+                .tree-children{position:relative;margin-top:0.5rem}
+                .tree-children .tree-node{margin-left:1rem}
+            `}</style>
         </div>
     );
 }
