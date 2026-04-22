@@ -6,8 +6,7 @@ import Toast from "./components/common/toast";
 import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 import Head from "next/head";
-import Header from "./components/mlm/header";
-
+import Header from "./components/mlm/navbar";
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -55,18 +54,7 @@ export default function RootLayout({ children }) {
     }
   }, []);
 
-  // Redirect based on auth
-  useEffect(() => {
-    if (rootContext.loader) return;
-    const isAuthenticated = rootContext.authenticated;
-    const isLoginPage = pathname === "/login";
-
-    if (!isAuthenticated && !isLoginPage) {
-      router.replace("/login");
-    } else if (isAuthenticated && isLoginPage) {
-      router.replace("/");
-    }
-  }, [rootContext.loader, rootContext.authenticated, pathname, router]);
+  
 
   if (rootContext.loader) {
     return (

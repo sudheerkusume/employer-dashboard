@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
-import { Fragment, useState, useEffect, useMemo } from "react";
-
+import { Fragment, useState, useEffect, useMemo, useContext } from "react";
+import RootContext from "../config/rootcontext";
 // ----------------------------------------------------------------------
 // Utility functions (kept as they are, no static data)
 // ----------------------------------------------------------------------
@@ -231,9 +231,13 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component – Fully dynamic with API calls
+// Main Component – Fully dynamic with API calls & super admin support
 // ----------------------------------------------------------------------
 export default function MLMTree() {
+    const { rootContext } = useContext(RootContext);
+    const loggedInUser = rootContext.user;
+    const isSuperAdmin = loggedInUser?.userCode === "SB000001";
+
     const [treeData, setTreeData] = useState(null);
     const [currentNode, setCurrentNode] = useState(null);
     const [upline, setUpline] = useState([]);
@@ -249,6 +253,8 @@ export default function MLMTree() {
     const fetchTree = async (userCode, viewerCode = null) => {
         setLoading(true);
         try {
+            // For super admin, we can pass a flag to API to return all nodes without hiding
+            // But we'll handle hiding in the frontend using isSuperAdmin prop.
             const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
@@ -294,7 +300,7 @@ export default function MLMTree() {
         }
     };
 
-    // On mount, load root tree (VANI001) and its upline (empty for root)
+    // On mount, load root tree (VANI001) for normal users, or allow super admin to see root as well.
     useEffect(() => {
         fetchTree("VANI001");
     }, []);
@@ -334,11 +340,12 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    // Recursive tree render (uses dynamic currentNode)
-    const renderTree = (node, viewerNode) => {
+    // Recursive tree render – now accepts `forceShowAll` to override hiding for super admin
+    const renderTree = (node, viewerNode, forceShowAll = false) => {
         if (!node) return null;
         const highRanks = ["DGM", "AGM", "GM"];
-        if (highRanks.includes(node.level) && node !== viewerNode) {
+        // Hide high ranks only if NOT forceShowAll and node is not the viewerNode
+        if (!forceShowAll && highRanks.includes(node.level) && node !== viewerNode) {
             return (
                 <div key={node._id} className="p-2 text-gray-500 italic border-l-2 border-gray-300 ml-4">
                     ⚡ {getDisplayName(node)} (reached {node.level}) – hidden per MLM rules
@@ -374,7 +381,7 @@ export default function MLMTree() {
                 </div>
                 {hasChildren && isExpanded && (
                     <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">
-                        {node.children.map((child) => renderTree(child, viewerNode))}
+                        {node.children.map((child) => renderTree(child, viewerNode, forceShowAll))}
                     </div>
                 )}
             </div>
@@ -408,10 +415,10 @@ export default function MLMTree() {
         );
     };
 
-    const renderListView = (node, viewerNode, level = 0) => {
+    const renderListView = (node, viewerNode, forceShowAll = false, level = 0) => {
         if (!node) return null;
         const highRanks = ["DGM", "AGM", "GM"];
-        if (highRanks.includes(node.level) && node !== viewerNode) {
+        if (!forceShowAll && highRanks.includes(node.level) && node !== viewerNode) {
             return (
                 <tr key={node._id}>
                     <td colSpan="6" className="px-4 py-2 text-gray-500 italic">
@@ -446,7 +453,7 @@ export default function MLMTree() {
                         )}
                     </td>
                 </tr>
-                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, level + 1))}
+                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, forceShowAll, level + 1))}
             </Fragment>
         );
     };
@@ -460,7 +467,9 @@ export default function MLMTree() {
             <div className="w-full sm:w-[80%] mx-auto px-4 py-8">
                 <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Sales Beez Tree – A.Vani Network</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">
+                            Sales Beez Tree – {loggedInUser?.fullName || "User"}'s Network
+                        </h1>
                         <p className="text-gray-600 mt-2">
                             {currentNode ? `Viewing: ${getDisplayName(currentNode)} (${currentNode.level})` : "Select a user"}
                         </p>
@@ -515,7 +524,7 @@ export default function MLMTree() {
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-lg font-semibold mb-3">⬇️ Downline Network</h2>
                         {viewMode === "tree" ? (
-                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode)}</div>
+                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode, isSuperAdmin)}</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -529,7 +538,7 @@ export default function MLMTree() {
                                             <th className="px-4 py-3 text-left">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>{renderListView(currentNode, currentNode)}</tbody>
+                                    <tbody>{renderListView(currentNode, currentNode, isSuperAdmin)}</tbody>
                                 </table>
                             </div>
                         )}
@@ -537,7 +546,7 @@ export default function MLMTree() {
                 )}
 
                 <div className="mt-4 text-sm text-gray-600 text-center">
-                    <p>Click "View" to explore any user | Upline shown above | DGM/AGM/GM are hidden from downline view</p>
+                    <p>Click "View" to explore any user | Upline shown above | {isSuperAdmin ? "Super Admin: All ranks visible" : "DGM/AGM/GM are hidden from downline view"}</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>

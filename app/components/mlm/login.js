@@ -50,7 +50,7 @@ export default function LoginPage() {
             }));
 
             setLoading(false);
-            router.push('/mlm/admin-dashboard'); // or '/mlm/dashboard' if admin uses same dashboard
+            router.push('/mlm/tree'); // or '/mlm/dashboard' if admin uses same dashboard
             return;
         }
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
                     }
                 }));
 
-                router.push('/mlm/dashboard');
+                router.push('/mlm/tree');
             } else {
                 setError(data.error || 'Invalid user applicationId');
             }
