@@ -54,7 +54,7 @@ export default function RootLayout({ children }) {
     }
   }, []);
 
-  
+
 
   if (rootContext.loader) {
     return (
@@ -68,8 +68,8 @@ export default function RootLayout({ children }) {
     );
   }
 
-  const showHeader = rootContext.authenticated && pathname !== "/login";
-
+  const showHeader = rootContext?.mlmUser?.isLoggedIn && rootContext?.mlmUser?.role === "super_admin";
+  
   return (
     <html lang="en">
       <Head>
@@ -79,7 +79,7 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
           {showHeader && <Header />}
-          <main className={showHeader ? "pt-4" : ""}>
+          <main>
             {children}
           </main>
           {rootContext?.toast?.show && <Toast />}

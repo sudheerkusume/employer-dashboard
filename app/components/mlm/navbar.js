@@ -8,7 +8,7 @@ import RootContext from "../config/rootcontext";
 export default function Header() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
-    const user = rootContext.user;
+    const user = rootContext?.mlmUser;
     const isSuperAdmin = user?.userCode === "SB000001";
 
     const handleLogout = () => {
@@ -16,12 +16,12 @@ export default function Header() {
         setRootContext(prev => ({
             ...prev,
             authenticated: false,
-            user: {}
+            mlmUser: {}
         }));
         router.push("/");
     };
 
-    if (!rootContext.authenticated) return null;
+    if (!rootContext.mlmUser) return null;
 
     return (
         <header className="bg-white shadow-md px-6 py-3 flex justify-between items-center">
