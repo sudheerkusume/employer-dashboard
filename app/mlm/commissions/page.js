@@ -427,7 +427,7 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
                             const percent = COMMISSION_PERCENTS[depth] * 100;
                             const eligible = depth <= maxDepth;
                             return (
-                                <tr key={depth} className="border-b">
+                                <tr key={depth} className="border-b text-center">
                                     <td className="px-3 py-2">Level {depth}</td>
                                     <td className="px-3 py-2">{percent}%</td>
                                     <td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td>
