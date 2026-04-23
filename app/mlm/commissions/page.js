@@ -563,7 +563,7 @@ export default function MLMTree() {
                         <span className="font-medium text-gray-800">{getDisplayName(node)}</span>
                         {identifier && <span className="text-sm text-gray-500 ml-2">({identifier})</span>}
                         <span className="text-xs text-gray-400 ml-2">{node.level}</span>
-                        <span className="text-xs text-green-600 ml-2">Sale: {formatCurrency(node.saleValue)}</span>
+                        {/* <span className="text-xs text-green-600 ml-2">Sale: {formatCurrency(node.saleValue)}</span> */}
                     </div>
                     {identifier && (
                         <button onClick={() => setViewToUser(identifier)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200">
