@@ -8,8 +8,8 @@ async function buildTree(db, userCode, showAll = false, visited = new Set()) {
     const user = await db.collection("marketing_applications").findOne({ userCode });
     if (!user) return null;
 
-    const highRanks = ["DGM", "AGM", "GM"];
-    const shouldHide = !showAll && highRanks.includes(user.level);
+    const userLevels = ["ME", "MM", "SMM", "DGM", "AGM", "GM"];
+    const shouldHide = !showAll && userLevels.includes(user.level);
 
     let children = [];
     if (!shouldHide) {
