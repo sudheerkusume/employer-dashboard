@@ -293,7 +293,7 @@ export default function MLMTree() {
 
         if (userData) {
             setLoggedInUser(userData);
-            setIsSuperAdmin(userData.role === 'super_admin' || userData.userCode === "SB-000001");
+            setIsSuperAdmin(userData.role === 'super_admin' || userData.userCode === "SB-000000");
         } else {
             // No user logged in, redirect to login page
             router.push('/mlm/login');
@@ -540,7 +540,7 @@ export default function MLMTree() {
 
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name, user code, or Application ID (e.g., SB-000001)" className="flex-1 px-4 py-2 border rounded-lg" />
+                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name, user code, or Application ID (e.g., SB-000000)" className="flex-1 px-4 py-2 border rounded-lg" />
                         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
                     </form>
                 </div>

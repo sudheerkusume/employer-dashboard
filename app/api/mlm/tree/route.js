@@ -71,7 +71,7 @@ export async function GET(req) {
             }
         }
 
-        if (!appId) appId = "SB-000001";
+        if (!appId) appId = "SB-000000";
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);

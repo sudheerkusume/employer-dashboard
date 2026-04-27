@@ -13,7 +13,7 @@ const USERS_BY_RANK = {
     // GM: earns 2.5% of profit from all downline sales (from ME, MM, SMM, AGM, DGM)
     GM: {
         name: "Bheema",
-        userCode: "SB-000001",
+        userCode: "SB-000000",
         level: "GM",
         totalCommission: 1250.75, // sum of all commissions below
         recentCommissions: [

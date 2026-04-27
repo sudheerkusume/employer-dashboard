@@ -344,7 +344,7 @@ function buildDocument(value, applicationId, userCode) {
         declaration: value.declaration ?? false,
         applicantSignature: value.applicantSignature ?? "",
         referrerSignature: value.referrerSignature ?? "",
-        referredById: value.referredById || "SB-000001",
+        referredById: value.referredById || "SB-000000",
         referredByName: value.referredByName || "K Srinivas",
         status: value.status || "pending",
         appliedAt: Date.now(),
@@ -908,7 +908,7 @@ export async function DELETE(req) {
             .toArray();
         let maxAppNum = 0;
         for (const doc of allApps) {
-            // Updated regex to include dash: SB-000001
+            // Updated regex to include dash: SB-000000
             const match = doc.applicationId?.match(/^SB-(\d+)$/);
             if (match) {
                 const num = parseInt(match[1], 10);
