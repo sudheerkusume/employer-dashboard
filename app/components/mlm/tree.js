@@ -4,7 +4,7 @@ import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
 import { Fragment, useState, useEffect, useMemo, useContext } from "react";
 import RootContext from "../config/rootcontext";
 // ----------------------------------------------------------------------
-// Utility functions (kept as they are, no static data)
+// Utility functions
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -50,14 +50,17 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration (unchanged)
+// Commission Configuration
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 
+// MODIFIED: Always compute commission for all depths 1-6
 function computeCommissionFromNode(node, viewerRank) {
     const depthMap = new Map();
-    for (let d = 1; d <= 6; d++) depthMap.set(d, { sumSaleValue: 0, commission: 0 });
+    for (let d = 1; d <= 6; d++) {
+        depthMap.set(d, { sumSaleValue: 0, commission: 0 });
+    }
 
     function traverse(currentNode, depth) {
         if (!currentNode || depth > 6) return;
@@ -73,20 +76,18 @@ function computeCommissionFromNode(node, viewerRank) {
         for (const child of node.children) traverse(child, 1);
     }
 
-    const maxDepth = RANK_UNLOCKED_DEPTHS[viewerRank] || 1;
     let totalCommission = 0;
-    for (let depth = 1; depth <= maxDepth; depth++) {
+    for (let depth = 1; depth <= 6; depth++) {
         const data = depthMap.get(depth);
         const percent = COMMISSION_PERCENTS[depth] || 0;
         data.commission = data.sumSaleValue * percent;
         totalCommission += data.commission;
     }
-    for (let depth = maxDepth + 1; depth <= 6; depth++) {
-        depthMap.get(depth).commission = 0;
-    }
+
     return { byDepth: Object.fromEntries(depthMap), totalCommission };
 }
 
+// MODIFIED: Always show commission for every depth, total includes all depths
 function RealTimeCommission({ currentNode }) {
     const commissionData = useMemo(() => {
         if (!currentNode) return null;
@@ -115,14 +116,13 @@ function RealTimeCommission({ currentNode }) {
                         const data = commissionData.byDepth[depth];
                         if (!data || data.sumSaleValue === 0) return null;
                         const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
-                        const isEarned = depth <= maxDepth;
                         return (
                             <tr key={depth} className="border-b">
                                 <td className="px-4 py-2">Level {depth}</td>
                                 <td className="px-4 py-2">{percent}%</td>
                                 <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
                                 <td className="px-4 py-2 text-right font-semibold text-green-600">
-                                    {isEarned ? formatCurrency(data.commission) : "₹0"}
+                                    {formatCurrency(data.commission)}
                                 </td>
                             </tr>
                         );
@@ -130,13 +130,19 @@ function RealTimeCommission({ currentNode }) {
                 </tbody>
                 <tfoot className="bg-gray-100">
                     <tr>
-                        <td colSpan="3" className="px-4 py-2 text-right font-bold">Total Commission:</td>
-                        <td className="px-4 py-2 text-right font-bold text-green-700">{formatCurrency(commissionData.totalCommission)}</td>
+                        <td colSpan="3" className="px-4 py-2 text-right font-bold">
+                            Total Commission (all depths):
+                        </td>
+                        <td className="px-4 py-2 text-right font-bold text-green-700">
+                            {formatCurrency(commissionData.totalCommission)}
+                        </td>
                     </tr>
                 </tfoot>
             </table>
             <p className="text-xs text-gray-500 mt-2">
-                * As a {currentNode.level}, you earn commission only up to depth level {maxDepth}.
+                * As a {currentNode.level}, you normally earn commission only up to depth level {maxDepth}.
+                <br />
+                The amounts above show the <strong>full commission</strong> for every depth level (1–6) – your actual earnings may be limited by your rank.
                 <br />
                 Depth 1: 5%, Depth 2: 2.5%, Depth 3: 2%, Depth 4: 1.5%, Depth 5: 1%, Depth 6: 0.5%
             </p>
@@ -249,12 +255,9 @@ export default function MLMTree() {
     const [expandedNodes, setExpandedNodes] = useState({});
     const [loading, setLoading] = useState(true);
 
-    // Fetch the tree for a given user (as root)
     const fetchTree = async (userCode, viewerCode = null) => {
         setLoading(true);
         try {
-            // For super admin, we can pass a flag to API to return all nodes without hiding
-            // But we'll handle hiding in the frontend using isSuperAdmin prop.
             const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
@@ -272,7 +275,6 @@ export default function MLMTree() {
             setRankDist(nodeStats.rankDistribution);
             setError(null);
 
-            // Expand all nodes initially
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
@@ -286,7 +288,6 @@ export default function MLMTree() {
         }
     };
 
-    // Fetch upline chain for a user
     const fetchUpline = async (userCode) => {
         if (!userCode) return;
         try {
@@ -300,12 +301,10 @@ export default function MLMTree() {
         }
     };
 
-    // On mount, load root tree (VANI001) for normal users, or allow super admin to see root as well.
     useEffect(() => {
         fetchTree("VANI001");
     }, []);
 
-    // When currentNode changes, fetch its upline
     useEffect(() => {
         if (currentNode) {
             fetchUpline(currentNode.userCode);
@@ -340,11 +339,9 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    // Recursive tree render – now accepts `forceShowAll` to override hiding for super admin
     const renderTree = (node, viewerNode, forceShowAll = false) => {
         if (!node) return null;
         const highRanks = ["DGM", "AGM", "GM"];
-        // Hide high ranks only if NOT forceShowAll and node is not the viewerNode
         if (!forceShowAll && highRanks.includes(node.level) && node !== viewerNode) {
             return (
                 <div key={node._id} className="p-2 text-gray-500 italic border-l-2 border-gray-300 ml-4">
@@ -514,6 +511,7 @@ export default function MLMTree() {
                     </div>
                 )}
 
+                {/* Commission component now shows full commission for all depths */}
                 {currentNode && <RealTimeCommission currentNode={currentNode} />}
 
                 {viewMode === "dashboard" && currentNode && (
