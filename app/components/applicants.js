@@ -1366,7 +1366,7 @@ export default function ApplicationManagement() {
 
         return {
             applicationId: getStr('Application ID'),
-            dateOfApplication: getStr('dateOfApplication'),
+            dateOfApplication: getStr('Date Of Application'),
             fullName: getStr('Full Name'),
             dob: parseDate(getStr('Date of Birth')),
             fatherName: getStr("Father's/Husband's Name"),
@@ -1563,6 +1563,7 @@ export default function ApplicationManagement() {
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <p><strong>Application ID:</strong> {application.applicationId || 'Not provided'}</p>
+                                <p><strong>Date Of Application:</strong> {application.dateOfApplication || 'Not provided'}</p>
                                 <p><strong>Referred By Name:</strong> {application.referredByName || 'Not provided'}</p>
                                 <p><strong>Referred By Id:</strong> {application.referredById || 'Not provided'}</p>
                                 <p><strong>Full Name:</strong> {application.fullName || 'Not provided'}</p>
@@ -1811,6 +1812,7 @@ export default function ApplicationManagement() {
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Application ID:</strong> {formData.applicationId || 'Not provided'}</p>
+                            <p><strong>Date Of Application:</strong> {formData.dateOfApplication || 'Not provided'}</p>
                             <p><strong>Referred By Name:</strong> {formData.referredByName || 'Not provided'}</p>
                             <p><strong>Referred By Id:</strong> {formData.referredById || 'Not provided'}</p>
                             <p><strong>Full Name:</strong> {formData.fullName || 'Not provided'}</p>
@@ -2211,7 +2213,7 @@ export default function ApplicationManagement() {
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLIED DATE</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DATE OF APPLICATION</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                             </tr>
@@ -2239,7 +2241,7 @@ export default function ApplicationManagement() {
                                                         <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
                                                         <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.dateOfApplication).toLocaleDateString()}</td>
                                                     <td className="px-6 py-4">
                                                         <span className={`flex gap-1 p-1 items-center text-xs rounded-full ${getStatusColor(app.status)}`}>
                                                             {getStatusIcon(app.status)} {app.status.toUpperCase()}
