@@ -1,26 +1,48 @@
-// app/api/mlm/upline/route.js
 import clientPromise from "@/app/components/lib/db";
 
-async function getUpline(db, userCode, chain = []) {
-  const user = await db.collection("marketing_applications").findOne({ userCode });
-  if (!user) return chain;
-  if (user.sponsorCode) {
-    const sponsor = await db.collection("marketing_applications").findOne({ userCode: user.sponsorCode });
-    if (sponsor) {
-      chain.unshift(sponsor);
-      return getUpline(db, user.sponsorCode, chain);
+function normalizeAppId(id) {
+    if (!id) return null;
+    return id.toString().toUpperCase().replace(/\s+/g, '');
+}
+
+async function getUpline(db, appId, chain = []) {
+    const user = await db.collection("marketing_applications").findOne({ applicationId: appId });
+    if (!user) return chain;
+
+    const referrerNorm = normalizeAppId(user.referredById);
+    if (referrerNorm && referrerNorm !== appId) {
+        const sponsor = await db.collection("marketing_applications").findOne({ applicationId: referrerNorm });
+        if (sponsor) {
+            chain.unshift(sponsor);
+            return getUpline(db, referrerNorm, chain);
+        }
     }
-  }
-  return chain;
+    return chain;
 }
 
 export async function GET(req) {
-  const url = new URL(req.url);
-  const userCode = url.searchParams.get("userCode");
-  if (!userCode) return Response.json({ error: "userCode required" }, { status: 400 });
+    try {
+        const url = new URL(req.url);
+        let appId = url.searchParams.get("applicationId");
+        let userCode = url.searchParams.get("userCode");
 
-  const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DBNAME);
-  const upline = await getUpline(db, userCode);
-  return Response.json({ success: true, upline });
+        const client = await clientPromise;
+        const db = client.db(process.env.MONGODB_DBNAME);
+
+        // Resolve applicationId from userCode if needed
+        if (!appId && userCode) {
+            const user = await db.collection("marketing_applications").findOne({ userCode });
+            if (user) appId = user.applicationId;
+        }
+
+        if (!appId) {
+            return Response.json({ error: "applicationId or userCode required" }, { status: 400 });
+        }
+
+        const upline = await getUpline(db, appId);
+        return Response.json({ success: true, upline });
+    } catch (err) {
+        console.error("Upline API error:", err);
+        return Response.json({ error: "Internal Server Error" }, { status: 500 });
+    }
 }

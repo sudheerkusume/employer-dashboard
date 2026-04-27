@@ -1,16 +1,22 @@
 import clientPromise from "@/app/components/lib/db";
 
-async function buildTree(db, userCode, viewerCode, visited = new Set()) {
-    // Prevent circular references
-    if (visited.has(userCode)) return null;
-    visited.add(userCode);
+// Helper to normalise an application ID (remove spaces, convert to uppercase)
+function normalizeAppId(id) {
+    if (!id) return null;
+    return id.toString().toUpperCase().replace(/\s+/g, '');
+}
 
-    const user = await db.collection("marketing_applications").findOne({ userCode });
+async function buildTree(db, appId, viewerAppId, visited = new Set()) {
+    // Prevent circular references
+    if (visited.has(appId)) return null;
+    visited.add(appId);
+
+    const user = await db.collection("marketing_applications").findOne({ applicationId: appId });
     if (!user) return null;
 
     // Hide high ranks for downline users (business rule)
     const highRanks = ["DGM", "AGM", "GM"];
-    if (viewerCode && highRanks.includes(user.level) && user.userCode !== viewerCode) {
+    if (viewerAppId && highRanks.includes(user.level) && user.applicationId !== viewerAppId) {
         return {
             ...user,
             children: [],
@@ -18,14 +24,22 @@ async function buildTree(db, userCode, viewerCode, visited = new Set()) {
         };
     }
 
-    // Fetch children (sponsored users)
+    // Find children where referredById (normalised) matches this applicationId
     const childrenDocs = await db
         .collection("marketing_applications")
-        .find({ sponsorCode: userCode })
+        .find({})
         .toArray();
 
-    const children = await Promise.all(
-        childrenDocs.map(child => buildTree(db, child.userCode, viewerCode, visited))
+    const ownNormalisedId = normalizeAppId(appId);
+    const children = childrenDocs
+        .filter(child => {
+            const refNorm = normalizeAppId(child.referredById);
+            return refNorm === ownNormalisedId;
+        })
+        .map(child => child.applicationId);
+
+    const childTrees = await Promise.all(
+        children.map(childAppId => buildTree(db, childAppId, viewerAppId, visited))
     );
 
     return {
@@ -33,35 +47,36 @@ async function buildTree(db, userCode, viewerCode, visited = new Set()) {
         fullName: user.fullName,
         userCode: user.userCode,
         mlmUserCode: user.userCode,
+        applicationId: user.applicationId,
         level: user.level,
-        saleValue: user.personalSales || 2000,   // fallback to static value
-        children: children.filter(Boolean),
+        saleValue: user.personalSales || 2000,
+        children: childTrees.filter(Boolean),
     };
 }
 
 export async function GET(req) {
     try {
         const url = new URL(req.url);
-        let userCode = url.searchParams.get("userCode");
-        const applicationId = url.searchParams.get("applicationId");
-        const viewerCode = url.searchParams.get("viewerCode") || userCode;
+        let appId = url.searchParams.get("applicationId");
+        let viewerAppId = url.searchParams.get("viewerCode") || appId;
+
+        // Fallback to userCode parameter for backward compatibility
+        if (!appId) {
+            const userCode = url.searchParams.get("userCode");
+            if (userCode) {
+                const client = await clientPromise;
+                const db = client.db(process.env.MONGODB_DBNAME);
+                const user = await db.collection("marketing_applications").findOne({ userCode });
+                if (user) appId = user.applicationId;
+            }
+        }
+
+        if (!appId) appId = "SB-000001";
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
 
-        // If applicationId is provided, resolve it to a userCode
-        if (applicationId && !userCode) {
-            const appUser = await db.collection("marketing_applications").findOne({ applicationId });
-            if (!appUser) {
-                return Response.json({ error: `No user found with applicationId: ${applicationId}` }, { status: 404 });
-            }
-            userCode = appUser.userCode;
-        }
-
-        // Use default if still missing
-        if (!userCode) userCode = "SB-000001";
-
-        const tree = await buildTree(db, userCode, viewerCode || userCode);
+        const tree = await buildTree(db, appId, viewerAppId);
         if (!tree) {
             return Response.json({ error: "User not found" }, { status: 404 });
         }
