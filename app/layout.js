@@ -13,8 +13,6 @@ const inter = Inter({
 });
 
 export default function RootLayout({ children }) {
-  const pathname = usePathname();
-  const router = useRouter();
 
   const [rootContext, setRootContext] = useState({
     authenticated: false,

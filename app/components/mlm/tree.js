@@ -2,9 +2,11 @@
 
 import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
 import { Fragment, useState, useEffect, useMemo, useContext } from "react";
+import { useRouter } from "next/navigation";
 import RootContext from "../config/rootcontext";
+
 // ----------------------------------------------------------------------
-// Utility functions
+// Utility functions (unchanged)
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -50,12 +52,11 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration
+// Commission Configuration (unchanged)
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 
-// MODIFIED: Always compute commission for all depths 1-6
 function computeCommissionFromNode(node, viewerRank) {
     const depthMap = new Map();
     for (let d = 1; d <= 6; d++) {
@@ -87,7 +88,6 @@ function computeCommissionFromNode(node, viewerRank) {
     return { byDepth: Object.fromEntries(depthMap), totalCommission };
 }
 
-// MODIFIED: Always show commission for every depth, total includes all depths
 function RealTimeCommission({ currentNode }) {
     const commissionData = useMemo(() => {
         if (!currentNode) return null;
@@ -237,12 +237,15 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component – Fully dynamic with API calls & super admin support
+// Main Component – uses logged‑in user from localStorage / context
 // ----------------------------------------------------------------------
 export default function MLMTree() {
-    const { rootContext } = useContext(RootContext);
-    const loggedInUser = rootContext.user;
-    const isSuperAdmin = loggedInUser?.userCode === "SB000001";
+    const router = useRouter();
+    const { rootContext, setRootContext } = useContext(RootContext);
+
+    // Get logged‑in user from context or localStorage
+    const [loggedInUser, setLoggedInUser] = useState(null);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     const [treeData, setTreeData] = useState(null);
     const [currentNode, setCurrentNode] = useState(null);
@@ -255,10 +258,60 @@ export default function MLMTree() {
     const [expandedNodes, setExpandedNodes] = useState({});
     const [loading, setLoading] = useState(true);
 
-    const fetchTree = async (userCode, viewerCode = null) => {
+    // Load user data from localStorage on mount and sync with context
+    useEffect(() => {
+        let userData = null;
+
+        // Try to get from context first
+        if (rootContext?.mlmUser?.isLoggedIn) {
+            userData = rootContext.mlmUser;
+        } else {
+            // Fallback to localStorage
+            const storedUserCode = localStorage.getItem('mlm_user_code');
+            const storedName = localStorage.getItem('mlm_user_name');
+            const storedLevel = localStorage.getItem('mlm_user_level');
+            const storedRole = localStorage.getItem('mlm_user_role');
+            const isAdmin = localStorage.getItem('mlm_is_super_admin') === 'true';
+
+            if (storedUserCode) {
+                userData = {
+                    isLoggedIn: true,
+                    userCode: storedUserCode,
+                    fullName: storedName,
+                    level: storedLevel,
+                    role: storedRole || (isAdmin ? 'super_admin' : 'user'),
+                };
+                // Update context if missing
+                if (!rootContext?.mlmUser) {
+                    setRootContext(prev => ({
+                        ...prev,
+                        mlmUser: userData
+                    }));
+                }
+            }
+        }
+
+        if (userData) {
+            setLoggedInUser(userData);
+            setIsSuperAdmin(userData.role === 'super_admin' || userData.userCode === "SB-000001");
+        } else {
+            // No user logged in, redirect to login page
+            router.push('/mlm/login');
+        }
+    }, [rootContext, setRootContext, router]);
+
+    const fetchTree = async (userCodeOrAppId, viewerCode = null) => {
         setLoading(true);
         try {
-            const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+            // Determine whether the identifier looks like an Application ID (SB-xxxxxx)
+            const isApplicationId = /^SB-\d{6}$/.test(userCodeOrAppId);
+            let url;
+            if (isApplicationId) {
+                url = `/api/mlm/tree?applicationId=${encodeURIComponent(userCodeOrAppId)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+            } else {
+                url = `/api/mlm/tree?userCode=${encodeURIComponent(userCodeOrAppId)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+            }
+
             const res = await fetch(url);
             const data = await res.json();
             if (!data.success) throw new Error(data.error);
@@ -301,9 +354,12 @@ export default function MLMTree() {
         }
     };
 
+    // Initial load: fetch tree for the logged‑in user's applicationId (or userCode)
     useEffect(() => {
-        fetchTree("VANI001");
-    }, []);
+        if (loggedInUser && loggedInUser.userCode) {
+            fetchTree(loggedInUser.userCode, loggedInUser.userCode);
+        }
+    }, [loggedInUser]);
 
     useEffect(() => {
         if (currentNode) {
@@ -455,8 +511,12 @@ export default function MLMTree() {
         );
     };
 
-    if (loading && !currentNode) {
-        return <div className="min-h-screen flex items-center justify-center">Loading network tree...</div>;
+    if ((!loggedInUser && !loading) || (loading && !currentNode)) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (!loggedInUser && !loading) {
+        return null; // will redirect via useEffect
     }
 
     return (
@@ -480,7 +540,7 @@ export default function MLMTree() {
 
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name or code (e.g., Eswari, VANI001)" className="flex-1 px-4 py-2 border rounded-lg" />
+                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name, user code, or Application ID (e.g., SB-000001)" className="flex-1 px-4 py-2 border rounded-lg" />
                         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
                     </form>
                 </div>
@@ -511,7 +571,6 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Commission component now shows full commission for all depths */}
                 {currentNode && <RealTimeCommission currentNode={currentNode} />}
 
                 {viewMode === "dashboard" && currentNode && (
