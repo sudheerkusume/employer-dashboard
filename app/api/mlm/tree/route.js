@@ -47,10 +47,11 @@ async function buildTree(db, userCode, visited = new Set()) {
 
 /**
  * Resolve an applicationId to the corresponding MLM userCode.
- * Looks up the document by applicationId – no status filter.
+ * Looks up the document by trimmed applicationId – no status filter.
  */
 async function resolveUserCodeFromApplicationId(db, applicationId) {
-    const doc = await db.collection("marketing_applications").findOne({ applicationId });
+    const trimmedId = applicationId.trim();
+    const doc = await db.collection("marketing_applications").findOne({ applicationId: trimmedId });
     if (!doc) return null;
     // Prefer mlmUserCode, fallback to userCode
     return doc.mlmUserCode || doc.userCode || null;
@@ -60,7 +61,11 @@ export async function GET(req) {
     try {
         const url = new URL(req.url);
         let userCode = url.searchParams.get("userCode");
-        const applicationId = url.searchParams.get("applicationId");
+        let applicationId = url.searchParams.get("applicationId");
+
+        // Trim whitespace from parameters
+        if (userCode) userCode = userCode.trim();
+        if (applicationId) applicationId = applicationId.trim();
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
