@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import RootContext from "../config/rootcontext";
 
 // ----------------------------------------------------------------------
-// Utility functions (unchanged)
+// Utility functions (same as before)
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -52,7 +52,7 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration (unchanged)
+// Commission Configuration (same)
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
@@ -104,46 +104,26 @@ function RealTimeCommission({ currentNode }) {
             </h2>
             <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-4 py-2 text-left">Depth Level</th>
-                        <th className="px-4 py-2 text-left">Commission %</th>
-                        <th className="px-4 py-2 text-right">Total Sale Value</th>
-                        <th className="px-4 py-2 text-right">Commission Earned</th>
-                    </tr>
+                    <tr><th className="px-4 py-2 text-left">Depth Level</th><th className="px-4 py-2 text-left">Commission %</th><th className="px-4 py-2 text-right">Total Sale Value</th><th className="px-4 py-2 text-right">Commission Earned</th></tr>
                 </thead>
                 <tbody>
-                    {[1, 2, 3, 4, 5, 6].map((depth) => {
+                    {[1, 2, 3, 4, 5, 6].map(depth => {
                         const data = commissionData.byDepth[depth];
                         if (!data || data.sumSaleValue === 0) return null;
                         const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
-                        return (
-                            <tr key={depth} className="border-b">
-                                <td className="px-4 py-2">Level {depth}</td>
-                                <td className="px-4 py-2">{percent}%</td>
-                                <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
-                                <td className="px-4 py-2 text-right font-semibold text-green-600">
-                                    {formatCurrency(data.commission)}
-                                </td>
-                            </tr>
-                        );
+                        return <tr key={depth} className="border-b">
+                            <td className="px-4 py-2">Level {depth}</td>
+                            <td className="px-4 py-2">{percent}%</td>
+                            <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
+                            <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(data.commission)}</td>
+                        </tr>;
                     })}
                 </tbody>
                 <tfoot className="bg-gray-100">
-                    <tr>
-                        <td colSpan="3" className="px-4 py-2 text-right font-bold">
-                            Total Commission (all depths):
-                        </td>
-                        <td className="px-4 py-2 text-right font-bold text-green-700">
-                            {formatCurrency(commissionData.totalCommission)}
-                        </td>
-                    </tr>
+                    <tr><td colSpan="3" className="px-4 py-2 text-right font-bold">Total Commission (all depths):</td><td className="px-4 py-2 text-right font-bold text-green-700">{formatCurrency(commissionData.totalCommission)}</td></tr>
                 </tfoot>
             </table>
-            <p className="text-xs text-gray-500 mt-2">
-                * As a {currentNode.level}, you normally earn commission only up to depth level {maxDepth}.
-                <br />
-                The amounts above show the <strong>full commission</strong> for every depth level (1–6) – your actual earnings may be limited by your rank.
-            </p>
+            <p className="text-xs text-gray-500 mt-2">* As a {currentNode.level}, you earn commission only up to depth level {maxDepth}.</p>
         </div>
     );
 }
@@ -158,23 +138,10 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
     let promotedDirectCount = 0;
     if (nextRank && userNode.children) {
         const nextRankIdx = rankOrder.indexOf(nextRank);
-        promotedDirectCount = userNode.children.filter(child => {
-            const childIdx = rankOrder.indexOf(child.level);
-            return childIdx >= nextRankIdx;
-        }).length;
+        promotedDirectCount = userNode.children.filter(child => rankOrder.indexOf(child.level) >= nextRankIdx).length;
     }
     const totalDirect = userNode.children?.length || 0;
-    const promotionNeeded = totalDirect;
-    const progressPercent = promotionNeeded > 0 ? (promotedDirectCount / promotionNeeded) * 100 : 0;
-
-    const getExampleText = () => {
-        if (rank === "ME") return `Enroll ${10 - totalDirect} more direct members to become MM.`;
-        if (rank === "MM") return `You have ${promotedDirectCount} of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
-        if (rank === "SMM") return `You have ${promotedDirectCount} of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
-        if (rank === "DGM") return `All direct members must become DGM to reach AGM.`;
-        if (rank === "AGM") return `All direct members must become AGM to reach GM.`;
-        return "Congratulations! You are at the highest rank.";
-    };
+    const progressPercent = totalDirect > 0 ? (promotedDirectCount / totalDirect) * 100 : 0;
 
     return (
         <div className="space-y-6">
@@ -183,46 +150,32 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
                 <div className="mt-2 text-4xl font-extrabold">{rank}</div>
                 <p className="mt-1 opacity-90">{nextRank ? `Next rank: ${nextRank}` : "Highest rank achieved"}</p>
             </div>
-
             {nextRank && (
                 <div className="bg-white rounded-lg shadow p-4">
                     <h3 className="text-lg font-semibold text-gray-800">Promotion to {nextRank}</h3>
                     <div className="mt-2">
                         <div className="flex justify-between text-sm text-gray-600">
-                            <span>{promotedDirectCount} of {promotionNeeded} direct members have reached {nextRank}</span>
+                            <span>{promotedDirectCount} of {totalDirect} direct members have reached {nextRank}</span>
                             <span>{Math.round(progressPercent)}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
-                            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div></div>
                     </div>
-                    <p className="text-sm text-gray-500 mt-3">{getExampleText()}</p>
                 </div>
             )}
-
             <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">💰 Commission Structure</h3>
                 <p className="text-sm text-gray-600 mb-3">As a {rank}, you earn from downline up to depth level {maxDepth}.</p>
                 <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                        <tr><th className="px-3 py-2">Depth Level</th><th className="px-3 py-2">Commission</th><th className="px-3 py-2">Eligible?</th></tr>
-                    </thead>
+                    <thead className="bg-gray-50"><tr><th className="px-3 py-2">Depth Level</th><th className="px-3 py-2">Commission</th><th className="px-3 py-2">Eligible?</th></tr></thead>
                     <tbody>
                         {[1, 2, 3, 4, 5, 6].map(depth => {
                             const percent = COMMISSION_PERCENTS[depth] * 100;
                             const eligible = depth <= maxDepth;
-                            return (
-                                <tr key={depth} className="border-b">
-                                    <td className="px-3 py-2">Level {depth}</td>
-                                    <td className="px-3 py-2">{percent}%</td>
-                                    <td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td>
-                                </tr>
-                            );
+                            return <tr key={depth} className="border-b"><td className="px-3 py-2">Level {depth}</td><td className="px-3 py-2">{percent}%</td><td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td></tr>;
                         })}
                     </tbody>
                 </table>
             </div>
-
             <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-800">📊 Network Summary</h3>
                 <div className="grid grid-cols-2 gap-4 mt-2">
@@ -288,22 +241,22 @@ export default function MLMTree() {
         }
     }, [rootContext, setRootContext, router]);
 
-    // Helper: collect all node IDs for expansion
     function getAllNodeIds(node) {
         let ids = [node._id];
-        if (node.children) {
-            node.children.forEach(child => {
-                ids = ids.concat(getAllNodeIds(child));
-            });
-        }
+        if (node.children) node.children.forEach(child => ids = ids.concat(getAllNodeIds(child)));
         return ids;
     }
 
-    // Fetch tree from API (only userCode + showAll)
-    const fetchTree = async (userCode, forceShowAll = false) => {
+    // Fetch tree – always full tree (no hiding)
+    const fetchTree = async (identifier) => {
         setLoading(true);
         try {
-            const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}&showAll=${forceShowAll}`;
+            // Determine if identifier is applicationId or userCode
+            const isApplicationId = /^SB-\d{6}$/.test(identifier);
+            const url = isApplicationId
+                ? `/api/mlm/tree?applicationId=${encodeURIComponent(identifier)}`
+                : `/api/mlm/tree?userCode=${encodeURIComponent(identifier)}`;
+
             const res = await fetch(url);
             const data = await res.json();
             if (!data.success) throw new Error(data.error || "Failed to load tree");
@@ -319,6 +272,7 @@ export default function MLMTree() {
             setRankDist(nodeStats.rankDistribution);
             setError(null);
 
+            // Expand all nodes
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
@@ -332,7 +286,7 @@ export default function MLMTree() {
         }
     };
 
-    // Fetch upline chain – called only for super admin
+    // Fetch upline – only for super admin
     const fetchUpline = async (userCode) => {
         if (!userCode || !isSuperAdmin) return;
         try {
@@ -346,14 +300,14 @@ export default function MLMTree() {
         }
     };
 
-    // Initial load: get tree for logged-in user (with showAll if super admin)
+    // Initial load: fetch tree for logged-in user's userCode (or applicationId?)
     useEffect(() => {
         if (loggedInUser && loggedInUser.userCode) {
-            fetchTree(loggedInUser.userCode, isSuperAdmin);
+            // loggedInUser.userCode is the MLM userCode (e.g., "ME-001")
+            fetchTree(loggedInUser.userCode);
         }
-    }, [loggedInUser, isSuperAdmin]);
+    }, [loggedInUser]);
 
-    // When currentNode changes, fetch upline if super admin
     useEffect(() => {
         if (currentNode && isSuperAdmin) {
             fetchUpline(currentNode.userCode);
@@ -362,9 +316,9 @@ export default function MLMTree() {
         }
     }, [currentNode, isSuperAdmin]);
 
-    const setViewToUser = async (userCode) => {
-        if (!userCode) return;
-        await fetchTree(userCode, isSuperAdmin);
+    const setViewToUser = async (identifier) => {
+        if (!identifier) return;
+        await fetchTree(identifier);
     };
 
     const handleSearch = (e) => {
@@ -380,10 +334,8 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    // Render tree recursively – API already handles hiding based on showAll
     const renderTree = (node) => {
         if (!node) return null;
-
         const levelClass = getLevelColor(node.level);
         const identifier = node.userCode;
         const hasChildren = node.children && node.children.length > 0;
@@ -392,12 +344,7 @@ export default function MLMTree() {
         return (
             <div key={node._id} className="tree-node relative">
                 <div onClick={(e) => toggleNode(node._id, e)} className={`flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg ${hasChildren && "cursor-pointer"}`}>
-                    {hasChildren && (
-                        <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
-                            {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
-                        </button>
-                    )}
-                    {!hasChildren && <div className="w-6"></div>}
+                    {hasChildren ? <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">{isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}</button> : <div className="w-6"></div>}
                     <div className={`w-3 h-3 rounded-full ${levelClass}`} />
                     <div className="flex-1">
                         <span className="font-medium text-gray-800">{getDisplayName(node)}</span>
@@ -405,17 +352,9 @@ export default function MLMTree() {
                         <span className="text-xs text-gray-400 ml-2">{node.level}</span>
                         <span className="text-xs text-green-600 ml-2">Sale: {formatCurrency(node.saleValue || 2000)}</span>
                     </div>
-                    {identifier && (
-                        <button onClick={() => setViewToUser(identifier)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200">
-                            View
-                        </button>
-                    )}
+                    {identifier && <button onClick={() => setViewToUser(identifier)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200">View</button>}
                 </div>
-                {hasChildren && isExpanded && (
-                    <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">
-                        {node.children.map((child) => renderTree(child))}
-                    </div>
-                )}
+                {hasChildren && isExpanded && <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">{node.children.map(child => renderTree(child))}</div>}
             </div>
         );
     };
@@ -450,7 +389,6 @@ export default function MLMTree() {
 
     const renderListView = (node, level = 0) => {
         if (!node) return null;
-
         const identifier = node.userCode;
         const hasChildren = node.children && node.children.length > 0;
         const isExpanded = expandedNodes[node._id] === true;
@@ -458,47 +396,28 @@ export default function MLMTree() {
         return (
             <Fragment key={node._id}>
                 <tr onClick={(e) => toggleNode(node._id, e)} className={`hover:bg-gray-50 ${hasChildren && "cursor-pointer"}`}>
-                    <td className="px-2 py-2 text-center">
-                        {hasChildren && (
-                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
-                                {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
-                            </button>
-                        )}
-                    </td>
+                    <td className="px-2 py-2 text-center">{hasChildren && <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">{isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}</button>}</td>
                     <td className="px-4 py-2" style={{ paddingLeft: level * 30 + 16 }}>{getDisplayName(node)}</td>
                     <td className="px-4 py-2">{identifier || "-"}</td>
-                    <td className="px-4 py-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getLevelColor(node.level)} text-white`}>{node.level}</span>
-                    </td>
+                    <td className="px-4 py-2"><span className={`px-2 py-1 text-xs rounded-full ${getLevelColor(node.level)} text-white`}>{node.level}</span></td>
                     <td className="px-4 py-2">{formatCurrency(node.saleValue || 2000)}</td>
-                    <td className="px-4 py-2">
-                        {identifier && (
-                            <button onClick={() => setViewToUser(identifier)} className="text-blue-600 hover:text-blue-800">View</button>
-                        )}
-                    </td>
+                    <td className="px-4 py-2">{identifier && <button onClick={() => setViewToUser(identifier)} className="text-blue-600 hover:text-blue-800">View</button>}</td>
                 </tr>
                 {hasChildren && isExpanded && node.children.map(child => renderListView(child, level + 1))}
             </Fragment>
         );
     };
 
-    if ((!loggedInUser && !loading) || (loading && !currentNode)) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-    }
-
-    if (!loggedInUser && !loading) return null; // will redirect
+    if ((!loggedInUser && !loading) || (loading && !currentNode)) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    if (!loggedInUser && !loading) return null;
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
             <div className="w-full sm:w-[80%] mx-auto px-4 py-8">
                 <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">
-                            Sales Beez Tree – {loggedInUser?.fullName || "User"}'s Network
-                        </h1>
-                        <p className="text-gray-600 mt-2">
-                            {currentNode ? `Viewing: ${getDisplayName(currentNode)} (${currentNode.level})` : "Select a user"}
-                        </p>
+                        <h1 className="text-3xl font-bold text-gray-800">Sales Beez Tree – {loggedInUser?.fullName || "User"}'s Network</h1>
+                        <p className="text-gray-600 mt-2">{currentNode ? `Viewing: ${getDisplayName(currentNode)} (${currentNode.level})` : "Select a user"}</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => setViewMode("tree")} className={`px-4 py-2 rounded ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Tree View</button>
@@ -509,7 +428,7 @@ export default function MLMTree() {
 
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name or user code (e.g., SB-000001)" className="flex-1 px-4 py-2 border rounded-lg" />
+                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by Application ID (SB-xxxxxx) or User Code (e.g., ME-001)" className="flex-1 px-4 py-2 border rounded-lg" />
                         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
                     </form>
                 </div>
@@ -531,10 +450,7 @@ export default function MLMTree() {
                         <h2 className="text-lg font-semibold mb-3">📊 Rank Distribution (Downline)</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                             {Object.entries(rankDist).map(([rank, count]) => (
-                                <div key={rank} className="text-center p-2 rounded-lg bg-gray-50">
-                                    <div className="text-sm font-bold">{rank}</div>
-                                    <div className="text-2xl font-bold">{count}</div>
-                                </div>
+                                <div key={rank} className="text-center p-2 rounded-lg bg-gray-50"><div className="text-sm font-bold">{rank}</div><div className="text-2xl font-bold">{count}</div></div>
                             ))}
                         </div>
                     </div>
@@ -542,28 +458,15 @@ export default function MLMTree() {
 
                 {currentNode && <RealTimeCommission currentNode={currentNode} />}
 
-                {viewMode === "dashboard" && currentNode && (
-                    <RankDashboard userNode={currentNode} directCount={stats?.directChildren} totalDownline={stats?.totalDownline} />
-                )}
+                {viewMode === "dashboard" && currentNode && <RankDashboard userNode={currentNode} directCount={stats?.directChildren} totalDownline={stats?.totalDownline} />}
 
                 {viewMode !== "dashboard" && currentNode && (
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-lg font-semibold mb-3">⬇️ Downline Network</h2>
-                        {viewMode === "tree" ? (
-                            <div className="overflow-x-auto">{renderTree(currentNode)}</div>
-                        ) : (
+                        {viewMode === "tree" ? <div className="overflow-x-auto">{renderTree(currentNode)}</div> : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-2 py-3 text-left w-10"></th>
-                                            <th className="px-4 py-3 text-left">Name</th>
-                                            <th className="px-4 py-3 text-left">Code</th>
-                                            <th className="px-4 py-3 text-left">Rank</th>
-                                            <th className="px-4 py-3 text-left">Sale Value</th>
-                                            <th className="px-4 py-3 text-left">Action</th>
-                                        </tr>
-                                    </thead>
+                                    <thead className="bg-gray-50"><tr><th className="px-2 py-3 text-left w-10"></th><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Code</th><th className="px-4 py-3 text-left">Rank</th><th className="px-4 py-3 text-left">Sale Value</th><th className="px-4 py-3 text-left">Action</th></tr></thead>
                                     <tbody>{renderListView(currentNode)}</tbody>
                                 </table>
                             </div>
@@ -572,7 +475,7 @@ export default function MLMTree() {
                 )}
 
                 <div className="mt-4 text-sm text-gray-600 text-center">
-                    <p>Click "View" to explore any user | {isSuperAdmin ? "Super Admin: All ranks visible, Upline shown" : "DGM/AGM/GM are hidden from downline view"}</p>
+                    <p>Click "View" to explore any user | {isSuperAdmin ? "Super Admin: Upline shown" : "Upline hidden"}</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
