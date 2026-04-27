@@ -1,13 +1,3 @@
-// export const runtime = "edge";
-// import CommissionsPage from "../../components/mlm/commissions";
-
-// export default async function Page() {
-//     return <CommissionsPage />
-// }
-
-
-
-
 "use client";
 
 import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
@@ -43,7 +33,7 @@ function getLevelColor(level) {
 // Build the exact tree with saleValue = 2000 for every member
 // ----------------------------------------------------------------------
 const generateId = () => Math.random().toString(36).substr(2, 9);
-const SALE_VALUE = 2000;   // each member's own purchase/sale value
+const SALE_VALUE = 2000; // each member's own purchase/sale value
 
 // Helper to compute rank based on direct children's ranks
 function computeRank(node, allNodesMap) {
@@ -54,16 +44,13 @@ function computeRank(node, allNodesMap) {
 
     // MM requires at least 10 direct children (already satisfied)
     // For higher ranks, all direct children must have at least that rank
-    const childrenRanks = node.children.map(child => child.level || "ME");
+    const childrenRanks = node.children.map((child) => child.level || "ME");
 
-    if (childrenRanks.every(r => r === "MM" || r === "SMM" || r === "DGM" || r === "AGM" || r === "GM"))
+    if (childrenRanks.every((r) => r === "MM" || r === "SMM" || r === "DGM" || r === "AGM" || r === "GM"))
         return "SMM";
-    if (childrenRanks.every(r => r === "SMM" || r === "DGM" || r === "AGM" || r === "GM"))
-        return "DGM";
-    if (childrenRanks.every(r => r === "DGM" || r === "AGM" || r === "GM"))
-        return "AGM";
-    if (childrenRanks.every(r => r === "AGM" || r === "GM"))
-        return "GM";
+    if (childrenRanks.every((r) => r === "SMM" || r === "DGM" || r === "AGM" || r === "GM")) return "DGM";
+    if (childrenRanks.every((r) => r === "DGM" || r === "AGM" || r === "GM")) return "AGM";
+    if (childrenRanks.every((r) => r === "AGM" || r === "GM")) return "GM";
 
     return "MM";
 }
@@ -71,7 +58,7 @@ function computeRank(node, allNodesMap) {
 // Recursive function to assign ranks after tree is built
 function assignRanks(node) {
     if (node.children) {
-        node.children.forEach(child => assignRanks(child));
+        node.children.forEach((child) => assignRanks(child));
     }
     node.level = computeRank(node);
     return node;
@@ -91,8 +78,16 @@ function buildTree() {
 
     // Direct children of Vani (10 members)
     const directNames = [
-        "Sharadha", "Eswari", "Ratna", "A.U Srinivas", "Vishal",
-        "Somanna Babu", "Somesh", "Gayattri Chodhary", "Hari", "Chandana"
+        "Sharadha",
+        "Eswari",
+        "Ratna",
+        "A.U Srinivas",
+        "Vishal",
+        "Somanna Babu",
+        "Somesh",
+        "Gayattri Chodhary",
+        "Hari",
+        "Chandana",
     ];
     const directChildren = directNames.map((name, idx) => ({
         _id: generateId(),
@@ -106,21 +101,36 @@ function buildTree() {
     root.children = directChildren;
 
     // ----- Sharadha (3 children) -----
-    const sharadha = directChildren.find(c => c.fullName === "Sharadha");
+    const sharadha = directChildren.find((c) => c.fullName === "Sharadha");
     if (sharadha) {
         sharadha.children = [
-            { _id: generateId(), fullName: "Veena Kumari", saleValue: SALE_VALUE, children: [], mlmUserCode: "SHA001" },
+            {
+                _id: generateId(),
+                fullName: "Veena Kumari",
+                saleValue: SALE_VALUE,
+                children: [],
+                mlmUserCode: "SHA001",
+            },
             { _id: generateId(), fullName: "Ramana", saleValue: SALE_VALUE, children: [], mlmUserCode: "SHA002" },
             { _id: generateId(), fullName: "Smitha", saleValue: SALE_VALUE, children: [], mlmUserCode: "SHA003" },
         ];
     }
 
     // ----- Eswari (12 children) -----
-    const eswari = directChildren.find(c => c.fullName === "Eswari");
+    const eswari = directChildren.find((c) => c.fullName === "Eswari");
     const eswariChildrenNames = [
-        "M Nanda Kishore", "M Nagalaxmi", "S.Dharani", "P.Prabhavathi",
-        "T.Mallikarjuna Rao", "B.Sreelatha", "L.Srinivas", "B.Ramakrishan",
-        "M.Mahesh Babu", "V.Aravind", "A.Annapurna", "J.Sathya"
+        "M Nanda Kishore",
+        "M Nagalaxmi",
+        "S.Dharani",
+        "P.Prabhavathi",
+        "T.Mallikarjuna Rao",
+        "B.Sreelatha",
+        "L.Srinivas",
+        "B.Ramakrishan",
+        "M.Mahesh Babu",
+        "V.Aravind",
+        "A.Annapurna",
+        "J.Sathya",
     ];
     if (eswari) {
         eswari.children = eswariChildrenNames.map((name, idx) => ({
@@ -133,11 +143,15 @@ function buildTree() {
     }
 
     // J.Sathya (child of Eswari) has 6 children
-    const jSathya = eswari?.children.find(c => c.fullName === "J.Sathya");
+    const jSathya = eswari?.children.find((c) => c.fullName === "J.Sathya");
     if (jSathya) {
         jSathya.children = [
-            "N Narasavani", "V.LaxmiManga Tayar", "K.Sathyavathi",
-            "Sirisha", "Roja", "Sathyanarayana"
+            "N Narasavani",
+            "V.LaxmiManga Tayar",
+            "K.Sathyavathi",
+            "Sirisha",
+            "Roja",
+            "Sathyanarayana",
         ].map((name, idx) => ({
             _id: generateId(),
             fullName: name,
@@ -148,10 +162,18 @@ function buildTree() {
     }
 
     // ----- Ratna (10 children) -----
-    const ratna = directChildren.find(c => c.fullName === "Ratna");
+    const ratna = directChildren.find((c) => c.fullName === "Ratna");
     const ratnaChildrenNames = [
-        "Vijaya K", "Nagamani B", "GV Raju", "Durga Rani", "Subhash K",
-        "Venu Madhav Reddy P", "Rakesh K", "Latha E", "Dharamaveer K", "P Padma"
+        "Vijaya K",
+        "Nagamani B",
+        "GV Raju",
+        "Durga Rani",
+        "Subhash K",
+        "Venu Madhav Reddy P",
+        "Rakesh K",
+        "Latha E",
+        "Dharamaveer K",
+        "P Padma",
     ];
     if (ratna) {
         ratna.children = ratnaChildrenNames.map((name, idx) => ({
@@ -164,10 +186,17 @@ function buildTree() {
     }
 
     // Rakesh K (child of Ratna) has 10 children
-    const rakesh = ratna?.children.find(c => c.fullName === "Rakesh K");
+    const rakesh = ratna?.children.find((c) => c.fullName === "Rakesh K");
     if (rakesh) {
         const existing = ["Mamatha", "Rajeswari", "Sravanthi", "Sandhya"];
-        const extra = ["RakeshChild5", "RakeshChild6", "RakeshChild7", "RakeshChild8", "RakeshChild9", "RakeshChild10"];
+        const extra = [
+            "RakeshChild5",
+            "RakeshChild6",
+            "RakeshChild7",
+            "RakeshChild8",
+            "RakeshChild9",
+            "RakeshChild10",
+        ];
         const allNames = [...existing, ...extra];
         rakesh.children = allNames.map((name, idx) => ({
             _id: generateId(),
@@ -251,18 +280,17 @@ function computeNodeStats(node) {
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 
-// Maximum depth a user can earn from based on their own rank:
-// ME   -> up to depth 1 (only direct children)
-// MM   -> up to depth 2
-// SMM  -> up to depth 3
-// DGM  -> up to depth 4
-// AGM  -> up to depth 5
-// GM   -> up to depth 6
+// Maximum depth a user can earn from based on their own rank (used only for informational display)
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 
+// ----------------------------------------------------------------------
+// MODIFIED: compute commission for ALL depths (1-6) regardless of rank
+// ----------------------------------------------------------------------
 function computeCommissionFromNode(node, viewerRank) {
     const depthMap = new Map();
-    for (let d = 1; d <= 6; d++) depthMap.set(d, { sumSaleValue: 0, commission: 0 });
+    for (let d = 1; d <= 6; d++) {
+        depthMap.set(d, { sumSaleValue: 0, commission: 0 });
+    }
 
     function traverse(currentNode, depth) {
         if (!currentNode || depth > 6) return;
@@ -278,23 +306,19 @@ function computeCommissionFromNode(node, viewerRank) {
         for (const child of node.children) traverse(child, 1);
     }
 
-    const maxDepth = RANK_UNLOCKED_DEPTHS[viewerRank] || 1;
     let totalCommission = 0;
-    for (let depth = 1; depth <= maxDepth; depth++) {
+    for (let depth = 1; depth <= 6; depth++) {
         const data = depthMap.get(depth);
         const percent = COMMISSION_PERCENTS[depth] || 0;
         data.commission = data.sumSaleValue * percent;
         totalCommission += data.commission;
     }
-    // For depths beyond maxDepth, set commission to 0 (but keep sumSaleValue for display)
-    for (let depth = maxDepth + 1; depth <= 6; depth++) {
-        depthMap.get(depth).commission = 0;
-    }
+
     return { byDepth: Object.fromEntries(depthMap), totalCommission };
 }
 
 // ----------------------------------------------------------------------
-// Real-Time Commission Component
+// Real-Time Commission Component (shows full commission for all depths)
 // ----------------------------------------------------------------------
 function RealTimeCommission({ currentNode }) {
     const commissionData = useMemo(() => {
@@ -325,7 +349,6 @@ function RealTimeCommission({ currentNode }) {
                         const data = commissionData.byDepth[depth];
                         if (!data || data.sumSaleValue === 0) return null;
                         const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
-                        const isEarned = depth <= maxDepth;
                         return (
                             <tr key={depth} className="border-b">
                                 <td className="px-4 py-2">Level {depth}</td>
@@ -334,7 +357,7 @@ function RealTimeCommission({ currentNode }) {
                                     {formatCurrency(data.sumSaleValue)}
                                 </td>
                                 <td className="px-4 py-2 text-right font-semibold text-green-600">
-                                    {isEarned ? formatCurrency(data.commission) : "₹0"}
+                                    {formatCurrency(data.commission)}
                                 </td>
                             </tr>
                         );
@@ -343,7 +366,7 @@ function RealTimeCommission({ currentNode }) {
                 <tfoot className="bg-gray-100">
                     <tr>
                         <td colSpan="3" className="px-4 py-2 text-right font-bold">
-                            Total Commission:
+                            Total Commission (all depths):
                         </td>
                         <td className="px-4 py-2 text-right font-bold text-green-700">
                             {formatCurrency(commissionData.totalCommission)}
@@ -352,7 +375,10 @@ function RealTimeCommission({ currentNode }) {
                 </tfoot>
             </table>
             <p className="text-xs text-gray-500 mt-2">
-                * As a {currentNode.level}, you earn commission only up to depth level {maxDepth}.
+                * As a {currentNode.level}, you normally earn commission only up to depth level {maxDepth}.
+                <br />
+                The amounts above show the <strong>full commission</strong> for every depth level (1–6) – your actual earnings
+                may be limited by your rank.
                 <br />
                 Depth 1: 5%, Depth 2: 2.5%, Depth 3: 2%, Depth 4: 1.5%, Depth 5: 1%, Depth 6: 0.5%
             </p>
@@ -361,7 +387,7 @@ function RealTimeCommission({ currentNode }) {
 }
 
 // ----------------------------------------------------------------------
-// Rank Dashboard Component
+// Rank Dashboard Component (unchanged)
 // ----------------------------------------------------------------------
 function RankDashboard({ userNode, directCount, totalDownline }) {
     const rank = userNode?.level || "Pending";
@@ -373,7 +399,7 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
     let promotedDirectCount = 0;
     if (nextRank && userNode.children) {
         const nextRankIdx = rankOrder.indexOf(nextRank);
-        promotedDirectCount = userNode.children.filter(child => {
+        promotedDirectCount = userNode.children.filter((child) => {
             const childIdx = rankOrder.indexOf(child.level);
             return childIdx >= nextRankIdx;
         }).length;
@@ -384,8 +410,10 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 
     const getExampleText = () => {
         if (rank === "ME") return `Enroll ${10 - totalDirect} more direct members to become MM.`;
-        if (rank === "MM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
-        if (rank === "SMM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
+        if (rank === "MM")
+            return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
+        if (rank === "SMM")
+            return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
         if (rank === "DGM") return `All direct members must become DGM to reach AGM.`;
         if (rank === "AGM") return `All direct members must become AGM to reach GM.`;
         return "Congratulations! You are at the highest rank.";
@@ -404,7 +432,9 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
                     <h3 className="text-lg font-semibold text-gray-800">Promotion to {nextRank}</h3>
                     <div className="mt-2">
                         <div className="flex justify-between text-sm text-gray-600">
-                            <span>{promotedDirectCount} of {promotionNeeded} direct members have reached {nextRank}</span>
+                            <span>
+                                {promotedDirectCount} of {promotionNeeded} direct members have reached {nextRank}
+                            </span>
                             <span>{Math.round(progressPercent)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
@@ -417,13 +447,19 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 
             <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">💰 Commission Structure</h3>
-                <p className="text-sm text-gray-600 mb-3">As a {rank}, you earn from downline up to depth level {maxDepth}.</p>
+                <p className="text-sm text-gray-600 mb-3">
+                    As a {rank}, you earn from downline up to depth level {maxDepth}.
+                </p>
                 <table className="min-w-full text-sm">
                     <thead className="bg-gray-50">
-                        <tr><th className="px-3 py-2">Depth Level</th><th className="px-3 py-2">Commission</th><th className="px-3 py-2">Eligible?</th></tr>
+                        <tr>
+                            <th className="px-3 py-2">Depth Level</th>
+                            <th className="px-3 py-2">Commission</th>
+                            <th className="px-3 py-2">Eligible?</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        {[1, 2, 3, 4, 5, 6].map(depth => {
+                        {[1, 2, 3, 4, 5, 6].map((depth) => {
                             const percent = COMMISSION_PERCENTS[depth] * 100;
                             const eligible = depth <= maxDepth;
                             return (
@@ -441,8 +477,14 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
             <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-800">📊 Network Summary</h3>
                 <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div><div className="text-gray-500 text-sm">Direct Members</div><div className="text-2xl font-bold text-blue-600">{directCount}</div></div>
-                    <div><div className="text-gray-500 text-sm">Total Downline</div><div className="text-2xl font-bold text-green-600">{totalDownline}</div></div>
+                    <div>
+                        <div className="text-gray-500 text-sm">Direct Members</div>
+                        <div className="text-2xl font-bold text-blue-600">{directCount}</div>
+                    </div>
+                    <div>
+                        <div className="text-gray-500 text-sm">Total Downline</div>
+                        <div className="text-2xl font-bold text-green-600">{totalDownline}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -477,14 +519,16 @@ export default function MLMTree() {
         setRankDist(computed.rankDistribution);
         const allNodeIds = getAllNodeIds(root);
         const initialExpanded = {};
-        allNodeIds.forEach(id => { initialExpanded[id] = true; });
+        allNodeIds.forEach((id) => {
+            initialExpanded[id] = true;
+        });
         setExpandedNodes(initialExpanded);
     }, []);
 
     function getAllNodeIds(node) {
         let ids = [node._id];
         if (node.children) {
-            node.children.forEach(child => {
+            node.children.forEach((child) => {
                 ids = ids.concat(getAllNodeIds(child));
             });
         }
@@ -492,7 +536,10 @@ export default function MLMTree() {
     }
 
     const setViewToUser = (identifier) => {
-        if (!identifier) { setError("Invalid identifier"); return; }
+        if (!identifier) {
+            setError("Invalid identifier");
+            return;
+        }
         const node = findNodeByCode(REAL_TREE, identifier);
         if (!node) {
             setError(`User "${identifier}" not found.`);
@@ -515,7 +562,9 @@ export default function MLMTree() {
         setError(null);
         const allIdsUnderNewUser = getAllNodeIds(node);
         const newExpanded = { ...expandedNodes };
-        allIdsUnderNewUser.forEach(id => { newExpanded[id] = true; });
+        allIdsUnderNewUser.forEach((id) => {
+            newExpanded[id] = true;
+        });
         setExpandedNodes(newExpanded);
     };
 
@@ -529,7 +578,7 @@ export default function MLMTree() {
 
     const toggleNode = (nodeId, e) => {
         e.stopPropagation();
-        setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
+        setExpandedNodes((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
     const renderTree = (node, viewerNode) => {
@@ -549,11 +598,12 @@ export default function MLMTree() {
 
         return (
             <div key={node._id} className="tree-node relative">
-                <div onClick={(e) => toggleNode(node._id, e)} className={`flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg ${hasChildren && "cursor-pointer"}`}>
+                <div
+                    onClick={(e) => toggleNode(node._id, e)}
+                    className={`flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg ${hasChildren && "cursor-pointer"}`}
+                >
                     {hasChildren && (
-                        <button
-                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono"
-                        >
+                        <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
                             {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
                         </button>
                     )}
@@ -563,10 +613,12 @@ export default function MLMTree() {
                         <span className="font-medium text-gray-800">{getDisplayName(node)}</span>
                         {identifier && <span className="text-sm text-gray-500 ml-2">({identifier})</span>}
                         <span className="text-xs text-gray-400 ml-2">{node.level}</span>
-                        {/* <span className="text-xs text-green-600 ml-2">Sale: {formatCurrency(node.saleValue)}</span> */}
                     </div>
                     {identifier && (
-                        <button onClick={() => setViewToUser(identifier)} className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200">
+                        <button
+                            onClick={() => setViewToUser(identifier)}
+                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded border border-blue-200"
+                        >
                             View
                         </button>
                     )}
@@ -588,7 +640,10 @@ export default function MLMTree() {
                 <div className="flex flex-wrap items-center gap-2">
                     {upline.map((node, idx) => (
                         <Fragment key={node._id}>
-                            <button onClick={() => setViewToUser(node.mlmUserCode)} className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border">
+                            <button
+                                onClick={() => setViewToUser(node.mlmUserCode)}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border"
+                            >
                                 <div className={`w-2 h-2 rounded-full ${getLevelColor(node.level)}`} />
                                 <span className="text-sm font-medium">{getDisplayName(node)}</span>
                                 <span className="text-xs text-gray-500">({node.level})</span>
@@ -626,12 +681,9 @@ export default function MLMTree() {
         return (
             <Fragment key={node._id}>
                 <tr onClick={(e) => toggleNode(node._id, e)} className={`hover:bg-gray-50 ${hasChildren && "cursor-pointer"}`}>
-                    {/* Expand/collapse button column */}
                     <td className={`px-2 py-2 text-center`}>
                         {hasChildren && (
-                            <button                                
-                                className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono"
-                            >
+                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 font-mono">
                                 {isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}
                             </button>
                         )}
@@ -654,8 +706,7 @@ export default function MLMTree() {
                         )}
                     </td>
                 </tr>
-                {/* Render children only if expanded */}
-                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, level + 1))}
+                {hasChildren && isExpanded && node.children.map((child) => renderListView(child, viewerNode, level + 1))}
             </Fragment>
         );
     };
@@ -671,16 +722,39 @@ export default function MLMTree() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => setViewMode("tree")} className={`px-4 py-2 rounded ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Tree View</button>
-                        <button onClick={() => setViewMode("list")} className={`px-4 py-2 rounded ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>List View</button>
-                        <button onClick={() => setViewMode("dashboard")} className={`px-4 py-2 rounded ${viewMode === "dashboard" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Dashboard</button>
+                        <button
+                            onClick={() => setViewMode("tree")}
+                            className={`px-4 py-2 rounded ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                        >
+                            Tree View
+                        </button>
+                        <button
+                            onClick={() => setViewMode("list")}
+                            className={`px-4 py-2 rounded ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                        >
+                            List View
+                        </button>
+                        <button
+                            onClick={() => setViewMode("dashboard")}
+                            className={`px-4 py-2 rounded ${viewMode === "dashboard" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                        >
+                            Dashboard
+                        </button>
                     </div>
                 </div>
 
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name or code (e.g., Eswari, VANI001)" className="flex-1 px-4 py-2 border rounded-lg" />
-                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
+                        <input
+                            type="text"
+                            value={searchCode}
+                            onChange={(e) => setSearchCode(e.target.value)}
+                            placeholder="Search by name or code (e.g., Eswari, VANI001)"
+                            className="flex-1 px-4 py-2 border rounded-lg"
+                        />
+                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                            View
+                        </button>
                     </form>
                 </div>
 
@@ -690,9 +764,18 @@ export default function MLMTree() {
 
                 {stats && currentNode && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Direct Downline</div><div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div></div>
-                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Total Downline</div><div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div></div>
-                        <div className="bg-white rounded-lg shadow p-4"><div className="text-gray-500 text-sm">Your Level</div><div className="text-2xl font-bold text-purple-600">{stats.level}</div></div>
+                        <div className="bg-white rounded-lg shadow p-4">
+                            <div className="text-gray-500 text-sm">Direct Downline</div>
+                            <div className="text-2xl font-bold text-blue-600">{stats.directChildren}</div>
+                        </div>
+                        <div className="bg-white rounded-lg shadow p-4">
+                            <div className="text-gray-500 text-sm">Total Downline</div>
+                            <div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div>
+                        </div>
+                        <div className="bg-white rounded-lg shadow p-4">
+                            <div className="text-gray-500 text-sm">Your Level</div>
+                            <div className="text-2xl font-bold text-purple-600">{stats.level}</div>
+                        </div>
                     </div>
                 )}
 
@@ -710,11 +793,15 @@ export default function MLMTree() {
                     </div>
                 )}
 
-                {/* Real-Time Commission - always show for current node */}
+                {/* Real-Time Commission - always shows full commission for all depths */}
                 {currentNode && <RealTimeCommission currentNode={currentNode} />}
 
                 {viewMode === "dashboard" && currentNode && (
-                    <RankDashboard userNode={currentNode} directCount={stats?.directChildren} totalDownline={stats?.totalDownline} />
+                    <RankDashboard
+                        userNode={currentNode}
+                        directCount={stats?.directChildren}
+                        totalDownline={stats?.totalDownline}
+                    />
                 )}
 
                 {viewMode !== "dashboard" && currentNode && (
@@ -727,6 +814,7 @@ export default function MLMTree() {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
+                                            <th className="px-4 py-3 text-left"></th>
                                             <th className="px-4 py-3 text-left">Name</th>
                                             <th className="px-4 py-3 text-left">Code</th>
                                             <th className="px-4 py-3 text-left">Rank</th>
@@ -744,23 +832,61 @@ export default function MLMTree() {
                 <div className="mt-4 text-sm text-gray-600 text-center">
                     <p>Click "View" to explore any user | Upline shown above | DGM/AGM/GM are hidden from downline view</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>AGM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div><span>SMM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span>MM</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-500"></div><span>ME</span></div>
-                        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-gray-400"></div><span>Pending</span></div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span>GM</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                            <span>DGM</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <span>AGM</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span>SMM</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span>MM</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                            <span>ME</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+                            <span>Pending</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <style jsx>{`
-                .tree-node{position:relative}
-                .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
-                .tree-node:last-child>.tree-children::before{display:none}
-                .tree-children{position:relative;margin-top:0.5rem}
-                .tree-children .tree-node{margin-left:1rem}
-            `}</style>
+        .tree-node {
+          position: relative;
+        }
+        .tree-node:not(:last-child) > .tree-children::before {
+          content: "";
+          position: absolute;
+          left: -10px;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background: #e5e7eb;
+        }
+        .tree-node:last-child > .tree-children::before {
+          display: none;
+        }
+        .tree-children {
+          position: relative;
+          margin-top: 0.5rem;
+        }
+        .tree-children .tree-node {
+          margin-left: 1rem;
+        }
+      `}</style>
         </div>
     );
 }
