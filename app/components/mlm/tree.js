@@ -52,7 +52,7 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration
+// Commission Configuration (unchanged)
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
@@ -244,7 +244,6 @@ export default function MLMTree() {
     const [loggedInUser, setLoggedInUser] = useState(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-    const [treeData, setTreeData] = useState(null);
     const [currentNode, setCurrentNode] = useState(null);
     const [upline, setUpline] = useState([]);
     const [stats, setStats] = useState(null);
@@ -300,26 +299,16 @@ export default function MLMTree() {
         return ids;
     }
 
-    // Fetch tree from API
-    const fetchTree = async (userCodeOrAppId, viewerCode = null, forceShowAll = false) => {
+    // Fetch tree from API (only userCode + showAll)
+    const fetchTree = async (userCode, forceShowAll = false) => {
         setLoading(true);
         try {
-            const isApplicationId = /^SB-\d{6}$/.test(userCodeOrAppId);
-            let url;
-            if (isApplicationId) {
-                url = `/api/mlm/tree?applicationId=${encodeURIComponent(userCodeOrAppId)}`;
-            } else {
-                url = `/api/mlm/tree?userCode=${encodeURIComponent(userCodeOrAppId)}`;
-            }
-            if (viewerCode) url += `&viewerCode=${encodeURIComponent(viewerCode)}`;
-            if (forceShowAll) url += `&showAll=true`;
-
+            const url = `/api/mlm/tree?userCode=${encodeURIComponent(userCode)}&showAll=${forceShowAll}`;
             const res = await fetch(url);
             const data = await res.json();
             if (!data.success) throw new Error(data.error || "Failed to load tree");
 
             const tree = data.tree;
-            setTreeData(tree);
             setCurrentNode(tree);
             const nodeStats = computeNodeStats(tree);
             setStats({
@@ -330,7 +319,6 @@ export default function MLMTree() {
             setRankDist(nodeStats.rankDistribution);
             setError(null);
 
-            // Expand all nodes in the new tree
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
@@ -344,9 +332,9 @@ export default function MLMTree() {
         }
     };
 
-    // Fetch upline chain for current node
+    // Fetch upline chain – called only for super admin
     const fetchUpline = async (userCode) => {
-        if (!userCode) return;
+        if (!userCode || !isSuperAdmin) return;
         try {
             const res = await fetch(`/api/mlm/upline?userCode=${encodeURIComponent(userCode)}`);
             const data = await res.json();
@@ -358,23 +346,25 @@ export default function MLMTree() {
         }
     };
 
-    // Initial load: get tree for logged-in user
+    // Initial load: get tree for logged-in user (with showAll if super admin)
     useEffect(() => {
         if (loggedInUser && loggedInUser.userCode) {
-            fetchTree(loggedInUser.userCode, loggedInUser.userCode, isSuperAdmin);
+            fetchTree(loggedInUser.userCode, isSuperAdmin);
         }
     }, [loggedInUser, isSuperAdmin]);
 
-    // Refresh upline when currentNode changes
+    // When currentNode changes, fetch upline if super admin
     useEffect(() => {
-        if (currentNode) {
+        if (currentNode && isSuperAdmin) {
             fetchUpline(currentNode.userCode);
+        } else {
+            setUpline([]);
         }
-    }, [currentNode]);
+    }, [currentNode, isSuperAdmin]);
 
-    const setViewToUser = async (identifier) => {
-        if (!identifier) return;
-        await fetchTree(identifier, identifier, isSuperAdmin);
+    const setViewToUser = async (userCode) => {
+        if (!userCode) return;
+        await fetchTree(userCode, isSuperAdmin);
     };
 
     const handleSearch = (e) => {
@@ -390,8 +380,8 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    // Render tree recursively – no manual hiding (API already handles rank-based hiding)
-    const renderTree = (node, viewerNode) => {
+    // Render tree recursively – API already handles hiding based on showAll
+    const renderTree = (node) => {
         if (!node) return null;
 
         const levelClass = getLevelColor(node.level);
@@ -423,7 +413,7 @@ export default function MLMTree() {
                 </div>
                 {hasChildren && isExpanded && (
                     <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">
-                        {node.children.map((child) => renderTree(child, viewerNode))}
+                        {node.children.map((child) => renderTree(child))}
                     </div>
                 )}
             </div>
@@ -431,10 +421,11 @@ export default function MLMTree() {
     };
 
     const renderUpline = () => {
+        if (!isSuperAdmin) return null;
         if (!upline.length) return null;
         return (
             <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <h2 className="text-md font-semibold text-blue-800 mb-2">⬆️ Upline (Sponsor Chain)</h2>
+                <h2 className="text-md font-semibold text-blue-800 mb-2">⬆️ Upline (Sponsor Chain) – Super Admin Only</h2>
                 <div className="flex flex-wrap items-center gap-2">
                     {upline.map((node, idx) => (
                         <Fragment key={node._id}>
@@ -457,7 +448,7 @@ export default function MLMTree() {
         );
     };
 
-    const renderListView = (node, viewerNode, level = 0) => {
+    const renderListView = (node, level = 0) => {
         if (!node) return null;
 
         const identifier = node.userCode;
@@ -486,7 +477,7 @@ export default function MLMTree() {
                         )}
                     </td>
                 </tr>
-                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, level + 1))}
+                {hasChildren && isExpanded && node.children.map(child => renderListView(child, level + 1))}
             </Fragment>
         );
     };
@@ -518,7 +509,7 @@ export default function MLMTree() {
 
                 <div className="mb-6">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name, user code, or Application ID (e.g., SB-000000)" className="flex-1 px-4 py-2 border rounded-lg" />
+                        <input type="text" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} placeholder="Search by name or user code (e.g., SB-000001)" className="flex-1 px-4 py-2 border rounded-lg" />
                         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">View</button>
                     </form>
                 </div>
@@ -559,7 +550,7 @@ export default function MLMTree() {
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-lg font-semibold mb-3">⬇️ Downline Network</h2>
                         {viewMode === "tree" ? (
-                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode)}</div>
+                            <div className="overflow-x-auto">{renderTree(currentNode)}</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -573,7 +564,7 @@ export default function MLMTree() {
                                             <th className="px-4 py-3 text-left">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>{renderListView(currentNode, currentNode)}</tbody>
+                                    <tbody>{renderListView(currentNode)}</tbody>
                                 </table>
                             </div>
                         )}
@@ -581,7 +572,7 @@ export default function MLMTree() {
                 )}
 
                 <div className="mt-4 text-sm text-gray-600 text-center">
-                    <p>Click "View" to explore any user | Upline shown above | {isSuperAdmin ? "Super Admin: All ranks visible" : "DGM/AGM/GM are hidden from downline view"}</p>
+                    <p>Click "View" to explore any user | {isSuperAdmin ? "Super Admin: All ranks visible, Upline shown" : "DGM/AGM/GM are hidden from downline view"}</p>
                     <div className="flex justify-center gap-4 mt-2 flex-wrap">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div><span>GM</span></div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>DGM</span></div>
@@ -594,12 +585,12 @@ export default function MLMTree() {
                 </div>
             </div>
             <style jsx>{`
-        .tree-node{position:relative}
-        .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
-        .tree-node:last-child>.tree-children::before{display:none}
-        .tree-children{position:relative;margin-top:0.5rem}
-        .tree-children .tree-node{margin-left:1rem}
-      `}</style>
+                .tree-node{position:relative}
+                .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
+                .tree-node:last-child>.tree-children::before{display:none}
+                .tree-children{position:relative;margin-top:0.5rem}
+                .tree-children .tree-node{margin-left:1rem}
+            `}</style>
         </div>
     );
 }
