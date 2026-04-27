@@ -41,7 +41,7 @@ export default function RootLayout({ children }) {
   // Load user from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
-    if (storedUser) {
+    if (storedUser && typeof storedUser == "object") {
       const userData = JSON.parse(storedUser);
       setRootContext((prev) => ({
         ...prev,
