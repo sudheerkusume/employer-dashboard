@@ -1133,6 +1133,8 @@ export default function ApplicationManagement() {
                     'Application ID': app.applicationId || '',
                     'User Code': app.userCode || '',
                     'Full Name': app.fullName || '',
+                    'UTR No / Cash': app.modeOfPayment || '',
+                    'Date Of Payment': app.dateOfPayment || '',
                     'Date of Birth': app.dob ? new Date(app.dob).toLocaleDateString() : '',
                     'Father Name': app.fatherName || '',
                     'Blood Group': app.bloodGroup || '',
@@ -1367,6 +1369,8 @@ export default function ApplicationManagement() {
         return {
             applicationId: getStr('Application ID'),
             dateOfApplication: getStr('Date Of Application'),
+            modeOfPayment: getStr('UTR No / Cash'),
+            dateOfPayment: getStr('Date Of Payment'),
             fullName: getStr('Full Name'),
             dob: parseDate(getStr('Date of Birth')),
             fatherName: getStr("Father's/Husband's Name"),
@@ -1402,6 +1406,8 @@ export default function ApplicationManagement() {
         const templateData = [{
             'Application ID': 'RB000001',
             'Date Of Application': "30-03-2026",
+            'Date Of Payment': "31-03-2026",
+            'UTR No / Cash': "Cash",
             'Referred By Name': 'K Srinivas',
             'Referred By Id': 'RB000001',
             'userCode': 'ME-001',
