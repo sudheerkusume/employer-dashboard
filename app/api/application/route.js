@@ -44,7 +44,7 @@ async function reserveApplicationIds(db, count = 1) {
     const endSeq = result?.seq ?? count;
     const startSeq = endSeq - count + 1;
     return Array.from({ length: count }, (_, i) =>
-        `RB${(startSeq + i).toString().padStart(6, "0")}`
+        `SB-${(startSeq + i).toString().padStart(6, "0")}`
     );
 }
 
@@ -496,7 +496,7 @@ export async function POST(req) {
                     <p>Dear ${doc.fullName || "Applicant"},</p>
                     <p>Your application has been successfully received.</p>
                     <p><strong>Application ID:</strong> ${doc.applicationId}</p>
-                    <p><strong>User Code:</strong> ${doc.userCode}</p>
+                    <p><strong>Your User Code:</strong> ${doc.userCode}</p>
                     <p>You will be notified once your application is reviewed.</p>
                     <hr/>
                     <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
@@ -908,7 +908,8 @@ export async function DELETE(req) {
             .toArray();
         let maxAppNum = 0;
         for (const doc of allApps) {
-            const match = doc.applicationId?.match(/^RB(\d+)$/);
+            // Updated regex to include dash: SB-000001
+            const match = doc.applicationId?.match(/^SB-(\d+)$/);
             if (match) {
                 const num = parseInt(match[1], 10);
                 if (num > maxAppNum) maxAppNum = num;
