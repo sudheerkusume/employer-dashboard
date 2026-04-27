@@ -1,10 +1,19 @@
 import clientPromise from "@/app/components/lib/db";
 
+/**
+ * Recursively builds the downline tree from the marketing_applications collection.
+ * Only documents that have both `sponsorCode` and `level` are considered MLM members.
+ * No status check – any such document is included.
+ * @param {Db} db - MongoDB instance
+ * @param {string} userCode - MLM userCode (e.g., "ME-001")
+ * @param {Set} visited - Cycle detection
+ * @returns {Promise<Object|null>}
+ */
 async function buildTree(db, userCode, visited = new Set()) {
     if (visited.has(userCode)) return null;
     visited.add(userCode);
 
-    // Find the user document – must have sponsorCode and level (i.e., an MLM member)
+    // Find the user document – must have sponsorCode and level (MLM member)
     const user = await db.collection("marketing_applications").findOne({
         userCode,
         sponsorCode: { $exists: true, $ne: null },
@@ -38,15 +47,13 @@ async function buildTree(db, userCode, visited = new Set()) {
 
 /**
  * Resolve an applicationId to the corresponding MLM userCode.
- * An approved application will have `mlmUserCode` set.
+ * Looks up the document by applicationId – no status filter.
  */
 async function resolveUserCodeFromApplicationId(db, applicationId) {
-    const app = await db.collection("marketing_applications").findOne({
-        applicationId,
-        status: "approved",
-        mlmUserCode: { $exists: true, $ne: null },
-    });
-    return app?.mlmUserCode || null;
+    const doc = await db.collection("marketing_applications").findOne({ applicationId });
+    if (!doc) return null;
+    // Prefer mlmUserCode, fallback to userCode
+    return doc.mlmUserCode || doc.userCode || null;
 }
 
 export async function GET(req) {
@@ -65,7 +72,7 @@ export async function GET(req) {
             if (!finalUserCode) {
                 return Response.json({
                     success: false,
-                    error: `No approved MLM member found for applicationId: ${applicationId}`
+                    error: `No MLM member found for applicationId: ${applicationId}`
                 }, { status: 404 });
             }
         } else if (userCode) {
@@ -80,7 +87,7 @@ export async function GET(req) {
             }
             finalUserCode = userCode;
         } else {
-            // Default root – assumes the top sponsor has no sponsorCode (or sponsorCode = null)
+            // Default root – find a user with no sponsorCode (or null/empty)
             const root = await db.collection("marketing_applications").findOne({
                 $or: [
                     { sponsorCode: { $exists: false } },
