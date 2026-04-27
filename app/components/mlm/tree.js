@@ -52,12 +52,12 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration (unchanged)
+// Commission Configuration
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 
-function computeCommissionFromNode(node, viewerRank) {
+function computeCommissionFromNode(node) {
     const depthMap = new Map();
     for (let d = 1; d <= 6; d++) {
         depthMap.set(d, { sumSaleValue: 0, commission: 0 });
@@ -91,7 +91,7 @@ function computeCommissionFromNode(node, viewerRank) {
 function RealTimeCommission({ currentNode }) {
     const commissionData = useMemo(() => {
         if (!currentNode) return null;
-        return computeCommissionFromNode(currentNode, currentNode.level);
+        return computeCommissionFromNode(currentNode);
     }, [currentNode]);
 
     if (!commissionData) return null;
@@ -143,8 +143,6 @@ function RealTimeCommission({ currentNode }) {
                 * As a {currentNode.level}, you normally earn commission only up to depth level {maxDepth}.
                 <br />
                 The amounts above show the <strong>full commission</strong> for every depth level (1–6) – your actual earnings may be limited by your rank.
-                <br />
-                Depth 1: 5%, Depth 2: 2.5%, Depth 3: 2%, Depth 4: 1.5%, Depth 5: 1%, Depth 6: 0.5%
             </p>
         </div>
     );
@@ -171,8 +169,8 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 
     const getExampleText = () => {
         if (rank === "ME") return `Enroll ${10 - totalDirect} more direct members to become MM.`;
-        if (rank === "MM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
-        if (rank === "SMM") return `You have ${promotedDirectCount} out of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
+        if (rank === "MM") return `You have ${promotedDirectCount} of ${totalDirect} direct members who are MM. Need all to become MM to reach SMM.`;
+        if (rank === "SMM") return `You have ${promotedDirectCount} of ${totalDirect} direct members who are SMM. Need all to become SMM for DGM.`;
         if (rank === "DGM") return `All direct members must become DGM to reach AGM.`;
         if (rank === "AGM") return `All direct members must become AGM to reach GM.`;
         return "Congratulations! You are at the highest rank.";
@@ -237,13 +235,12 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component – uses logged‑in user from localStorage / context
+// Main Component
 // ----------------------------------------------------------------------
 export default function MLMTree() {
     const router = useRouter();
     const { rootContext, setRootContext } = useContext(RootContext);
 
-    // Get logged‑in user from context or localStorage
     const [loggedInUser, setLoggedInUser] = useState(null);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -258,15 +255,12 @@ export default function MLMTree() {
     const [expandedNodes, setExpandedNodes] = useState({});
     const [loading, setLoading] = useState(true);
 
-    // Load user data from localStorage on mount and sync with context
+    // Load logged-in user from context/localStorage
     useEffect(() => {
         let userData = null;
-
-        // Try to get from context first
         if (rootContext?.mlmUser?.isLoggedIn) {
             userData = rootContext.mlmUser;
         } else {
-            // Fallback to localStorage
             const storedUserCode = localStorage.getItem('mlm_user_code');
             const storedName = localStorage.getItem('mlm_user_name');
             const storedLevel = localStorage.getItem('mlm_user_level');
@@ -281,12 +275,8 @@ export default function MLMTree() {
                     level: storedLevel,
                     role: storedRole || (isAdmin ? 'super_admin' : 'user'),
                 };
-                // Update context if missing
                 if (!rootContext?.mlmUser) {
-                    setRootContext(prev => ({
-                        ...prev,
-                        mlmUser: userData
-                    }));
+                    setRootContext(prev => ({ ...prev, mlmUser: userData }));
                 }
             }
         }
@@ -295,28 +285,40 @@ export default function MLMTree() {
             setLoggedInUser(userData);
             setIsSuperAdmin(userData.role === 'super_admin' || userData.userCode === "SB-000000");
         } else {
-            // No user logged in, redirect to login page
             router.push('/mlm/login');
         }
     }, [rootContext, setRootContext, router]);
 
-    const fetchTree = async (userCodeOrAppId, viewerCode = null) => {
+    // Helper: collect all node IDs for expansion
+    function getAllNodeIds(node) {
+        let ids = [node._id];
+        if (node.children) {
+            node.children.forEach(child => {
+                ids = ids.concat(getAllNodeIds(child));
+            });
+        }
+        return ids;
+    }
+
+    // Fetch tree from API
+    const fetchTree = async (userCodeOrAppId, viewerCode = null, forceShowAll = false) => {
         setLoading(true);
         try {
-            // Determine whether the identifier looks like an Application ID (SB-xxxxxx)
             const isApplicationId = /^SB-\d{6}$/.test(userCodeOrAppId);
             let url;
             if (isApplicationId) {
-                url = `/api/mlm/tree?applicationId=${encodeURIComponent(userCodeOrAppId)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+                url = `/api/mlm/tree?applicationId=${encodeURIComponent(userCodeOrAppId)}`;
             } else {
-                url = `/api/mlm/tree?userCode=${encodeURIComponent(userCodeOrAppId)}${viewerCode ? `&viewerCode=${encodeURIComponent(viewerCode)}` : ''}`;
+                url = `/api/mlm/tree?userCode=${encodeURIComponent(userCodeOrAppId)}`;
             }
+            if (viewerCode) url += `&viewerCode=${encodeURIComponent(viewerCode)}`;
+            if (forceShowAll) url += `&showAll=true`;
 
             const res = await fetch(url);
             const data = await res.json();
-            if (!data.success) throw new Error(data.error);
-            const tree = data.tree;
+            if (!data.success) throw new Error(data.error || "Failed to load tree");
 
+            const tree = data.tree;
             setTreeData(tree);
             setCurrentNode(tree);
             const nodeStats = computeNodeStats(tree);
@@ -328,6 +330,7 @@ export default function MLMTree() {
             setRankDist(nodeStats.rankDistribution);
             setError(null);
 
+            // Expand all nodes in the new tree
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
@@ -341,6 +344,7 @@ export default function MLMTree() {
         }
     };
 
+    // Fetch upline chain for current node
     const fetchUpline = async (userCode) => {
         if (!userCode) return;
         try {
@@ -354,32 +358,23 @@ export default function MLMTree() {
         }
     };
 
-    // Initial load: fetch tree for the logged‑in user's applicationId (or userCode)
+    // Initial load: get tree for logged-in user
     useEffect(() => {
         if (loggedInUser && loggedInUser.userCode) {
-            fetchTree(loggedInUser.userCode, loggedInUser.userCode);
+            fetchTree(loggedInUser.userCode, loggedInUser.userCode, isSuperAdmin);
         }
-    }, [loggedInUser]);
+    }, [loggedInUser, isSuperAdmin]);
 
+    // Refresh upline when currentNode changes
     useEffect(() => {
         if (currentNode) {
             fetchUpline(currentNode.userCode);
         }
     }, [currentNode]);
 
-    function getAllNodeIds(node) {
-        let ids = [node._id];
-        if (node.children) {
-            node.children.forEach(child => {
-                ids = ids.concat(getAllNodeIds(child));
-            });
-        }
-        return ids;
-    }
-
     const setViewToUser = async (identifier) => {
         if (!identifier) return;
-        await fetchTree(identifier, identifier);
+        await fetchTree(identifier, identifier, isSuperAdmin);
     };
 
     const handleSearch = (e) => {
@@ -395,16 +390,10 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    const renderTree = (node, viewerNode, forceShowAll = false) => {
+    // Render tree recursively – no manual hiding (API already handles rank-based hiding)
+    const renderTree = (node, viewerNode) => {
         if (!node) return null;
-        const highRanks = ["DGM", "AGM", "GM"];
-        if (!forceShowAll && highRanks.includes(node.level) && node !== viewerNode) {
-            return (
-                <div key={node._id} className="p-2 text-gray-500 italic border-l-2 border-gray-300 ml-4">
-                    ⚡ {getDisplayName(node)} (reached {node.level}) – hidden per MLM rules
-                </div>
-            );
-        }
+
         const levelClass = getLevelColor(node.level);
         const identifier = node.userCode;
         const hasChildren = node.children && node.children.length > 0;
@@ -434,7 +423,7 @@ export default function MLMTree() {
                 </div>
                 {hasChildren && isExpanded && (
                     <div className="tree-children ml-6 border-l-2 border-gray-200 pl-4">
-                        {node.children.map((child) => renderTree(child, viewerNode, forceShowAll))}
+                        {node.children.map((child) => renderTree(child, viewerNode))}
                     </div>
                 )}
             </div>
@@ -468,18 +457,9 @@ export default function MLMTree() {
         );
     };
 
-    const renderListView = (node, viewerNode, forceShowAll = false, level = 0) => {
+    const renderListView = (node, viewerNode, level = 0) => {
         if (!node) return null;
-        const highRanks = ["DGM", "AGM", "GM"];
-        if (!forceShowAll && highRanks.includes(node.level) && node !== viewerNode) {
-            return (
-                <tr key={node._id}>
-                    <td colSpan="6" className="px-4 py-2 text-gray-500 italic">
-                        ⚡ {getDisplayName(node)} (reached {node.level}) – hidden
-                    </td>
-                </tr>
-            );
-        }
+
         const identifier = node.userCode;
         const hasChildren = node.children && node.children.length > 0;
         const isExpanded = expandedNodes[node._id] === true;
@@ -506,7 +486,7 @@ export default function MLMTree() {
                         )}
                     </td>
                 </tr>
-                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, forceShowAll, level + 1))}
+                {hasChildren && isExpanded && node.children.map(child => renderListView(child, viewerNode, level + 1))}
             </Fragment>
         );
     };
@@ -515,9 +495,7 @@ export default function MLMTree() {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
-    if (!loggedInUser && !loading) {
-        return null; // will redirect via useEffect
-    }
+    if (!loggedInUser && !loading) return null; // will redirect
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -581,7 +559,7 @@ export default function MLMTree() {
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-lg font-semibold mb-3">⬇️ Downline Network</h2>
                         {viewMode === "tree" ? (
-                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode, isSuperAdmin)}</div>
+                            <div className="overflow-x-auto">{renderTree(currentNode, currentNode)}</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -595,7 +573,7 @@ export default function MLMTree() {
                                             <th className="px-4 py-3 text-left">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>{renderListView(currentNode, currentNode, isSuperAdmin)}</tbody>
+                                    <tbody>{renderListView(currentNode, currentNode)}</tbody>
                                 </table>
                             </div>
                         )}
@@ -616,12 +594,12 @@ export default function MLMTree() {
                 </div>
             </div>
             <style jsx>{`
-                .tree-node{position:relative}
-                .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
-                .tree-node:last-child>.tree-children::before{display:none}
-                .tree-children{position:relative;margin-top:0.5rem}
-                .tree-children .tree-node{margin-left:1rem}
-            `}</style>
+        .tree-node{position:relative}
+        .tree-node:not(:last-child)>.tree-children::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:2px;background:#e5e7eb}
+        .tree-node:last-child>.tree-children::before{display:none}
+        .tree-children{position:relative;margin-top:0.5rem}
+        .tree-children .tree-node{margin-left:1rem}
+      `}</style>
         </div>
     );
 }
