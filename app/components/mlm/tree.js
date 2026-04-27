@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import RootContext from "../config/rootcontext";
 
 // ----------------------------------------------------------------------
-// Utility functions (same as before)
+// Utility functions (unchanged)
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -52,7 +52,7 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Commission Configuration (same)
+// Commission Configuration (unchanged)
 // ----------------------------------------------------------------------
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
@@ -111,12 +111,14 @@ function RealTimeCommission({ currentNode }) {
                         const data = commissionData.byDepth[depth];
                         if (!data || data.sumSaleValue === 0) return null;
                         const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
-                        return <tr key={depth} className="border-b">
-                            <td className="px-4 py-2">Level {depth}</td>
-                            <td className="px-4 py-2">{percent}%</td>
-                            <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
-                            <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(data.commission)}</td>
-                        </tr>;
+                        return (
+                            <tr key={depth} className="border-b">
+                                <td className="px-4 py-2">Level {depth}</td>
+                                <td className="px-4 py-2">{percent}%</td>
+                                <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(data.commission)}</td>
+                            </tr>
+                        );
                     })}
                 </tbody>
                 <tfoot className="bg-gray-100">
@@ -247,11 +249,10 @@ export default function MLMTree() {
         return ids;
     }
 
-    // Fetch tree – always full tree (no hiding)
+    // Fetch tree from API (userCode or applicationId)
     const fetchTree = async (identifier) => {
         setLoading(true);
         try {
-            // Determine if identifier is applicationId or userCode
             const isApplicationId = /^SB-\d{6}$/.test(identifier);
             const url = isApplicationId
                 ? `/api/mlm/tree?applicationId=${encodeURIComponent(identifier)}`
@@ -300,10 +301,9 @@ export default function MLMTree() {
         }
     };
 
-    // Initial load: fetch tree for logged-in user's userCode (or applicationId?)
+    // Initial load: fetch tree for logged-in user's userCode (MLM code)
     useEffect(() => {
         if (loggedInUser && loggedInUser.userCode) {
-            // loggedInUser.userCode is the MLM userCode (e.g., "ME-001")
             fetchTree(loggedInUser.userCode);
         }
     }, [loggedInUser]);
@@ -334,6 +334,7 @@ export default function MLMTree() {
         setExpandedNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
+    // Render tree – no hiding
     const renderTree = (node) => {
         if (!node) return null;
         const levelClass = getLevelColor(node.level);

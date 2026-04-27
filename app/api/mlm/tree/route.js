@@ -4,13 +4,22 @@ async function buildTree(db, userCode, visited = new Set()) {
     if (visited.has(userCode)) return null;
     visited.add(userCode);
 
-    const user = await db.collection("marketing_applications").findOne({ userCode });
+    // Find the user document – must have sponsorCode and level (i.e., an MLM member)
+    const user = await db.collection("marketing_applications").findOne({
+        userCode,
+        sponsorCode: { $exists: true, $ne: null },
+        level: { $exists: true, $ne: null },
+    });
     if (!user) return null;
 
-    // Always fetch children – no hiding
+    // Find all children (where sponsorCode equals this user's userCode)
     const childrenDocs = await db
         .collection("marketing_applications")
-        .find({ sponsorCode: userCode })
+        .find({
+            sponsorCode: userCode,
+            sponsorCode: { $exists: true, $ne: null },
+            level: { $exists: true, $ne: null },
+        })
         .toArray();
 
     const children = await Promise.all(
@@ -19,7 +28,7 @@ async function buildTree(db, userCode, visited = new Set()) {
 
     return {
         _id: user._id.toString(),
-        fullName: user.fullName,
+        fullName: user.fullName || "Unknown",
         userCode: user.userCode,
         level: user.level,
         saleValue: user.personalSales || 2000,
@@ -28,21 +37,16 @@ async function buildTree(db, userCode, visited = new Set()) {
 }
 
 /**
- * Resolve an applicationId OR userCode to the actual MLM userCode.
+ * Resolve an applicationId to the corresponding MLM userCode.
+ * An approved application will have `mlmUserCode` set.
  */
-async function resolveUserCode(db, identifier) {
-    // Check if identifier is an Application ID (SB-xxxxxx)
-    if (/^SB-\d{6}$/.test(identifier)) {
-        const application = await db.collection("marketing_applications").findOne({
-            applicationId: identifier,
-            _type: { $ne: "__counter" },
-        });
-        if (application && application.mlmUserCode) return application.mlmUserCode;
-        return null;
-    }
-    // Otherwise treat as userCode directly
-    const user = await db.collection("marketing_applications").findOne({ userCode: identifier });
-    return user ? identifier : null;
+async function resolveUserCodeFromApplicationId(db, applicationId) {
+    const app = await db.collection("marketing_applications").findOne({
+        applicationId,
+        status: "approved",
+        mlmUserCode: { $exists: true, $ne: null },
+    });
+    return app?.mlmUserCode || null;
 }
 
 export async function GET(req) {
@@ -57,23 +61,43 @@ export async function GET(req) {
         let finalUserCode = null;
 
         if (applicationId) {
-            finalUserCode = await resolveUserCode(db, applicationId);
+            finalUserCode = await resolveUserCodeFromApplicationId(db, applicationId);
             if (!finalUserCode) {
-                return Response.json({ success: false, error: `No MLM member found for applicationId: ${applicationId}` }, { status: 404 });
+                return Response.json({
+                    success: false,
+                    error: `No approved MLM member found for applicationId: ${applicationId}`
+                }, { status: 404 });
             }
         } else if (userCode) {
-            finalUserCode = await resolveUserCode(db, userCode);
-            if (!finalUserCode) {
-                return Response.json({ success: false, error: `User not found for userCode: ${userCode}` }, { status: 404 });
+            // Check if this userCode exists as an MLM member (has sponsorCode and level)
+            const member = await db.collection("marketing_applications").findOne({
+                userCode,
+                sponsorCode: { $exists: true, $ne: null },
+                level: { $exists: true, $ne: null },
+            });
+            if (!member) {
+                return Response.json({ success: false, error: `MLM member not found: ${userCode}` }, { status: 404 });
             }
+            finalUserCode = userCode;
         } else {
-            // Default root MLM user (change to your root's userCode, e.g., "ME-001")
-            finalUserCode = "ME-001";
+            // Default root – assumes the top sponsor has no sponsorCode (or sponsorCode = null)
+            const root = await db.collection("marketing_applications").findOne({
+                $or: [
+                    { sponsorCode: { $exists: false } },
+                    { sponsorCode: null },
+                    { sponsorCode: "" }
+                ],
+                level: { $exists: true, $ne: null },
+            });
+            if (!root) {
+                return Response.json({ success: false, error: "No root user found" }, { status: 404 });
+            }
+            finalUserCode = root.userCode;
         }
 
         const tree = await buildTree(db, finalUserCode);
         if (!tree) {
-            return Response.json({ success: false, error: "User not found" }, { status: 404 });
+            return Response.json({ success: false, error: "Unable to build tree for this user" }, { status: 404 });
         }
 
         return Response.json({ success: true, tree });
