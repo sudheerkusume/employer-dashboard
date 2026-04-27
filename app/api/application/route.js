@@ -4,12 +4,10 @@ import { ObjectId } from "mongodb";
 import Joi from "joi";
 import nodemailer from "nodemailer";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EMAIL HELPER (now with configuration validation)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// EMAIL HELPER
+// ----------------------------------------------------------------------
 async function sendEmail(to, subject, html) {
-    // 🔔 FIX: Validate email configuration early
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
         console.error("❌ Email not sent – missing EMAIL_USER or EMAIL_PASSWORD env variables");
         throw new Error("Email service not configured");
@@ -33,10 +31,9 @@ async function sendEmail(to, subject, html) {
     });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ATOMIC COUNTER HELPERS (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// ATOMIC COUNTER HELPERS
+// ----------------------------------------------------------------------
 async function reserveApplicationIds(db, count = 1) {
     const col = db.collection("marketing_applications");
     const result = await col.findOneAndUpdate(
@@ -65,10 +62,9 @@ async function reserveUserCodes(db, level, count = 1) {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MLM HELPERS (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// MLM HELPERS
+// ----------------------------------------------------------------------
 const PROMOTION_THRESHOLDS = {
     ME: { next: "MM", required: 5 },
     MM: { next: "SMM", required: 5 },
@@ -162,19 +158,19 @@ async function createMlmMemberFromApplication(db, application) {
     return newUserCode;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// JOI SCHEMAS (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// JOI SCHEMAS
+// ----------------------------------------------------------------------
+// For POST (creation) – fullName is required, all others optional
 const applicationSchema = Joi.object({
     applicationId: Joi.string().allow("").optional(),
-    fullName: Joi.string().min(2).max(100).optional(),
+    fullName: Joi.string().min(2).max(100).required(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     fatherName: Joi.string().allow("").optional(),
     bloodGroup: Joi.string().allow("").optional(),
     address: Joi.string().allow("").optional(),
     contactNo: Joi.string().allow("").optional(),
-    email: Joi.string().optional(),
+    email: Joi.string().email().optional(),
     pinCode: Joi.string().allow("").optional(),
     panNumber: Joi.string().allow("").optional(),
     aadharNumber: Joi.string().allow("").optional(),
@@ -207,6 +203,7 @@ const applicationSchema = Joi.object({
     dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
+// For PUT partial updates – all fields optional (including fullName)
 const updateApplicationSchema = Joi.object({
     id: Joi.string().required(),
     applicationId: Joi.string().allow("").optional(),
@@ -216,7 +213,7 @@ const updateApplicationSchema = Joi.object({
     bloodGroup: Joi.string().allow("").optional(),
     address: Joi.string().allow("").optional(),
     contactNo: Joi.string().allow("").optional(),
-    email: Joi.string().optional(),
+    email: Joi.string().email().optional(),
     pinCode: Joi.string().allow("").optional(),
     panNumber: Joi.string().allow("").optional(),
     aadharNumber: Joi.string().allow("").optional(),
@@ -249,6 +246,7 @@ const updateApplicationSchema = Joi.object({
     dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
+// For status-only update (approve/reject)
 const updateStatusSchema = Joi.object({
     id: Joi.string().required(),
     status: Joi.string().required(),
@@ -256,10 +254,9 @@ const updateStatusSchema = Joi.object({
     applicationId: Joi.string().allow("").optional(),
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DUPLICATE CHECK HELPERS (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// DUPLICATE CHECK HELPERS
+// ----------------------------------------------------------------------
 const DUP_FIELDS = ["email", "contactNo", "panNumber", "aadharNumber"];
 
 async function getExistingInDB(col, field, values) {
@@ -285,10 +282,9 @@ function getDuplicatesInBatch(values) {
     return dupes;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DOCUMENT BUILDER (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// DOCUMENT BUILDER
+// ----------------------------------------------------------------------
 function parseDob(dob) {
     if (!dob || dob === "") return null;
     try {
@@ -352,10 +348,9 @@ function buildDocument(value, applicationId, userCode) {
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST — single object OR array (bulk) – FIXED email awaiting
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// POST – single object OR array (bulk)
+// ----------------------------------------------------------------------
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -367,22 +362,29 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // Validate records (same as before)
+        // Validate records – enforce fullName presence
         const validRecords = [];
         const validationErrors = [];
 
         for (let i = 0; i < rawList.length; i++) {
-            const {
-                _id, _type, applicationId, userCode, mlmUserCode,
-                appliedAt, updatedAt, remarks, role,
-                ...rest
-            } = rawList[i];
+            const { _id, _type, applicationId, userCode, mlmUserCode,
+                appliedAt, updatedAt, remarks, role, ...rest } = rawList[i];
+
+            // Explicit fullName check
+            if (!rest.fullName || rest.fullName.trim() === "") {
+                validationErrors.push({
+                    index: i,
+                    name: `Row ${i + 1}`,
+                    error: "fullName is required",
+                });
+                continue;
+            }
 
             const { error, value } = applicationSchema.validate(rest);
             if (error) {
                 validationErrors.push({
                     index: i,
-                    name: rawList[i]?.fullName || `Row ${i + 1}`,
+                    name: rest.fullName || `Row ${i + 1}`,
                     error: error.details[0].message,
                 });
             } else {
@@ -402,7 +404,7 @@ export async function POST(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // Duplicate detection (unchanged)
+        // Duplicate detection in batch
         const batchDuplicateWarnings = [];
         for (const field of DUP_FIELDS) {
             const vals = validRecords.map(r => r.value[field]);
@@ -451,7 +453,7 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // Reserve IDs
+        // Reserve IDs and user codes
         const appIds = await reserveApplicationIds(db, cleanRecords.length);
 
         const levelGroups = {};
@@ -478,10 +480,10 @@ export async function POST(req) {
 
         const insertResult = await col.insertMany(documents, { ordered: false });
 
-        // 🔔 FIX: Await all emails before returning response
+        // Send emails only if email field is present
         const emailPromises = [];
         for (const doc of documents) {
-            if (!doc.email) continue;
+            if (!doc.email) continue;  // No email → skip
             const html = `
                 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
                     <h2 style="color:#ca8a04">Application Received</h2>
@@ -522,7 +524,7 @@ export async function POST(req) {
                 applicationId: doc.applicationId,
                 userCode: doc.userCode,
                 application: maskedDocs[0],
-                emailStatus: emailFailures === 0 ? "sent" : "partial_failure",
+                emailStatus: emailPromises.length === 0 ? "no_email_provided" : (emailFailures === 0 ? "sent" : "partial_failure"),
             });
         }
 
@@ -549,10 +551,9 @@ export async function POST(req) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// GET – fetch applications
+// ----------------------------------------------------------------------
 export async function GET(req) {
     try {
         const url = new URL(req.url);
@@ -612,10 +613,9 @@ export async function GET(req) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUT — status update OR partial field update – FIXED approval email awaiting
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// PUT – status update OR partial field update
+// ----------------------------------------------------------------------
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -623,7 +623,7 @@ export async function PUT(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // Branch A: Status update
+        // Branch A: Status update (approve/reject)
         if (body.id && body.status && !body.fullName) {
             const { error, value } = updateStatusSchema.validate(body);
             if (error) {
@@ -675,11 +675,8 @@ export async function PUT(req) {
                 return Response.json({ error: "Failed to update status", success: false }, { status: 400 });
             }
 
-            // 🔔 FIX: Prepare email sending (but wait until after MLM creation for approval)
-            let emailPromise = null;
-
-            // Post-approval: create MLM member & send email
-            if (status === "approved") {
+            // Handle emails only if email address exists
+            if (status === "approved" && application.email) {
                 let mlmUserCode = null;
                 let mlmCreationError = null;
 
@@ -692,40 +689,27 @@ export async function PUT(req) {
                     }
                 }
 
-                // Approval email
-                if (application.email) {
-                    const html = `
-                        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-                            <h2 style="color:#28a745">Application Approved!</h2>
-                            <p>Dear ${application.fullName || "Applicant"},</p>
-                            <p>Congratulations! Your application has been approved.</p>
-                            <p><strong>Application ID:</strong> ${finalAppId}</p>
-                            ${mlmUserCode
-                            ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>`
-                            : "<p>Your Real Beez account will be created once a sponsor is assigned.</p>"
-                        }
-                            <hr/>
-                            <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
-                            Thank you for joining Real Beez Projects Pvt Ltd.
-                            </div>
-                            <p style="font-size:12px;">
-                            For application login, please visit the link below:<br/>
-                            <a href="https://employer.real-beez.com" style="color:#28a745;">https://employer.real-beez.com</a>
-                            </p>
-                        </div>`;
-                    emailPromise = sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
-                        .catch(err => {
-                            console.error("❌ Approval email failed:", err);
-                            return { error: err.message };
-                        });
-                }
-
-                // 🔔 FIX: Wait for email to be sent before returning response
-                let emailStatus = null;
-                if (emailPromise) {
-                    const result = await emailPromise;
-                    emailStatus = result?.error ? "failed" : "sent";
-                }
+                const html = `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                        <h2 style="color:#28a745">Application Approved!</h2>
+                        <p>Dear ${application.fullName || "Applicant"},</p>
+                        <p>Congratulations! Your application has been approved.</p>
+                        <p><strong>Application ID:</strong> ${finalAppId}</p>
+                        ${mlmUserCode
+                        ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>`
+                        : "<p>Your Real Beez account will be created once a sponsor is assigned.</p>"
+                    }
+                        <hr/>
+                        <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                        Thank you for joining Real Beez Projects Pvt Ltd.
+                        </div>
+                        <p style="font-size:12px;">
+                        For application login, please visit the link below:<br/>
+                        <a href="https://employer.real-beez.com" style="color:#28a745;">https://employer.real-beez.com</a>
+                        </p>
+                    </div>`;
+                await sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html)
+                    .catch(err => console.error("❌ Approval email failed:", err));
 
                 return Response.json({
                     success: true,
@@ -739,11 +723,10 @@ export async function PUT(req) {
                     status,
                     remarks,
                     mlmUserCode,
-                    emailStatus: emailStatus || "not_sent",
+                    emailStatus: "sent",
                 });
             }
 
-            // Rejection email
             if (status === "rejected" && application.email) {
                 const html = `
                     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -755,7 +738,6 @@ export async function PUT(req) {
                         <hr/>
                         <p style="font-size:12px;color:#666">Thank you for your interest.</p>
                     </div>`;
-                // 🔔 FIX: Await rejection email
                 await sendEmail(application.email, "Application Status Update – Real Beez Projects Pvt Ltd", html)
                     .catch(err => console.error("❌ Rejection email failed:", err));
             }
@@ -770,14 +752,13 @@ export async function PUT(req) {
             });
         }
 
-        // Branch B: Partial field update (unchanged)
+        // Branch B: Partial field update
         const { error, value } = updateApplicationSchema.validate(body);
         if (error) {
             return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
         }
 
         const { id, ...updateFields } = value;
-
         delete updateFields.applicationId;
         delete updateFields.userCode;
         delete updateFields.mlmUserCode;
@@ -800,6 +781,7 @@ export async function PUT(req) {
             }));
         }
 
+        // Duplicate check for unique fields (skip if not provided in update)
         const dupCheckFields = ["email", "contactNo", "panNumber", "aadharNumber"];
         for (const field of dupCheckFields) {
             if (!filteredUpdate[field]) continue;
@@ -838,10 +820,9 @@ export async function PUT(req) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ----------------------------------------------------------------------
+// DELETE – delete one or multiple applications
+// ----------------------------------------------------------------------
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
@@ -907,6 +888,7 @@ export async function DELETE(req) {
 
         const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
 
+        // Update counters after deletion
         const affectedLevels = new Set();
         for (const doc of existingDocs) {
             if (doc.level) affectedLevels.add(doc.level);
