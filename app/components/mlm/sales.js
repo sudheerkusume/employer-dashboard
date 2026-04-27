@@ -8,7 +8,7 @@ import { formatCurrency } from "@/app/components/lib/mlmUtils";
 
 // ---------- DUMMY SALES DATA (Real Estate Focus) ----------
 const DUMMY_SALES_BY_USER = {
-    RB000001: [
+    SB-000001: [
         { _id: "sale1", createdAt: "2026-04-05T10:30:00Z", amount: 2500000, description: "Premium Villa - 300 sq.yds", productId: "RE-VIL-001", customerName: "Mr. Sharma", commissionEarned: 62500 },
         { _id: "sale2", createdAt: "2026-04-03T14:20:00Z", amount: 1200000, description: "Corner Plot - 200 sq.yds", productId: "RE-PLT-002", customerName: "Mrs. Reddy", commissionEarned: 30000 },
         { _id: "sale3", createdAt: "2026-03-30T09:15:00Z", amount: 3500000, description: "Farmland - 2 acres", productId: "RE-FRM-003", customerName: "Mr. Patel", commissionEarned: 87500 },
@@ -41,7 +41,7 @@ const DUMMY_SALES_BY_USER = {
 
 // Mapping user code → rank (for commission percentage)
 const USER_RANK_MAP = {
-    RB000001: { rank: "GM", percentage: 2.5, fullName: "General Manager" },
+    SB-000001: { rank: "GM", percentage: 2.5, fullName: "General Manager" },
     RBZ2001: { rank: "DGM", percentage: 5, fullName: "Deputy General Manager" },
     RBZ3001: { rank: "AGM", percentage: 7.5, fullName: "Assistant General Manager" },
     RBZ3002: { rank: "SMM", percentage: 10, fullName: "Senior Master Member" },

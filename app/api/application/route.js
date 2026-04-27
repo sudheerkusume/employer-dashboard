@@ -344,7 +344,7 @@ function buildDocument(value, applicationId, userCode) {
         declaration: value.declaration ?? false,
         applicantSignature: value.applicantSignature ?? "",
         referrerSignature: value.referrerSignature ?? "",
-        referredById: value.referredById || "RB000001",
+        referredById: value.referredById || "SB-000001",
         referredByName: value.referredByName || "K Srinivas",
         status: value.status || "pending",
         appliedAt: Date.now(),

@@ -14,7 +14,7 @@ export default function LoginPage() {
     const { setRootContext } = useContext(RootContext);
 
     // Static super admin credentials
-    const SUPER_ADMIN_CODE = "SB000001";
+    const SUPER_ADMIN_CODE = "SB-000001";
     const SUPER_ADMIN_NAME = "Bheema";
 
     const handleSubmit = async (e) => {
@@ -172,7 +172,7 @@ export default function LoginPage() {
                             Enter your user applicationId to access your dashboard
                         </p>
                         <p className="mt-1 text-center text-xs text-gray-500">
-                            (Super Admin: SB000001)
+                            (Super Admin: SB-000001)
                         </p>
                     </div>
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -188,7 +188,7 @@ export default function LoginPage() {
                                 required
                                 value={applicationId}
                                 onChange={(e) => setApplicationId(e.target.value.toUpperCase())}
-                                placeholder="e.g., RB001 or SB000001"
+                                placeholder="e.g., RB001 or SB-000001"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                             />
                         </div>

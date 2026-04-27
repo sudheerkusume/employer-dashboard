@@ -1014,7 +1014,7 @@ export default function ApplicationManagement() {
                     ifscCode: app.ifscCode || '',
                     branch: app.branch || '',
                     bankCity: app.bankCity || '',
-                    referredById: app.referredById || 'RB000001',
+                    referredById: app.referredById || 'SB-000001',
                     referredByName: app.referredByName || 'K Srinivas',
                     declarationNote: app.declarationNote || '',
                     declaration: app.declaration || false,
@@ -1111,7 +1111,7 @@ export default function ApplicationManagement() {
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: 'RB000001', referredByName: "K srinivas", status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: 'SB-000001', referredByName: "K srinivas", status: 'pending',
         });
         setCurrentApplication(null);
         setActiveTab('personal');
@@ -1398,7 +1398,7 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
-            referredById: getStr('Referred By Id') || 'RB000001',
+            referredById: getStr('Referred By Id') || 'SB-000001',
             referredByName: getStr('Referred By Name') || 'K Srinivas',
             status: getStr('Status') || 'pending',
         };
@@ -1406,13 +1406,13 @@ export default function ApplicationManagement() {
 
     const handleDownloadTemplate = () => {
         const templateData = [{
-            'Application ID': 'RB000001',
+            'Application ID': 'SB-000001',
             'Date Of Application': "30-03-2026",
             'Date Of Payment': "31-03-2026",
             'Kit Delivered': 'Yes',
             'UTR No / Cash': "Cash",
             'Referred By Name': 'K Srinivas',
-            'Referred By Id': 'RB000001',
+            'Referred By Id': 'SB-000001',
             'userCode': 'ME-001',
             'mlmUserCode': 'ME-001',
             'Full Name': 'Bheema',
