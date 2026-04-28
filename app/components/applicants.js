@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useRef, forwardRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X, CheckCircle, XCircle, Clock, ChevronsUpDown, Check, Download, Upload, ChevronDownIcon } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, Trash, X, CheckCircle, XCircle, Clock, ChevronsUpDown, Check, Download, Upload, ChevronDownIcon, Minus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Listbox, Combobox } from '@headlessui/react';
 import Papa from 'papaparse';
@@ -727,11 +727,10 @@ export default function ApplicationManagement() {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
 
-    // Multi‑selection state (used for both bulk delete and bulk status update)
+    // UNIFIED selection state for bulk actions (DELETE, APPROVE, REJECT)
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-    // Bulk status update
     const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
     const [bulkStatusAction, setBulkStatusAction] = useState(null); // 'approved' or 'rejected'
     const [bulkRemarks, setBulkRemarks] = useState('');
@@ -794,7 +793,7 @@ export default function ApplicationManagement() {
         status: 'pending',
         level: "ME",
         dateOfApplication: ""
-    });
+    });   
 
     const fetchApplications = async (page = 1) => {
         setTableLoading(true);
@@ -1098,7 +1097,7 @@ export default function ApplicationManagement() {
     };
 
     // ======================
-    // BULK STATUS UPDATE (using PUT with ids array)
+    // BULK STATUS UPDATE (using unified selectedIds)
     // ======================
     const handleBulkStatusClick = (status) => {
         if (selectedIds.length === 0) {
@@ -1494,6 +1493,7 @@ export default function ApplicationManagement() {
         }
     }, [filteredApplications, selectedIds]);
 
+    // Row selection handler
     const handleSelectRow = (id) => {
         setSelectedIds(prev =>
             prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -1566,7 +1566,7 @@ export default function ApplicationManagement() {
     };
 
     // CustomCheckbox (reusable)
-    const CustomCheckbox = ({ checked, onChange, className = '' }) => {
+    const CustomCheckbox = ({ checked, indeterminate = false, top = false, onChange, className = '' }) => {
         return (
             <button
                 type="button"
@@ -1574,16 +1574,18 @@ export default function ApplicationManagement() {
                 aria-checked={checked}
                 onClick={() => onChange(!checked)}
                 className={`
-                    w-5 h-5 rounded-md border-2 flex items-center justify-center
-                    transition-all duration-200 cursor-pointer
-                    ${checked
+                w-5 h-5 rounded-md border-2 flex items-center justify-center
+                transition-all duration-200 cursor-pointer
+                ${checked || indeterminate || (top && selectedIds.length > 0)
                         ? 'bg-yellow-500 border-yellow-500 text-white'
-                        : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
+                        : 'bg-white border-gray-300 hover:border-yellow-400'
                     }
-                    ${className}
-                `}
+                ${className}
+            `}
             >
-                <Check size={14} className="stroke-[3]" />
+                {checked && <Check size={14} className="stroke-[3]" />}
+                {(top && selectedIds.length > 0) && <p className='p-1 text-sm'>{selectedIds.length}</p>}
+                {!checked && indeterminate && <Minus size={14} className="stroke-[3]" />}
             </button>
         );
     };
@@ -1945,10 +1947,21 @@ export default function ApplicationManagement() {
         );
     };
 
+
+    const isAllSelected = filteredApplications.length > 0 &&
+        selectedIds.length === filteredApplications.length;
+    const isIndeterminate = selectedIds.length > 0 &&
+        selectedIds.length < filteredApplications.length;
+
     // ======================
-    // LIST VIEW (with hover checkbox on status column)
+    // LIST VIEW (Gmail-like checkbox column + bulk actions)
     // ======================
     if (currentView === 'list') {
+        // Compute pagination range text
+        const startItem = (currentPage - 1) * limit + 1;
+        const endItem = Math.min(currentPage * limit, totalRecords);
+        const rangeText = `${startItem}-${endItem} of ${totalRecords}`;
+
         return (
             <div className="min-h-screen bg-gray-50 text-gray-900">
                 {notification && (
@@ -1956,18 +1969,23 @@ export default function ApplicationManagement() {
                         {notification.message}
                     </div>
                 )}
+
                 <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="flex justify-between items-center mb-8">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
                             <p className="text-gray-600 mt-1">Admin &gt; Marketing Applications</p>
                         </div>
-                        <button onClick={() => { resetForm(); setCurrentView('add'); }} className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-sm hover:shadow-md">
+                        <button
+                            onClick={() => { resetForm(); setCurrentView('add'); }}
+                            className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-sm hover:shadow-md"
+                        >
                             + Add Applicant
                         </button>
                     </div>
-                    {/* Search, Filter, Import/Export and Bulk Action Buttons */}
-                    <div className="mb-6 flex flex-wrap gap-4 items-center">
+
+                    {/* Search, Filter, Import/Export Toolbar */}
+                    <div className="mb-4 flex flex-wrap gap-4 items-center">
                         <input
                             type="text"
                             placeholder="Search by name, email, or phone..."
@@ -1983,21 +2001,34 @@ export default function ApplicationManagement() {
                                 </Listbox.Button>
                                 <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
                                     {statuses.map((status) => (
-                                        <Listbox.Option key={status.id} value={status.id} className={({ active, selected }) => `cursor-pointer select-none px-4 py-2 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'} ${selected ? 'font-medium bg-yellow-50' : ''}`}>
-                                            {({ selected }) => (<span className={selected ? 'font-medium' : 'font-normal'}>{status.name}</span>)}
+                                        <Listbox.Option key={status.id} value={status.id} className={({ active, selected }) =>
+                                            `cursor-pointer select-none px-4 py-2 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'} ${selected ? 'font-medium bg-yellow-50' : ''}`
+                                        }>
+                                            {({ selected }) => (
+                                                <span className={selected ? 'font-medium' : 'font-normal'}>{status.name}</span>
+                                            )}
                                         </Listbox.Option>
                                     ))}
                                 </Listbox.Options>
                             </div>
                         </Listbox>
-                        <button onClick={handleDownloadTemplate} className="px-2 py-2 flex items-center gap-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"><Download size={18} /> Template</button>
+                        <button onClick={handleDownloadTemplate} className="px-2 py-2 flex items-center gap-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                            <Download size={18} /> Template
+                        </button>
                         <div className="flex gap-2 items-center">
                             {importOptions.map((option) => {
                                 const isChecked = importMethod === option.value;
                                 return (
-                                    <button key={option.value} type="button" role="radio" aria-checked={isChecked} onClick={() => setImportMethod(option.value)} className="flex items-center space-x-2 focus:outline-none rounded">
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isChecked}
+                                        onClick={() => setImportMethod(option.value)}
+                                        className="flex items-center space-x-2 focus:outline-none rounded"
+                                    >
                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isChecked ? 'border-yellow-500' : 'border-gray-300 hover:border-gray-400'}`}>
-                                            {isChecked && (<div className="w-3 h-3 rounded-full bg-yellow-500" />)}
+                                            {isChecked && <div className="w-3 h-3 rounded-full bg-yellow-500" />}
                                         </div>
                                         <span className="text-sm text-gray-700">{option.label}</span>
                                     </button>
@@ -2005,116 +2036,219 @@ export default function ApplicationManagement() {
                             })}
                         </div>
                         {importMethod === 'local' ? (
-                            <button onClick={handleImportExcel} disabled={isImporting} className="px-2 py-2 flex items-center gap-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"><Download size={18} /> {isImporting ? 'Importing...' : 'Import Excel'}</button>
+                            <button onClick={handleImportExcel} disabled={isImporting} className="px-2 py-2 flex items-center gap-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
+                                <Download size={18} /> {isImporting ? 'Importing...' : 'Import Excel'}
+                            </button>
                         ) : (
                             <>
-                                <input type="text" placeholder="Google Sheet URL or direct file URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none" />
-                                <button onClick={handleImportFromUrl} disabled={isImportingFromUrl || !urlInput.trim()} className="px-2 py-2 flex items-center gap-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"><Download size={18} /> {isImportingFromUrl ? 'Importing...' : 'Import from URL'}</button>
+                                <input
+                                    type="text"
+                                    placeholder="Google Sheet URL or direct file URL"
+                                    value={urlInput}
+                                    onChange={(e) => setUrlInput(e.target.value)}
+                                    className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                                />
+                                <button onClick={handleImportFromUrl} disabled={isImportingFromUrl || !urlInput.trim()} className="px-2 py-2 flex items-center gap-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                                    <Download size={18} /> {isImportingFromUrl ? 'Importing...' : 'Import from URL'}
+                                </button>
                             </>
                         )}
-                        <button onClick={handleExportExcel} disabled={isExporting} className="px-2 py-2 flex items-center gap-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"><Upload size={18} /> {isExporting ? 'Exporting...' : 'Export Excel'}</button>
-                        {selectedIds.length > 0 && (
-                            <>
-                                <button onClick={() => handleBulkStatusClick('approved')} className="px-2 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Approve Selected ({selectedIds.length})</button>
-                                <button onClick={() => handleBulkStatusClick('rejected')} className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Reject Selected ({selectedIds.length})</button>
-                                <button onClick={() => setShowBulkDeleteModal(true)} className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Selected ({selectedIds.length})</button>
-                            </>
-                        )}
+                        <button onClick={handleExportExcel} disabled={isExporting} className="px-2 py-2 flex items-center gap-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                            <Upload size={18} /> {isExporting ? 'Exporting...' : 'Export Excel'}
+                        </button>
                     </div>
-                    {/* Table with hover checkbox on status column */}
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
-                        {tableLoading ? (
-                            <div className="flex justify-center items-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div></div>
-                        ) : (
-                            <>
-                                {filteredApplications.length >= 1 ? <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                                                    <CustomCheckbox checked={selectAll} onChange={() => handleSelectAll(!selectAll)} />
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DATE OF APPLICATION</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DATE OF PAYMENT</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KIT DELIVERED</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {filteredApplications.map((app) => (
-                                                <tr key={app._id} className="hover:bg-gray-50 group">
-                                                    <td className="px-3 py-4 text-center">
-                                                        <CustomCheckbox checked={selectedIds.includes(app._id)} onChange={() => handleSelectRow(app._id)} />
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div><div className="text-sm font-medium text-gray-900">{app.fullName}</div><div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div></div>
-                                                    </td>
-                                                    <td className="px-6 py-4"><div className="text-sm text-gray-900">{app.email}</div><div className="text-sm text-gray-500">{app.contactNo}</div></td>
-                                                    <td className="px-6 py-4"><div className="text-sm text-gray-900">{app.bankName || '-'}</div><div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div></td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfApplication}</td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfPayment}</td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.kit_delivered}</td>
-                                                    {/* STATUS COLUMN WITH HOVER CHECKBOX (the requirement) */}
-                                                    <td className="px-6 py-4 relative">
-                                                        <div className="relative flex items-center">
-                                                            {/* Status badge – opacity reduces on hover */}
-                                                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 group-hover:opacity-50 ${getStatusColor(app.status)}`}>
-                                                                {getStatusIcon(app.status)} {app.status.toUpperCase()}
-                                                            </div>
-                                                            {/* Checkbox appears on hover over the status cell */}
-                                                            <div className="absolute left-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                                <CustomCheckbox checked={selectedIds.includes(app._id)} onChange={() => handleSelectRow(app._id)} />
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-1 py-4 text-sm">
-                                                        <button type="button" onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details"><Eye size={17} /></button>
-                                                        <button type="button" onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit"><Edit size={17} /></button>
-                                                        {app.status === 'pending' && (<button type="button" onClick={() => handleStatusUpdate(app)} className="text-green-600 hover:text-green-800 mr-3" aria-label="Approve/Reject"><CheckCircle size={17} /></button>)}
-                                                        <button type="button" onClick={() => handleDelete(app)} className="text-red-600 hover:text-red-800" aria-label="Delete"><Trash size={17} /></button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div> : <div className="px-6 py-4 text-center text-gray-500">No applications found</div>}
-                            </>
-                        )}
-                    </div>
-                    {totalPages > 1 && (
-                        <div className="flex justify-between items-center mt-6">
-                            <button onClick={() => handlePageChange(currentPage - 1)} disabled={!hasPrev} className={`px-3 py-1 border rounded-md ${hasPrev ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Previous</button>
-                            <div className="flex space-x-2">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    let pageNum;
-                                    if (totalPages <= 5) { pageNum = i + 1; }
-                                    else {
-                                        if (currentPage <= 3) { pageNum = i + 1; }
-                                        else if (currentPage >= totalPages - 2) { pageNum = totalPages - 4 + i; }
-                                        else { pageNum = currentPage - 2 + i; }
-                                    }
-                                    return (<button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-2 py-1 border rounded-md ${currentPage === pageNum ? 'bg-yellow-600 text-white border brder-yellow-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{pageNum}</button>);
-                                })}
+
+                    {/* Bulk Actions Toolbar (appears when any row is selected) */}
+                    {(selectedIds.length > 0 || totalPages > 1) && (
+                        <div className={`p-2 bg-white border border-gray-200 rounded-t-lg shadow-sm flex flex-wrap items-center justify-between gap-3`}>
+                            <div className='pl-2 flex gap-3 items-center'>
+                                <div className="flex items-center gap-3">
+                                    <CustomCheckbox
+                                        checked={isAllSelected}
+                                        top={true}
+                                        onChange={() => handleSelectAll(!isAllSelected)}
+                                    />
+                                </div>
+                                {selectedIds.length > 0 && <div className="flex gap-3 items-center">
+                                    <div className="relative group inline-block">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBulkStatusClick('rejected')}
+                                            className="text-orange-600 hover:text-orange-800 transition p-1"
+                                        >
+                                            <XCircle size={18} />
+                                        </button>
+                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                            Reject
+                                        </span>
+                                    </div>
+                                    <div className="relative group inline-block">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBulkStatusClick('approved')}
+                                            className="text-green-600 hover:text-green-800 transition p-1"
+                                        >
+                                            <CheckCircle size={18} />
+                                        </button>
+                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-green-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                            Approve
+                                        </span>
+                                    </div>
+                                    <div className="relative group inline-block">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBulkDeleteModal(true)}
+                                            className="text-red-600 hover:text-red-800 transition p-1"
+                                        >
+                                            <Trash size={18} />
+                                        </button>
+                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                            Delete
+                                        </span>
+                                    </div>
+                                </div>}
                             </div>
-                            <button onClick={() => handlePageChange(currentPage + 1)} disabled={!hasNext} className={`px-3 py-1 border rounded-md ${hasNext ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Next</button>
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-end gap-4 text-sm text-gray-600">
+                                    <span>{rangeText}</span>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={!hasPrev}
+                                            className={`p-1 rounded-md ${hasPrev ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={!hasNext}
+                                            className={`p-1 rounded-md ${hasNext ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* Gmail‑style Table */}
+                    <div className="bg-white rounded-b-lg shadow-sm overflow-hidden relative">
+                        {tableLoading ? (
+                            <div className="flex justify-center items-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
+                            </div>
+                        ) : (
+                            <>
+                                {filteredApplications.length >= 1 ? (
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                            <thead className="border-b border-gray-200">
+                                                <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <th className="w-8 px-4 py-3">
+                                                        <CustomCheckbox
+                                                            checked={isAllSelected}
+                                                            indeterminate={isIndeterminate}
+                                                            onChange={() => handleSelectAll(!isAllSelected)}
+                                                        />
+                                                    </th>
+                                                    <th className="px-4 py-3">APPLICANT NAME</th>
+                                                    <th className="px-4 py-3">CONTACT</th>
+                                                    <th className="px-4 py-3">BANK</th>
+                                                    <th className="px-4 py-3">DATE OF APPLICATION</th>
+                                                    <th className="px-4 py-3">DATE OF PAYMENT</th>
+                                                    <th className="px-4 py-3">KIT DELIVERED</th>
+                                                    <th className="px-4 py-3">STATUS</th>
+                                                    <th className="px-4 py-3 w-20">ACTIONS</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {filteredApplications.map((app) => (
+                                                    <tr
+                                                        key={app._id}
+                                                        className={`group ${selectedIds.includes(app._id)
+                                                            ? 'bg-yellow-50'
+                                                            : 'hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <td className="px-4 py-2.5">
+                                                            <CustomCheckbox
+                                                                checked={selectedIds.includes(app._id)}
+                                                                onChange={() => handleSelectRow(app._id)}
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2.5">
+                                                            <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
+                                                            <div className="text-xs text-gray-500">
+                                                                ID: {app.applicationId || app._id?.slice(-6)}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-sm text-gray-700">
+                                                            {app.email || '-'}<br />
+                                                            <span className="text-xs text-gray-500">{app.contactNo || '-'}</span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-sm text-gray-700">
+                                                            {app.bankName || '-'}<br />
+                                                            <span className="text-xs text-gray-500">
+                                                                XXXX{app.accountNo?.slice(-4) || ''}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-sm text-gray-600">{app.dateOfApplication || '-'}</td>
+                                                        <td className="px-4 py-2.5 text-sm text-gray-600">{app.dateOfPayment || '-'}</td>
+                                                        <td className="px-4 py-2.5 text-sm text-gray-600">{app.kit_delivered || '-'}</td>
+                                                        <td className="px-4 py-2.5">
+                                                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                                                                {getStatusIcon(app.status)} {app.status.toUpperCase()}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <button onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800">
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800">
+                                                                    <Edit size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="px-6 py-4 text-center text-gray-500">No applications found</div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
+
                 <style jsx>{`
-                    @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                    .animate-slide-in { animation: slide-in 0.3s ease-out; }
-                    .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-                    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-                    .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-                    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-                    .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #c1c1c1 #f1f1f1; }
-                `}</style>
+        @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-slide-in { animation: slide-in 0.3s ease-out; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #c1c1c1 #f1f1f1; }
+      `}</style>
+
                 {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
-                {showStatusModal && (<StatusModal key={statusUpdateApp?._id} show={showStatusModal} onClose={() => setShowStatusModal(false)} application={statusUpdateApp} onUpdate={updateStatus} loadingAction={loadingAction} remarks={remarks} setRemarks={setRemarks} />)}
+                {showStatusModal && (
+                    <StatusModal
+                        key={statusUpdateApp?._id}
+                        show={showStatusModal}
+                        onClose={() => setShowStatusModal(false)}
+                        application={statusUpdateApp}
+                        onUpdate={updateStatus}
+                        loadingAction={loadingAction}
+                        remarks={remarks}
+                        setRemarks={setRemarks}
+                    />
+                )}
                 {showDeleteModal && <DeleteConfirmationModal />}
                 {showBulkDeleteModal && <BulkDeleteConfirmationModal />}
                 {showBulkStatusModal && <BulkStatusModal />}
