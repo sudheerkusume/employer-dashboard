@@ -1,100 +1,99 @@
 import clientPromise from "@/app/components/lib/db";
 
-/**
- * Recursively builds the downline tree from the marketing_applications collection.
- * Only documents that have both `sponsorCode` and `level` are considered MLM members.
- * @param {Db} db - MongoDB instance
- * @param {string} userCode - MLM userCode (e.g., "ME-001")
- * @param {Set} visited - Cycle detection
- * @returns {Promise<Object|null>}
- */
-async function buildTree(db, userCode, visited = new Set()) {
-    if (visited.has(userCode)) return null;
-    visited.add(userCode);
+// ----------------------------------------------------------------------
+// Rank computation logic (same as your static code)
+// ----------------------------------------------------------------------
+function computeRank(node) {
+    if (!node.children || node.children.length === 0) return "ME";
 
-    const user = await db.collection("marketing_applications").findOne({
-        userCode,
-        sponsorCode: { $exists: true, $ne: null },
-        level: { $exists: true, $ne: null },
-    });
-    if (!user) return null;
+    const directCount = node.children.length;
+    if (directCount < 10) return "ME";
 
+    const childrenRanks = node.children.map(child => child.level || "ME");
+
+    if (childrenRanks.every(r => ["MM", "SMM", "DGM", "AGM", "GM"].includes(r))) return "SMM";
+    if (childrenRanks.every(r => ["SMM", "DGM", "AGM", "GM"].includes(r))) return "DGM";
+    if (childrenRanks.every(r => ["DGM", "AGM", "GM"].includes(r))) return "AGM";
+    if (childrenRanks.every(r => ["AGM", "GM"].includes(r))) return "GM";
+
+    return "MM";
+}
+
+function assignRanks(node) {
+    if (node.children) {
+        node.children.forEach(child => assignRanks(child));
+    }
+    node.level = computeRank(node);
+    return node;
+}
+
+// ----------------------------------------------------------------------
+// Tree building from database (using referredById)
+// ----------------------------------------------------------------------
+async function buildTreeFromDB(db, applicationId, visited = new Set()) {
+    if (visited.has(applicationId)) return null;
+    visited.add(applicationId);
+
+    const doc = await db.collection("marketing_applications").findOne({ applicationId });
+    if (!doc) return null;
+
+    // Find children where referredById matches this applicationId (trim spaces)
     const childrenDocs = await db
         .collection("marketing_applications")
         .find({
-            sponsorCode: userCode,
-            sponsorCode: { $exists: true, $ne: null },
-            level: { $exists: true, $ne: null },
+            referredById: { $regex: new RegExp(`^\\s*${applicationId}\\s*$`), $options: "i" }
         })
         .toArray();
 
     const children = await Promise.all(
-        childrenDocs.map(child => buildTree(db, child.userCode, visited))
+        childrenDocs.map(child => buildTreeFromDB(db, child.applicationId, visited))
     );
 
     return {
-        _id: user._id.toString(),
-        fullName: user.fullName || "Unknown",
-        userCode: user.userCode,
-        level: user.level,
-        saleValue: user.personalSales || 2000,
+        _id: doc._id.toString(),
+        fullName: doc.fullName || "Unknown",
+        applicationId: doc.applicationId,
+        userCode: doc.mlmUserCode || doc.userCode || doc.applicationId,
+        level: doc.level || "ME",                // temporary, will be recomputed
+        saleValue: doc.personalSales || 2000,
         children: children.filter(Boolean),
     };
-}
-
-/**
- * Resolve an applicationId to the corresponding MLM userCode.
- * Looks up the document by trimmed applicationId.
- */
-async function resolveUserCodeFromApplicationId(db, applicationId) {
-    const trimmedId = applicationId.trim();
-    const doc = await db.collection("marketing_applications").findOne({ applicationId: trimmedId });
-    if (!doc) return null;
-    // Prefer mlmUserCode, fallback to userCode
-    return doc.mlmUserCode || doc.userCode || null;
 }
 
 export async function GET(req) {
     try {
         const url = new URL(req.url);
         let applicationId = url.searchParams.get("applicationId");
-
-        // Trim whitespace
         if (applicationId) applicationId = applicationId.trim();
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
 
-        let finalUserCode = null;
+        let rootId = applicationId;
 
-        if (applicationId) {
-            finalUserCode = await resolveUserCodeFromApplicationId(db, applicationId);
-            if (!finalUserCode) {
-                return Response.json({
-                    success: false,
-                    error: `No MLM member found for applicationId: ${applicationId}`
-                }, { status: 404 });
-            }
-        } else {
-            // Default root – find a user with no sponsorCode (or null/empty)
-            const root = await db.collection("marketing_applications").findOne({
+        if (!rootId) {
+            // Find a root (no referredById)
+            const rootDoc = await db.collection("marketing_applications").findOne({
                 $or: [
-                    { sponsorCode: { $exists: false } },
-                    { sponsorCode: null },
-                    { sponsorCode: "" }
-                ],
-                level: { $exists: true, $ne: null },
+                    { referredById: { $exists: false } },
+                    { referredById: null },
+                    { referredById: "" },
+                    { referredById: { $regex: /^\s*$/ } }
+                ]
             });
-            if (!root) {
-                return Response.json({ success: false, error: "No root user found" }, { status: 404 });
+            if (!rootDoc) {
+                return Response.json({ success: false, error: "No root application found" }, { status: 404 });
             }
-            finalUserCode = root.userCode;
+            rootId = rootDoc.applicationId;
         }
 
-        const tree = await buildTree(db, finalUserCode);
+        let tree = await buildTreeFromDB(db, rootId);
         if (!tree) {
-            return Response.json({ success: false, error: "Unable to build tree for this user" }, { status: 404 });
+            return Response.json({ success: false, error: "Unable to build tree" }, { status: 404 });
         }
+
+        // Apply dynamic rank computation (like your static tree)
+        assignRanks(tree);
 
         return Response.json({ success: true, tree });
     } catch (err) {
