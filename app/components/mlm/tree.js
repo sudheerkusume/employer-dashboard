@@ -250,14 +250,11 @@ export default function MLMTree() {
     }
 
     // Fetch tree from API (userCode or applicationId)
-    const fetchTree = async (identifier) => {
+
+    const fetchTree = async (applicationId) => {
         setLoading(true);
         try {
-            const isApplicationId = /^SB-\d{6}$/.test(identifier);
-            const url = isApplicationId
-                ? `/api/mlm/tree?applicationId=${encodeURIComponent(identifier)}`
-                : `/api/mlm/tree?userCode=${encodeURIComponent(identifier)}`;
-
+            const url = `/api/mlm/tree?applicationId=${encodeURIComponent(applicationId)}`;
             const res = await fetch(url);
             const data = await res.json();
             if (!data.success) throw new Error(data.error || "Failed to load tree");
@@ -273,7 +270,6 @@ export default function MLMTree() {
             setRankDist(nodeStats.rankDistribution);
             setError(null);
 
-            // Expand all nodes
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });

@@ -3,7 +3,6 @@ import clientPromise from "@/app/components/lib/db";
 /**
  * Recursively builds the downline tree from the marketing_applications collection.
  * Only documents that have both `sponsorCode` and `level` are considered MLM members.
- * No status check – any such document is included.
  * @param {Db} db - MongoDB instance
  * @param {string} userCode - MLM userCode (e.g., "ME-001")
  * @param {Set} visited - Cycle detection
@@ -13,7 +12,6 @@ async function buildTree(db, userCode, visited = new Set()) {
     if (visited.has(userCode)) return null;
     visited.add(userCode);
 
-    // Find the user document – must have sponsorCode and level (MLM member)
     const user = await db.collection("marketing_applications").findOne({
         userCode,
         sponsorCode: { $exists: true, $ne: null },
@@ -21,7 +19,6 @@ async function buildTree(db, userCode, visited = new Set()) {
     });
     if (!user) return null;
 
-    // Find all children (where sponsorCode equals this user's userCode)
     const childrenDocs = await db
         .collection("marketing_applications")
         .find({
@@ -47,7 +44,7 @@ async function buildTree(db, userCode, visited = new Set()) {
 
 /**
  * Resolve an applicationId to the corresponding MLM userCode.
- * Looks up the document by trimmed applicationId – no status filter.
+ * Looks up the document by trimmed applicationId.
  */
 async function resolveUserCodeFromApplicationId(db, applicationId) {
     const trimmedId = applicationId.trim();
@@ -60,11 +57,9 @@ async function resolveUserCodeFromApplicationId(db, applicationId) {
 export async function GET(req) {
     try {
         const url = new URL(req.url);
-        let userCode = url.searchParams.get("userCode");
         let applicationId = url.searchParams.get("applicationId");
 
-        // Trim whitespace from parameters
-        if (userCode) userCode = userCode.trim();
+        // Trim whitespace
         if (applicationId) applicationId = applicationId.trim();
 
         const client = await clientPromise;
@@ -80,17 +75,6 @@ export async function GET(req) {
                     error: `No MLM member found for applicationId: ${applicationId}`
                 }, { status: 404 });
             }
-        } else if (userCode) {
-            // Check if this userCode exists as an MLM member (has sponsorCode and level)
-            const member = await db.collection("marketing_applications").findOne({
-                userCode,
-                sponsorCode: { $exists: true, $ne: null },
-                level: { $exists: true, $ne: null },
-            });
-            if (!member) {
-                return Response.json({ success: false, error: `MLM member not found: ${userCode}` }, { status: 404 });
-            }
-            finalUserCode = userCode;
         } else {
             // Default root – find a user with no sponsorCode (or null/empty)
             const root = await db.collection("marketing_applications").findOne({
