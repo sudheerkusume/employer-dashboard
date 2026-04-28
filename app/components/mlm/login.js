@@ -30,34 +30,32 @@ export default function LoginPage() {
 
         // 🔐 STATIC SUPER ADMIN LOGIN
         if (enteredCode === SUPER_ADMIN_CODE) {
-            // Store admin data in localStorage
+            // ✅ Define userData for super admin
+            const userData = {
+                isLoggedIn: true,
+                userCode: SUPER_ADMIN_CODE,
+                fullName: SUPER_ADMIN_NAME,
+                level: 'GM',
+                role: 'super_admin',
+                isSuperAdmin: true
+            };
+
+            // Store in localStorage
             localStorage.setItem('mlm_user_code', SUPER_ADMIN_CODE);
             localStorage.setItem('mlm_user_role', 'super_admin');
             localStorage.setItem('mlm_user_name', SUPER_ADMIN_NAME);
             localStorage.setItem('mlm_user_level', 'GM');
             localStorage.setItem('mlm_is_super_admin', 'true');
-            localStorage.setItem('user_details', JSON.stringify({
-                isLoggedIn: true,
-                userCode: userData.userCode,
-                fullName: userData.fullName,
-                level: userData.level,
-                role: userData.role,
-                isSuperAdmin: userData.isSuperAdmin || false
-            }));
+            localStorage.setItem('user_details', JSON.stringify(userData)); // ✅ stringify
+
             // Update context
             setRootContext(prev => ({
                 ...prev,
-                mlmUser: {
-                    isLoggedIn: true,
-                    userCode: SUPER_ADMIN_CODE,
-                    fullName: SUPER_ADMIN_NAME,
-                    level: "GM",
-                    role: "super_admin"
-                }
+                mlmUser: userData
             }));
 
             setLoading(false);
-            router.push('/mlm/tree'); // or '/mlm/dashboard' if admin uses same dashboard
+            router.push('/mlm/tree');
             return;
         }
 
@@ -67,30 +65,27 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (data.success) {
-                // Store user data in localStorage
+                const userData = {
+                    isLoggedIn: true,
+                    userCode: data.user.applicationId,
+                    fullName: data.user.fullName,
+                    level: data.user.level,
+                    role: data.user.role || 'user',
+                    isSuperAdmin: false
+                };
+
+                // Store user data
                 localStorage.setItem('mlm_user_code', data.user.applicationId);
                 localStorage.setItem('mlm_user_role', data.user.role || 'user');
                 localStorage.setItem('mlm_user_name', data.user.fullName);
                 localStorage.setItem('mlm_user_level', data.user.level);
-                localStorage.setItem('user_details', JSON.stringify({
-                    isLoggedIn: true,
-                    userCode: userData.userCode,
-                    fullName: userData.fullName,
-                    level: userData.level,
-                    role: userData.role,
-                    isSuperAdmin: userData.isSuperAdmin || false
-                }));
                 localStorage.setItem('mlm_is_super_admin', 'false');
+                localStorage.setItem('user_details', JSON.stringify(userData)); // ✅ stringify
+
                 // Update context
                 setRootContext(prev => ({
                     ...prev,
-                    mlmUser: {
-                        isLoggedIn: true,
-                        userCode: data.user.applicationId,
-                        fullName: data.user.fullName,
-                        level: data.user.level,
-                        role: data.user.role || 'user'
-                    }
+                    mlmUser: userData
                 }));
 
                 router.push('/mlm/tree');
@@ -98,7 +93,7 @@ export default function LoginPage() {
                 setError(data.error || 'Invalid user applicationId');
             }
         } catch (err) {
-            console.log('Login error:', err);
+            console.error('Login error:', err);
             setError('Network error. Please try again.');
         } finally {
             setLoading(false);
