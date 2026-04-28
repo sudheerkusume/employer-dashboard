@@ -525,7 +525,7 @@ export default function ApplicationManagement() {
             const res = await fetch('/api/mlm/users');
             const data = await res.json();
             if (data.success) {
-                setUsersList(data.users);
+                setUsersList(data.users || []);
             } else {
                 console.log('Failed to fetch users');
             }
@@ -537,28 +537,36 @@ export default function ApplicationManagement() {
     };
 
     const UserSelect = ({
-        users,
-        value = '',          // Accepts undefined, null, or a userCode string
+        users = [],        // default to empty array
+        value = '',
         onChange,
-        loading,
+        loading = false,
         required = true,
         label = 'Referred By',
     }) => {
         const [query, setQuery] = useState('');
 
-        // Derive the selected user object from the current value and users list
+        // Find selected user by applicationId or mlmUserCode
         const selectedUser = users.find(
-            (user) => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value
+            (user) =>
+                user?.applicationId === value || user?.mlmUserCode === value
         );
 
+        // Filter users based on search query
         const filteredUsers = query === ''
             ? users
-            : users.filter(
-                (user) =>
-                    (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase())
-                        (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
-            );
+            : users.filter((user) => {
+                const searchTerm = query.toLowerCase();
+                const fullName = (user?.fullName || '').toLowerCase();
+                const appId = (user?.applicationId || '').toLowerCase();
+                const mlmCode = (user?.mlmUserCode || '').toLowerCase();
+
+                return (
+                    fullName.includes(searchTerm) ||
+                    appId.includes(searchTerm) ||
+                    mlmCode.includes(searchTerm)
+                );
+            });
 
         const handleChange = (user) => {
             onChange({
@@ -566,7 +574,7 @@ export default function ApplicationManagement() {
                     name: 'referredById',
                     value: user ? user.applicationId : '',
                     type: 'select-one',
-                    userName: user ? user.fullName : ''
+                    userName: user ? user.fullName : '',
                 },
             });
         };
@@ -580,7 +588,7 @@ export default function ApplicationManagement() {
         const displayValue = (user) => {
             if (!user) return '';
             const base = user?.fullName || '';
-            const code = user?.userCode || user?.mlmUserCode;
+            const code = user?.mlmUserCode;
             return code ? `${base} (${code})` : base;
         };
 
@@ -628,7 +636,7 @@ export default function ApplicationManagement() {
                                 ) : (
                                     filteredUsers.map((user) => (
                                         <Combobox.Option
-                                            key={user?.userCode}
+                                            key={user?.mlmUserCode || user?.applicationId}
                                             className={({ active }) =>
                                                 `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
                                                 }`
@@ -638,7 +646,7 @@ export default function ApplicationManagement() {
                                             {({ selected, active }) => (
                                                 <>
                                                     <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {`${user?.fullName || ''}${user?.userCode ? ` (${user?.userCode})` : ''}`}
+                                                        {`${user?.fullName || ''}${user?.mlmUserCode ? ` (${user?.mlmUserCode})` : ''}`}
                                                     </span>
                                                     {selected && (
                                                         <span
@@ -663,6 +671,7 @@ export default function ApplicationManagement() {
             </div>
         );
     };
+
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
