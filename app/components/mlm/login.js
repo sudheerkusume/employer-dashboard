@@ -17,38 +17,6 @@ export default function LoginPage() {
     const SUPER_ADMIN_CODE = "SB-000000";
     const SUPER_ADMIN_NAME = "Bheema";
 
-    // Helper to persist user data in localStorage and context
-    const saveUserSession = (userData) => {
-        // userData = { userCode, fullName, level, role, isSuperAdmin? }
-        localStorage.setItem('mlm_user_code', userData.userCode);
-        localStorage.setItem('mlm_user_role', userData.role);
-        localStorage.setItem('mlm_user_name', userData.fullName);
-        localStorage.setItem('mlm_user_level', userData.level);
-        localStorage.setItem('mlm_is_super_admin', userData.isSuperAdmin ? 'true' : 'false');
-        // Store full user details as JSON string
-        localStorage.setItem('user_details', JSON.stringify({
-            isLoggedIn: true,
-            userCode: userData.userCode,
-            fullName: userData.fullName,
-            level: userData.level,
-            role: userData.role,
-            isSuperAdmin: userData.isSuperAdmin || false
-        }));
-
-        // Update context
-        setRootContext(prev => ({
-            ...prev,
-            mlmUser: {
-                isLoggedIn: true,
-                userCode: userData.userCode,
-                fullName: userData.fullName,
-                level: userData.level,
-                role: userData.role,
-                isSuperAdmin: userData.isSuperAdmin || false
-            }
-        }));
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         const enteredCode = applicationId.trim().toUpperCase();
@@ -62,15 +30,34 @@ export default function LoginPage() {
 
         // 🔐 STATIC SUPER ADMIN LOGIN
         if (enteredCode === SUPER_ADMIN_CODE) {
-            saveUserSession({
-                userCode: SUPER_ADMIN_CODE,
-                fullName: SUPER_ADMIN_NAME,
-                level: 'GM',
-                role: 'super_admin',
-                isSuperAdmin: true
-            });
+            // Store admin data in localStorage
+            localStorage.setItem('mlm_user_code', SUPER_ADMIN_CODE);
+            localStorage.setItem('mlm_user_role', 'super_admin');
+            localStorage.setItem('mlm_user_name', SUPER_ADMIN_NAME);
+            localStorage.setItem('mlm_user_level', 'GM');
+            localStorage.setItem('mlm_is_super_admin', 'true');
+            localStorage.setItem('user_details', JSON.stringify({
+                isLoggedIn: true,
+                userCode: userData.userCode,
+                fullName: userData.fullName,
+                level: userData.level,
+                role: userData.role,
+                isSuperAdmin: userData.isSuperAdmin || false
+            }));
+            // Update context
+            setRootContext(prev => ({
+                ...prev,
+                mlmUser: {
+                    isLoggedIn: true,
+                    userCode: SUPER_ADMIN_CODE,
+                    fullName: SUPER_ADMIN_NAME,
+                    level: "GM",
+                    role: "super_admin"
+                }
+            }));
+
             setLoading(false);
-            router.push('/mlm/tree');
+            router.push('/mlm/tree'); // or '/mlm/dashboard' if admin uses same dashboard
             return;
         }
 
@@ -80,13 +67,32 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (data.success) {
-                saveUserSession({
-                    userCode: data.user.applicationId,
-                    fullName: data.user.fullName,
-                    level: data.user.level,
-                    role: data.user.role || 'user',
-                    isSuperAdmin: false
-                });
+                // Store user data in localStorage
+                localStorage.setItem('mlm_user_code', data.user.applicationId);
+                localStorage.setItem('mlm_user_role', data.user.role || 'user');
+                localStorage.setItem('mlm_user_name', data.user.fullName);
+                localStorage.setItem('mlm_user_level', data.user.level);
+                localStorage.setItem('user_details', JSON.stringify({
+                    isLoggedIn: true,
+                    userCode: userData.userCode,
+                    fullName: userData.fullName,
+                    level: userData.level,
+                    role: userData.role,
+                    isSuperAdmin: userData.isSuperAdmin || false
+                }));
+                localStorage.setItem('mlm_is_super_admin', 'false');
+                // Update context
+                setRootContext(prev => ({
+                    ...prev,
+                    mlmUser: {
+                        isLoggedIn: true,
+                        userCode: data.user.applicationId,
+                        fullName: data.user.fullName,
+                        level: data.user.level,
+                        role: data.user.role || 'user'
+                    }
+                }));
+
                 router.push('/mlm/tree');
             } else {
                 setError(data.error || 'Invalid user applicationId');
@@ -184,7 +190,7 @@ export default function LoginPage() {
                                 required
                                 value={applicationId}
                                 onChange={(e) => setApplicationId(e.target.value.toUpperCase())}
-                                placeholder="e.g., SB-000001 or SB-000000"
+                                placeholder="e.g., RB001 or SB-000000"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                             />
                         </div>
