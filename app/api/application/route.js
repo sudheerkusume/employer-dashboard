@@ -577,27 +577,45 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
+        // Single application by ID
         if (applicationId) {
             const application = await col.findOne({
                 _id: new ObjectId(applicationId),
                 _type: { $ne: "__counter" },
             });
             if (!application) {
-                return Response.json({ error: "Application not found", success: false }, { status: 404 });
+                return Response.json({ success: false, error: "Application not found" }, { status: 404 });
             }
-            return Response.json({ success: true, application });
+            // Mask sensitive data and ensure date fields exist
+            const masked = {
+                ...application,
+                applicantSignature: application.applicantSignature || "[SIGNATURE]",
+                referrerSignature: application.referrerSignature || "[SIGNATURE]",
+                dateOfApplication: application.dateOfApplication ?? "",
+                dateOfPayment: application.dateOfPayment ?? "",
+                kit_delivered: application.kit_delivered ?? "",
+            };
+            return Response.json({ success: true, application: masked });
         }
 
+        // Build filter for list view
         const filter = { _type: { $ne: "__counter" } };
         if (email) filter.email = email;
         if (phone) filter.contactNo = phone;
-        if (status) filter.status = status;
+        if (status && status !== "all") filter.status = status;
 
         const skip = (page - 1) * limit;
         const total = await col.countDocuments(filter);
         const totalPages = Math.ceil(total / limit);
-        const results = await col.find(filter).sort({ appliedAt: -1 }).skip(skip).limit(limit).toArray();
 
+        const results = await col
+            .find(filter)
+            .sort({ appliedAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+
+        // Ensure every application has the date fields (fallback to empty string)
         const maskedResults = results.map(app => ({
             ...app,
             applicantSignature: app.applicantSignature || "[SIGNATURE]",
