@@ -2078,7 +2078,7 @@ export default function ApplicationManagement() {
                                         >
                                             <XCircle size={18} />
                                         </button>
-                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                        <span className="z-50 absolute top-8 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
                                             Reject
                                         </span>
                                     </div>
@@ -2090,7 +2090,7 @@ export default function ApplicationManagement() {
                                         >
                                             <CheckCircle size={18} />
                                         </button>
-                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-green-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                        <span className="z-50 absolute top-8 left-1/2 -translate-x-1/2 bg-green-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
                                             Approve
                                         </span>
                                     </div>
@@ -2102,7 +2102,7 @@ export default function ApplicationManagement() {
                                         >
                                             <Trash size={18} />
                                         </button>
-                                        <span className="absolute top-8 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
+                                        <span className="z-50 absolute top-8 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md">
                                             Delete
                                         </span>
                                     </div>
