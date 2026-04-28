@@ -2223,6 +2223,8 @@ export default function ApplicationManagement() {
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DATE OF APPLICATION</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DATE OF PAYMENT</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KIT DELIVERED</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                             </tr>
@@ -2250,7 +2252,9 @@ export default function ApplicationManagement() {
                                                         <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
                                                         <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(app.dateOfApplication).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfApplication}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfPayment}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500">{app.kit_delivered}</td>
                                                     <td className="px-6 py-4">
                                                         <span className={`flex gap-1 p-1 items-center text-xs rounded-full ${getStatusColor(app.status)}`}>
                                                             {getStatusIcon(app.status)} {app.status.toUpperCase()}
