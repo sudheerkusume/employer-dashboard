@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Toast from "./components/common/toast";
-import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 import Head from "next/head";
 import Header from "./components/mlm/navbar";

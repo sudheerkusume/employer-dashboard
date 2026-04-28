@@ -8,7 +8,7 @@ import { Listbox, Combobox } from '@headlessui/react';
 import Papa from 'papaparse';
 
 // ======================
-// Date Picker Dropdown Component
+// Date Picker Dropdown Component (unchanged)
 // ======================
 const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) => {
     const [viewMonth, setViewMonth] = useState(() => {
@@ -16,7 +16,6 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
     });
     const dropdownRef = useRef(null);
 
-    // Memoize the selected date separately from view month
     const selectedDate = useMemo(() => {
         return currentDate ? new Date(currentDate) : null;
     }, [currentDate]);
@@ -49,7 +48,6 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
         }
     }, [viewMonth, onSelect, inputRef]);
 
-    // Use functional updates to prevent unnecessary re-renders
     const handlePrevMonth = useCallback((e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -120,7 +118,7 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
         for (let day = 1; day <= daysInMonth; day++) {
             const isTodayDate = isToday(day);
             const isSelectedDate = isSelected(day);
-            const currentDay = day; // Capture the value
+            const currentDay = day;
             days.push(
                 <button
                     key={day}
@@ -246,7 +244,7 @@ const DatePickerDropdown = memo(({ currentDate, onSelect, onClose, inputRef }) =
 DatePickerDropdown.displayName = 'DatePickerDropdown';
 
 // ======================
-// InputField Component
+// InputField Component (unchanged)
 // ======================
 const InputField = memo(({ label, name, type = 'text', required = false, placeholder = '', value, onChange, validation = 'none', maxLength, pattern, errorMessage }) => {
     const [error, setError] = useState('');
@@ -256,12 +254,10 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
     const inputRef = useRef(null);
 
     const validateField = (val) => {
-        // Only required validation for fullName (name field)
         if (required && !val && touched) {
             setError(`${label} is required`);
             return false;
         }
-        // Format validations only if value provided
         if (val && val.length > 0) {
             switch (validation) {
                 case 'mobile':
@@ -415,7 +411,7 @@ const InputField = memo(({ label, name, type = 'text', required = false, placeho
 InputField.displayName = 'InputField';
 
 // ======================
-// Radio Group Component (Custom)
+// Radio Group Component (unchanged)
 // ======================
 const RadioGroup = memo(({ label, name, options, value, onChange, required = false }) => {
     const [error, setError] = useState('');
@@ -483,7 +479,7 @@ const RadioGroup = memo(({ label, name, options, value, onChange, required = fal
 RadioGroup.displayName = 'RadioGroup';
 
 // ======================
-// TextArea Component
+// TextArea Component (unchanged)
 // ======================
 const TextArea = memo(forwardRef(({ label, name, value, onChange, required = false, placeholder = '', rows = 4 }, ref) => {
     const [error, setError] = useState('');
@@ -515,7 +511,7 @@ const TextArea = memo(forwardRef(({ label, name, value, onChange, required = fal
 TextArea.displayName = 'TextArea';
 
 // ======================
-// Checkbox Component (Custom)
+// Checkbox Component (unchanged)
 // ======================
 const Checkbox = memo(({ label, name, checked, onChange, required = false, description = '' }) => {
     const [error, setError] = useState('');
@@ -569,7 +565,7 @@ const Checkbox = memo(({ label, name, checked, onChange, required = false, descr
 Checkbox.displayName = 'Checkbox';
 
 // ======================
-// Digital Signature Component
+// Digital Signature Component (unchanged)
 // ======================
 const DigitalSignature = memo(({ label, name, value, onChange, required = false }) => {
     const [signatureMethod, setSignatureMethod] = useState('draw');
@@ -684,7 +680,7 @@ const DigitalSignature = memo(({ label, name, value, onChange, required = false 
 DigitalSignature.displayName = 'DigitalSignature';
 
 // ======================
-// Emergency Contact Component
+// Emergency Contact Component (unchanged)
 // ======================
 const EmergencyContact = memo(({ index, contact, onChange, onRemove, canRemove }) => {
     return (
@@ -731,12 +727,16 @@ export default function ApplicationManagement() {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
 
-    // Multi‑delete state
+    // Multi‑selection state (used for both bulk delete and bulk status update)
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+    // Bulk status update
+    const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+    const [bulkStatusAction, setBulkStatusAction] = useState(null); // 'approved' or 'rejected'
+    const [bulkRemarks, setBulkRemarks] = useState('');
 
-    const [importMethod, setImportMethod] = useState('local'); // 'local' or 'url'
+    const [importMethod, setImportMethod] = useState('local');
     const [urlInput, setUrlInput] = useState('');
     const [isImportingFromUrl, setIsImportingFromUrl] = useState(false);
     const importOptions = [
@@ -744,18 +744,14 @@ export default function ApplicationManagement() {
         { value: 'url', label: 'URL' }
     ];
 
-    // Options list
     const statuses = [
         { id: 'all', name: 'All Status' },
         { id: 'pending', name: 'Pending' },
         { id: 'approved', name: 'Approved' },
         { id: 'rejected', name: 'Rejected' },
     ];
-
-    // Find the current selected option object
     const selectedStatus = statuses.find((status) => status.id === filter) || statuses[0];
 
-    // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -825,13 +821,11 @@ export default function ApplicationManagement() {
         }
     };
 
-    // Reset to page 1 when filter changes
     useEffect(() => {
         setCurrentPage(1);
         fetchApplications(1);
     }, [filter]);
 
-    // Initial load
     useEffect(() => {
         fetchApplications(1);
     }, []);
@@ -872,7 +866,6 @@ export default function ApplicationManagement() {
         }
     };
 
-    // Validation functions (unchanged)
     const validatePersonalTab = useCallback(() => {
         const errors = {};
         if (!formData.fullName) errors.fullName = 'Full Name is required';
@@ -1051,7 +1044,6 @@ export default function ApplicationManagement() {
                 showNotification('success', 'Application deleted successfully');
                 setShowDeleteModal(false);
                 setDeleteApp(null);
-                // Refetch current page
                 if (applications.length === 1 && currentPage > 1) {
                     fetchApplications(currentPage - 1);
                 } else {
@@ -1105,6 +1097,51 @@ export default function ApplicationManagement() {
         }
     };
 
+    // ======================
+    // BULK STATUS UPDATE (using PUT with ids array)
+    // ======================
+    const handleBulkStatusClick = (status) => {
+        if (selectedIds.length === 0) {
+            showNotification('error', 'No applications selected');
+            return;
+        }
+        setBulkStatusAction(status);
+        setBulkRemarks('');
+        setShowBulkStatusModal(true);
+    };
+
+    const confirmBulkStatusUpdate = async () => {
+        if (!bulkStatusAction) return;
+        setActionLoading(true);
+        try {
+            const response = await fetch('/api/application', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ids: selectedIds,
+                    status: bulkStatusAction,
+                    remarks: bulkRemarks,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('success', `${data.results?.length || selectedIds.length} application(s) ${bulkStatusAction}`);
+                // Clear selection and refresh
+                setSelectedIds([]);
+                setSelectAll(false);
+                setShowBulkStatusModal(false);
+                fetchApplications(currentPage);
+            } else {
+                showNotification('error', data.error || 'Bulk status update failed');
+            }
+        } catch (error) {
+            console.error('Bulk status update error:', error);
+            showNotification('error', 'Network error. Please try again.');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const resetForm = () => {
         setFormData({
             applicationId: '', dateOfApplication: '', fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
@@ -1118,7 +1155,6 @@ export default function ApplicationManagement() {
         setShowPreview(false);
     };
 
-    // Maximum number of emergency contacts to export/import
     const MAX_EMERGENCY_CONTACTS = 2;
 
     const handleExportExcel = async () => {
@@ -1163,8 +1199,6 @@ export default function ApplicationManagement() {
                     'Status': app.status || '',
                     'Applied At': app.appliedAt ? new Date(app.appliedAt).toLocaleString() : '',
                 };
-
-                // Emergency Contacts – flattened into separate columns
                 const contacts = app.emergencyContacts || [];
                 for (let i = 0; i < MAX_EMERGENCY_CONTACTS; i++) {
                     const contact = contacts[i] || {};
@@ -1187,7 +1221,6 @@ export default function ApplicationManagement() {
             setIsExporting(false);
         }
     };
-
 
     const handleImportExcel = () => {
         const input = document.createElement('input');
@@ -1235,8 +1268,6 @@ export default function ApplicationManagement() {
         setIsImportingFromUrl(true);
         try {
             let data = null;
-
-            // Check if it's a Google Sheets URL
             const sheetIdMatch = urlInput.match(/\/d\/([a-zA-Z0-9-_]+)/);
             if (sheetIdMatch) {
                 const sheetId = sheetIdMatch[1];
@@ -1254,12 +1285,10 @@ export default function ApplicationManagement() {
                 const file = new File([blob], fileName, { type: blob.type });
                 data = await readExcelFile(file);
             }
-
             if (!data || data.length === 0) {
                 showNotification('error', 'No data found in the source');
                 return;
             }
-
             const mappedData = data.map(row => mapExcelRowToFormData(row)).filter(row => row.fullName);
             const results = await Promise.allSettled(
                 mappedData.map(async (appData, idx) => {
@@ -1270,17 +1299,15 @@ export default function ApplicationManagement() {
                         body: JSON.stringify(appData)
                     });
                     const result = await response.json();
-                    if (result.success) { setUrlInput("") }   // clears URL after first success
+                    if (result.success) { setUrlInput("") }
                     if (!result.success) throw new Error(result.error || 'Submission failed');
                     return result;
                 })
             );
-
             const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
             const failed = results.filter(r => r.status === 'rejected');
             if (successful > 0) showNotification('success', `Successfully imported ${successful} applications`);
             if (failed.length > 0) showNotification('error', `Failed to import ${failed.length} applications: ${failed.map(f => f.reason.message).join('; ')}`);
-
             fetchApplications(currentPage);
         } catch (error) {
             console.error(error);
@@ -1327,11 +1354,8 @@ export default function ApplicationManagement() {
 
     const mapExcelRowToFormData = (row) => {
         const getStr = (key) => (row[key] ? String(row[key]).trim() : '');
-
-        // Build emergencyContacts array from the new column structure
         let emergencyContacts = [];
         const MAX_CONTACTS = 3;
-
         for (let i = 1; i <= MAX_CONTACTS; i++) {
             const name = getStr(`Emergency Contact ${i} Name`);
             if (name && name !== '') {
@@ -1343,8 +1367,6 @@ export default function ApplicationManagement() {
                 });
             }
         }
-
-        // Fallback for older templates (optional)
         if (emergencyContacts.length === 0 && row['Emergency Contacts']) {
             const contactsStr = getStr('Emergency Contacts');
             if (contactsStr) {
@@ -1361,12 +1383,9 @@ export default function ApplicationManagement() {
                 if (contacts.length) emergencyContacts = contacts;
             }
         }
-
-        // If still no contacts, provide a default empty array
         if (emergencyContacts.length === 0) {
             emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
         }
-
         return {
             applicationId: getStr('Application ID'),
             dateOfApplication: getStr('Date Of Application'),
@@ -1425,23 +1444,17 @@ export default function ApplicationManagement() {
             'Pin Code': '123456',
             'PAN Number': 'ABCDE1234F',
             'Aadhar Number': '123456789012',
-            // Emergency Contact 1
             'Emergency Contact 1 Name': 'Vinod',
             'Emergency Contact 1 Phone': '9876543211',
             'Emergency Contact 1 Location': 'Hyderabad',
             'Emergency Contact 1 Relationship': 'Brother',
-
-            // Emergency Contact 2
             'Emergency Contact 2 Name': 'Sita',
             'Emergency Contact 2 Phone': '9876543212',
             'Emergency Contact 2 Location': 'Secunderabad',
             'Emergency Contact 2 Relationship': 'Friend',
-
-
             'Educational Qualification': 'Graduate',
             'Previous Company': 'BMax Projects Pvt Ltd',
             'Previous Designation': 'Manager',
-
             'Legal Cases Pending': 'No',
             'Name as per Bank': 'Bheema',
             'Bank Name': 'State Bank of India',
@@ -1455,8 +1468,6 @@ export default function ApplicationManagement() {
             'Referrer Signature': '',
             'Status': 'pending',
         }];
-
-        // Create workbook with a single sheet
         const ws = XLSX.utils.json_to_sheet(templateData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Application_Template');
@@ -1474,7 +1485,6 @@ export default function ApplicationManagement() {
         return filtered;
     }, [applications, searchTerm]);
 
-    // Keep selectAll in sync with filteredApplications and selectedIds
     useEffect(() => {
         if (filteredApplications.length === 0) {
             setSelectAll(false);
@@ -1555,6 +1565,29 @@ export default function ApplicationManagement() {
         setShowDetailsModal(true);
     };
 
+    // CustomCheckbox (reusable)
+    const CustomCheckbox = ({ checked, onChange, className = '' }) => {
+        return (
+            <button
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                onClick={() => onChange(!checked)}
+                className={`
+                    w-5 h-5 rounded-md border-2 flex items-center justify-center
+                    transition-all duration-200 cursor-pointer
+                    ${checked
+                        ? 'bg-yellow-500 border-yellow-500 text-white'
+                        : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
+                    }
+                    ${className}
+                `}
+            >
+                <Check size={14} className="stroke-[3]" />
+            </button>
+        );
+    };
+
     // ======================
     // Modals
     // ======================
@@ -1567,7 +1600,6 @@ export default function ApplicationManagement() {
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100"><X size={24} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                        {/* Personal Details */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -1587,7 +1619,6 @@ export default function ApplicationManagement() {
                                 <p><strong>Aadhar Number:</strong> {application.aadharNumber || 'Not provided'}</p>
                             </div>
                         </div>
-                        {/* Emergency Contacts */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Emergency Contact Details</h3>
                             {application.emergencyContacts && application.emergencyContacts.map((contact, idx) => (
@@ -1602,7 +1633,6 @@ export default function ApplicationManagement() {
                                 </div>
                             ))}
                         </div>
-                        {/* Previous Employment */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Previous Employment Details</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -1611,12 +1641,10 @@ export default function ApplicationManagement() {
                                 <p><strong>Educational Qualification:</strong> {application.educationalQualification || 'Not provided'}</p>
                             </div>
                         </div>
-                        {/* Legal Cases */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Legal Cases</h3>
                             <p><strong>Any Legal Cases Pending:</strong> {application.legalCasesPending === 'yes' ? 'Yes' : application.legalCasesPending === 'no' ? 'No' : 'Not provided'}</p>
                         </div>
-                        {/* Bank Details */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Bank Account Details</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -1628,13 +1656,11 @@ export default function ApplicationManagement() {
                                 <p><strong>City:</strong> {application.bankCity || 'Not provided'}</p>
                             </div>
                         </div>
-                        {/* Declaration */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Declaration</h3>
                             <p><strong>Note:</strong> {application.declarationNote || 'Not provided'}</p>
                             <p className="mt-2"><strong>Declaration Accepted:</strong> {application.declaration ? 'Yes' : 'No'}</p>
                         </div>
-                        {/* Digital Signatures */}
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Digital Signatures</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -1664,26 +1690,20 @@ export default function ApplicationManagement() {
 
     const StatusModal = memo(({ show, onClose, application, onUpdate, loadingAction, remarks, setRemarks }) => {
         const textareaRef = useRef(null);
-
         useEffect(() => {
             if (show && textareaRef.current) {
                 textareaRef.current.focus();
-                // Move cursor to the end of the text (right side)
                 const length = textareaRef.current.value.length;
                 textareaRef.current.setSelectionRange(length, length);
             }
         }, [show]);
-
         if (!show || !application) return null;
-
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Update Application Status</h2>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                            <X size={24} />
-                        </button>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
                     </div>
                     <div className="mb-4">
                         <p className="text-gray-700"><strong>Applicant:</strong><span className='capitalize'> {application.fullName}</span></p>
@@ -1703,32 +1723,9 @@ export default function ApplicationManagement() {
                         />
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => onUpdate('rejected')}
-                            disabled={loadingAction === 'reject'}
-                            className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'reject'
-                                ? 'bg-red-400 cursor-not-allowed'
-                                : 'bg-red-600 hover:bg-red-700'
-                                }`}
-                        >
-                            {loadingAction === 'reject' ? 'Rejecting...' : 'Reject'}
-                        </button>
-                        <button
-                            onClick={() => onUpdate('approved')}
-                            disabled={loadingAction === 'approve'}
-                            className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'approve'
-                                ? 'bg-green-400 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-700'
-                                }`}
-                        >
-                            {loadingAction === 'approve' ? 'Approving...' : 'Approve'}
-                        </button>
+                        <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
+                        <button onClick={() => onUpdate('rejected')} disabled={loadingAction === 'reject'} className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'reject' ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{loadingAction === 'reject' ? 'Rejecting...' : 'Reject'}</button>
+                        <button onClick={() => onUpdate('approved')} disabled={loadingAction === 'approve'} className={`px-4 py-2 rounded-md text-white transition ${loadingAction === 'approve' ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>{loadingAction === 'approve' ? 'Approving...' : 'Approve'}</button>
                     </div>
                 </div>
             </div>
@@ -1743,9 +1740,7 @@ export default function ApplicationManagement() {
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Confirm Deletion</h2>
-                        <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
-                            <X size={24} />
-                        </button>
+                        <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
                     </div>
                     <div className="mb-4">
                         <p className="text-gray-700">Are you sure you want to delete this application?</p>
@@ -1754,19 +1749,8 @@ export default function ApplicationManagement() {
                         <p className="text-red-600 text-sm mt-3">This action cannot be undone.</p>
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
-                        <button
-                            onClick={() => setShowDeleteModal(false)}
-                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={confirmDelete}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                        >
-                            {actionLoading ? 'Deleting...' : 'Delete'}
-                        </button>
+                        <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
+                        <button onClick={confirmDelete} disabled={actionLoading} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">{actionLoading ? 'Deleting...' : 'Delete'}</button>
                     </div>
                 </div>
             </div>
@@ -1780,27 +1764,45 @@ export default function ApplicationManagement() {
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Confirm Bulk Deletion</h2>
-                        <button onClick={() => setShowBulkDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
-                            <X size={24} />
-                        </button>
+                        <button onClick={() => setShowBulkDeleteModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
                     </div>
                     <div className="mb-4">
                         <p className="text-gray-700">Are you sure you want to delete <strong>{selectedIds.length}</strong> application{selectedIds.length > 1 ? 's' : ''}?</p>
                         <p className="text-red-600 text-sm mt-3">This action cannot be undone.</p>
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
-                        <button
-                            onClick={() => setShowBulkDeleteModal(false)}
-                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleBulkDelete}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                        >
-                            {actionLoading ? 'Deleting...' : 'Delete All'}
+                        <button onClick={() => setShowBulkDeleteModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
+                        <button onClick={handleBulkDelete} disabled={actionLoading} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">{actionLoading ? 'Deleting...' : 'Delete All'}</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const BulkStatusModal = () => {
+        if (!showBulkStatusModal) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Bulk Status Update</h2>
+                        <button onClick={() => setShowBulkStatusModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    </div>
+                    <div className="mb-4">
+                        <p className="text-gray-700">You are about to <strong>{bulkStatusAction}</strong> <strong>{selectedIds.length}</strong> selected application{selectedIds.length > 1 ? 's' : ''}.</p>
+                        <p className="text-gray-700 mt-2">Remarks (optional):</p>
+                        <textarea
+                            value={bulkRemarks}
+                            onChange={(e) => setBulkRemarks(e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
+                            placeholder="Add a common remark for all selected applications..."
+                        />
+                    </div>
+                    <div className="flex justify-end space-x-3 mt-4">
+                        <button onClick={() => setShowBulkStatusModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
+                        <button onClick={confirmBulkStatusUpdate} disabled={actionLoading} className={`px-4 py-2 rounded-md text-white transition ${bulkStatusAction === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-50`}>
+                            {actionLoading ? 'Updating...' : `Confirm ${bulkStatusAction === 'approved' ? 'Approve' : 'Reject'}`}
                         </button>
                     </div>
                 </div>
@@ -1816,7 +1818,6 @@ export default function ApplicationManagement() {
                     <button onClick={handleClosePreview} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100"><X size={24} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                    {/* Personal Details */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Personal Details</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -1836,7 +1837,6 @@ export default function ApplicationManagement() {
                             <p><strong>Aadhar Number:</strong> {formData.aadharNumber || 'Not provided'}</p>
                         </div>
                     </div>
-                    {/* Emergency Contacts */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Emergency Contact Details</h3>
                         {formData.emergencyContacts.map((contact, idx) => contact.name && contact.location && contact.phone && (
@@ -1851,7 +1851,6 @@ export default function ApplicationManagement() {
                             </div>
                         ))}
                     </div>
-                    {/* Previous Employment */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Previous Employment Details</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -1860,12 +1859,10 @@ export default function ApplicationManagement() {
                             <p><strong>Educational Qualification:</strong> {formData.educationalQualification || 'Not provided'}</p>
                         </div>
                     </div>
-                    {/* Legal Cases */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Legal Cases</h3>
                         <p><strong>Any Legal Cases Pending:</strong> {formData.legalCasesPending === 'yes' ? 'Yes' : formData.legalCasesPending === 'no' ? 'No' : 'Not provided'}</p>
                     </div>
-                    {/* Bank Details */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Bank Account Details</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -1877,13 +1874,11 @@ export default function ApplicationManagement() {
                             <p><strong>City:</strong> {formData.bankCity || 'Not provided'}</p>
                         </div>
                     </div>
-                    {/* Declaration */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Declaration</h3>
                         <p><strong>Note:</strong> {formData.declarationNote || 'Not provided'}</p>
                         <p className="mt-2"><strong>Declaration Accepted:</strong> {formData.declaration ? 'Yes' : 'No'}</p>
                     </div>
-                    {/* Signatures */}
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">Digital Signatures</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -1917,158 +1912,41 @@ export default function ApplicationManagement() {
         }
     };
 
-    const UserSelect = ({
-        users,
-        value = '',          // Accepts undefined, null, or a userCode string
-        onChange,
-        loading,
-        required = true,
-        label = 'Referred By',
-    }) => {
+    const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By', }) => {
         const [query, setQuery] = useState('');
-
-        // Derive the selected user object from the current value and users list
-        const selectedUser = users.find(
-            (user) => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value
-        );
-
-        const filteredUsers = query === ''
-            ? users
-            : users.filter(
-                (user) =>
-                    (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
-            );
-
-        const handleChange = (user) => {
-            onChange({
-                target: {
-                    name: 'referredById',
-                    value: user ? user.applicationId : '',
-                    type: 'select-one',
-                    userName: user ? user.fullName : ''
-                },
-            });
-        };
-
-        const handleClear = (e) => {
-            e.stopPropagation();
-            handleChange(null);
-            setQuery('');
-        };
-
-        const displayValue = (user) => {
-            if (!user) return '';
-            const base = user?.fullName || '';
-            const code = user?.userCode || user?.mlmUserCode;
-            return code ? `${base} (${code})` : base;
-        };
-
+        const selectedUser = users.find(user => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value);
+        const filteredUsers = query === '' ? users : users.filter(user => (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) || (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) || (user?.userCode || '').toLowerCase().includes(query.toLowerCase()));
+        const handleChange = (user) => { onChange({ target: { name: 'referredById', value: user ? user.applicationId : '', type: 'select-one', userName: user ? user.fullName : '' } }); };
+        const handleClear = (e) => { e.stopPropagation(); handleChange(null); setQuery(''); };
+        const displayValue = (user) => { if (!user) return ''; const base = user?.fullName || ''; const code = user?.userCode || user?.mlmUserCode; return code ? `${base} (${code})` : base; };
         return (
             <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {label} {required && <span className="text-red-500">*</span>}
-                </label>
-
+                <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
                 {loading ? (
-                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">
-                        Loading referrers...
-                    </div>
+                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">Loading referrers...</div>
                 ) : (
                     <Combobox value={selectedUser} onChange={handleChange}>
                         <div className="relative mt-1">
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-1 focus-within:ring-yellow-500 focus-within:border-yellow-500">
-                                <Combobox.Input
-                                    className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
-                                    displayValue={displayValue}
-                                    onChange={(event) => setQuery(event.target.value)}
-                                    placeholder="Search or select a referrer"
-                                />
+                                <Combobox.Input className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none" displayValue={displayValue} onChange={(event) => setQuery(event.target.value)} placeholder="Search or select a referrer" />
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
-                                    {selectedUser && (
-                                        <button
-                                            onClick={handleClear}
-                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                                            aria-label="Clear selection"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    <Combobox.Button className="flex items-center">
-                                        <ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                                    </Combobox.Button>
+                                    {selectedUser && (<button onClick={handleClear} className="text-gray-400 hover:text-gray-600 focus:outline-none" aria-label="Clear selection"><X className="h-4 w-4" /></button>)}
+                                    <Combobox.Button className="flex items-center"><ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" /></Combobox.Button>
                                 </div>
                             </div>
-
                             <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                                {filteredUsers.length === 0 && query !== '' ? (
-                                    <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
-                                        No referrers found.
-                                    </div>
-                                ) : (
-                                    filteredUsers.map((user) => (
-                                        <Combobox.Option
-                                            key={user?.userCode}
-                                            className={({ active }) =>
-                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                                                }`
-                                            }
-                                            value={user}
-                                        >
-                                            {({ selected, active }) => (
-                                                <>
-                                                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                                        {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${(user?.userCode || user?.mlmUserCode)})` : ''}`}
-                                                    </span>
-                                                    {selected && (
-                                                        <span
-                                                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'
-                                                                }`}
-                                                        >
-                                                            <Check className="h-5 w-5" aria-hidden="true" />
-                                                        </span>
-                                                    )}
-                                                </>
-                                            )}
-                                        </Combobox.Option>
-                                    ))
-                                )}
+                                {filteredUsers.length === 0 && query !== '' ? (<div className="relative cursor-default select-none py-2 px-4 text-gray-700">No referrers found.</div>) : (filteredUsers.map((user) => (<Combobox.Option key={user?.userCode} className={({ active }) => `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`} value={user}>{({ selected, active }) => (<><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${(user?.userCode || user?.mlmUserCode)})` : ''}`}</span>{selected && (<span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}><Check className="h-5 w-5" aria-hidden="true" /></span>)}</>)}</Combobox.Option>)))}
                             </Combobox.Options>
                         </div>
                     </Combobox>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
-                    This member will be placed under your selected referrer
-                </p>
+                <p className="text-xs text-gray-500 mt-1">This member will be placed under your selected referrer</p>
             </div>
         );
     };
 
-    const CustomCheckbox = ({ checked, onChange, className = '' }) => {
-        return (
-            <button
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                onClick={() => onChange(!checked)}
-                className={`
-        w-5 h-5 rounded-md border-2 flex items-center justify-center
-        transition-all duration-200 cursor-pointer
-        ${checked
-                        ? 'bg-yellow-500 border-yellow-500 text-white'
-                        : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
-                    }
-        ${className}
-      `}
-            >
-                <Check size={14} className="stroke-[3]" />
-            </button>
-        );
-    };
-
     // ======================
-    // List View (with pagination and multi‑delete)
+    // LIST VIEW (with hover checkbox on status column)
     // ======================
     if (currentView === 'list') {
         return (
@@ -2088,7 +1966,7 @@ export default function ApplicationManagement() {
                             + Add Applicant
                         </button>
                     </div>
-                    {/* Search, Filter and Excel Buttons */}
+                    {/* Search, Filter, Import/Export and Bulk Action Buttons */}
                     <div className="mb-6 flex flex-wrap gap-4 items-center">
                         <input
                             type="text"
@@ -2105,120 +1983,57 @@ export default function ApplicationManagement() {
                                 </Listbox.Button>
                                 <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
                                     {statuses.map((status) => (
-                                        <Listbox.Option
-                                            key={status.id}
-                                            value={status.id}
-                                            className={({ active, selected }) =>
-                                                `cursor-pointer select-none px-4 py-2 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                                                } ${selected ? 'font-medium bg-yellow-50' : ''}`
-                                            }
-                                        >
-                                            {({ selected }) => (
-                                                <span className={selected ? 'font-medium' : 'font-normal'}>
-                                                    {status.name}
-                                                </span>
-                                            )}
+                                        <Listbox.Option key={status.id} value={status.id} className={({ active, selected }) => `cursor-pointer select-none px-4 py-2 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'} ${selected ? 'font-medium bg-yellow-50' : ''}`}>
+                                            {({ selected }) => (<span className={selected ? 'font-medium' : 'font-normal'}>{status.name}</span>)}
                                         </Listbox.Option>
                                     ))}
                                 </Listbox.Options>
                             </div>
                         </Listbox>
-                        <button onClick={handleDownloadTemplate} className="px-2 py-2 flex items-center gap-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                            <Download size={18} />
-                            Template
-                        </button>
-
-                        {/* Custom Radio Group */}
+                        <button onClick={handleDownloadTemplate} className="px-2 py-2 flex items-center gap-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"><Download size={18} /> Template</button>
                         <div className="flex gap-2 items-center">
                             {importOptions.map((option) => {
                                 const isChecked = importMethod === option.value;
                                 return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={isChecked}
-                                        onClick={() => setImportMethod(option.value)}
-                                        className="flex items-center space-x-2 focus:outline-none rounded"
-                                    >
-                                        <div
-                                            className={`
-                            w-5 h-5 rounded-full border-2 flex items-center justify-center
-                            transition-all duration-200
-                            ${isChecked
-                                                    ? 'border-yellow-500'
-                                                    : 'border-gray-300 hover:border-gray-400'
-                                                }
-                        `}
-                                        >
-                                            {isChecked && (
-                                                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                                            )}
+                                    <button key={option.value} type="button" role="radio" aria-checked={isChecked} onClick={() => setImportMethod(option.value)} className="flex items-center space-x-2 focus:outline-none rounded">
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isChecked ? 'border-yellow-500' : 'border-gray-300 hover:border-gray-400'}`}>
+                                            {isChecked && (<div className="w-3 h-3 rounded-full bg-yellow-500" />)}
                                         </div>
                                         <span className="text-sm text-gray-700">{option.label}</span>
                                     </button>
                                 );
                             })}
                         </div>
-
-                        {/* Conditional Import Controls */}
                         {importMethod === 'local' ? (
-                            <button onClick={handleImportExcel} disabled={isImporting} className="px-2 py-2 flex items-center gap-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50">
-                                <Download size={18} />
-                                {isImporting ? 'Importing...' : 'Import Excel'}
-                            </button>
+                            <button onClick={handleImportExcel} disabled={isImporting} className="px-2 py-2 flex items-center gap-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"><Download size={18} /> {isImporting ? 'Importing...' : 'Import Excel'}</button>
                         ) : (
                             <>
-                                <input
-                                    type="text"
-                                    placeholder="Google Sheet URL or direct file URL"
-                                    value={urlInput}
-                                    onChange={(e) => setUrlInput(e.target.value)}
-                                    className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                                />
-                                <button
-                                    onClick={handleImportFromUrl}
-                                    disabled={isImportingFromUrl || !urlInput.trim()}
-                                    className="px-2 py-2 flex items-center gap-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <Download size={18} />
-                                    {isImportingFromUrl ? 'Importing...' : 'Import from URL'}
-                                </button>
+                                <input type="text" placeholder="Google Sheet URL or direct file URL" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none" />
+                                <button onClick={handleImportFromUrl} disabled={isImportingFromUrl || !urlInput.trim()} className="px-2 py-2 flex items-center gap-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"><Download size={18} /> {isImportingFromUrl ? 'Importing...' : 'Import from URL'}</button>
                             </>
                         )}
-
-                        <button onClick={handleExportExcel} disabled={isExporting} className="px-2 py-2 flex items-center gap-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
-                            <Upload size={18} />
-                            {isExporting ? 'Exporting...' : 'Export Excel'}
-                        </button>
-
+                        <button onClick={handleExportExcel} disabled={isExporting} className="px-2 py-2 flex items-center gap-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"><Upload size={18} /> {isExporting ? 'Exporting...' : 'Export Excel'}</button>
                         {selectedIds.length > 0 && (
-                            <button
-                                onClick={() => setShowBulkDeleteModal(true)}
-                                className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                            >
-                                Delete Selected ({selectedIds.length})
-                            </button>
+                            <>
+                                <button onClick={() => handleBulkStatusClick('approved')} className="px-2 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Approve Selected ({selectedIds.length})</button>
+                                <button onClick={() => handleBulkStatusClick('rejected')} className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Reject Selected ({selectedIds.length})</button>
+                                <button onClick={() => setShowBulkDeleteModal(true)} className="px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Selected ({selectedIds.length})</button>
+                            </>
                         )}
                     </div>
-                    {/* Table */}
+                    {/* Table with hover checkbox on status column */}
                     <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
                         {tableLoading ? (
-                            <div className="flex justify-center items-center py-12">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
-                            </div>
+                            <div className="flex justify-center items-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div></div>
                         ) : (
                             <>
                                 {filteredApplications.length >= 1 ? <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                {filteredApplications.length >= 1 && <th className="px-3 py-3 text-center w-10">
-                                                    <CustomCheckbox
-                                                        checked={selectAll}
-                                                        onChange={() => handleSelectAll(!selectAll)}
-                                                    />
-                                                </th>}
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                                                    <CustomCheckbox checked={selectAll} onChange={() => handleSelectAll(!selectAll)} />
+                                                </th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APPLICANT</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONTACT</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BANK</th>
@@ -2231,161 +2046,84 @@ export default function ApplicationManagement() {
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {filteredApplications.map((app) => (
-                                                <tr key={app._id} className="hover:bg-gray-50">
+                                                <tr key={app._id} className="hover:bg-gray-50 group">
                                                     <td className="px-3 py-4 text-center">
-                                                        <CustomCheckbox
-                                                            checked={selectedIds.includes(app._id)}
-                                                            onChange={() => handleSelectRow(app._id)}
-                                                        />
+                                                        <CustomCheckbox checked={selectedIds.includes(app._id)} onChange={() => handleSelectRow(app._id)} />
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
-                                                            <div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div>
-                                                        </div>
+                                                        <div><div className="text-sm font-medium text-gray-900">{app.fullName}</div><div className="text-sm text-gray-500 uppercase">ID: {app.applicationId || app._id?.slice(-6)}</div></div>
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="text-sm text-gray-900">{app.email}</div>
-                                                        <div className="text-sm text-gray-500">{app.contactNo}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="text-sm text-gray-900">{app.bankName || '-'}</div>
-                                                        <div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div>
-                                                    </td>
+                                                    <td className="px-6 py-4"><div className="text-sm text-gray-900">{app.email}</div><div className="text-sm text-gray-500">{app.contactNo}</div></td>
+                                                    <td className="px-6 py-4"><div className="text-sm text-gray-900">{app.bankName || '-'}</div><div className="text-sm text-gray-500">XXXX{app.accountNo?.slice(-4) || ''}</div></td>
                                                     <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfApplication}</td>
                                                     <td className="px-6 py-4 text-sm text-gray-500">{app.dateOfPayment}</td>
                                                     <td className="px-6 py-4 text-sm text-gray-500">{app.kit_delivered}</td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`flex gap-1 p-1 items-center text-xs rounded-full ${getStatusColor(app.status)}`}>
-                                                            {getStatusIcon(app.status)} {app.status.toUpperCase()}
-                                                        </span>
+                                                    {/* STATUS COLUMN WITH HOVER CHECKBOX (the requirement) */}
+                                                    <td className="px-6 py-4 relative">
+                                                        <div className="relative flex items-center">
+                                                            {/* Status badge – opacity reduces on hover */}
+                                                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 group-hover:opacity-50 ${getStatusColor(app.status)}`}>
+                                                                {getStatusIcon(app.status)} {app.status.toUpperCase()}
+                                                            </div>
+                                                            {/* Checkbox appears on hover over the status cell */}
+                                                            <div className="absolute left-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                                <CustomCheckbox checked={selectedIds.includes(app._id)} onChange={() => handleSelectRow(app._id)} />
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-1 py-4 text-sm">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleViewDetails(app)}
-                                                            className="text-blue-600 hover:text-blue-800 mr-3"
-                                                            aria-label="View Details"
-                                                        >
-                                                            <Eye size={17} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleEdit(app)}
-                                                            className="text-yellow-600 hover:text-yellow-800 mr-3"
-                                                            aria-label="Edit"
-                                                        >
-                                                            <Edit size={17} />
-                                                        </button>
-                                                        {app.status === 'pending' && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleStatusUpdate(app)}
-                                                                className="text-green-600 hover:text-green-800 mr-3"
-                                                                aria-label="Approve/Reject"
-                                                            >
-                                                                <CheckCircle size={17} />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDelete(app)}
-                                                            className="text-red-600 hover:text-red-800"
-                                                            aria-label="Delete"
-                                                        >
-                                                            <Trash size={17} />
-                                                        </button>
+                                                        <button type="button" onClick={() => handleViewDetails(app)} className="text-blue-600 hover:text-blue-800 mr-3" aria-label="View Details"><Eye size={17} /></button>
+                                                        <button type="button" onClick={() => handleEdit(app)} className="text-yellow-600 hover:text-yellow-800 mr-3" aria-label="Edit"><Edit size={17} /></button>
+                                                        {app.status === 'pending' && (<button type="button" onClick={() => handleStatusUpdate(app)} className="text-green-600 hover:text-green-800 mr-3" aria-label="Approve/Reject"><CheckCircle size={17} /></button>)}
+                                                        <button type="button" onClick={() => handleDelete(app)} className="text-red-600 hover:text-red-800" aria-label="Delete"><Trash size={17} /></button>
                                                     </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
-                                </div> : <div className="px-6 py-4 text-center text-gray-500">
-                                    {'No applications found'}
-                                </div>}
+                                </div> : <div className="px-6 py-4 text-center text-gray-500">No applications found</div>}
                             </>
                         )}
                     </div>
-
-                    {/* Pagination Controls */}
                     {totalPages > 1 && (
                         <div className="flex justify-between items-center mt-6">
-                            <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={!hasPrev}
-                                className={`px-3 py-1 border rounded-md ${hasPrev
-                                    ? 'bg-white text-gray-700 hover:bg-gray-50'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    }`}
-                            >
-                                Previous
-                            </button>
+                            <button onClick={() => handlePageChange(currentPage - 1)} disabled={!hasPrev} className={`px-3 py-1 border rounded-md ${hasPrev ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Previous</button>
                             <div className="flex space-x-2">
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                     let pageNum;
-                                    if (totalPages <= 5) {
-                                        pageNum = i + 1;
-                                    } else {
-                                        if (currentPage <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (currentPage >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + i;
-                                        } else {
-                                            pageNum = currentPage - 2 + i;
-                                        }
+                                    if (totalPages <= 5) { pageNum = i + 1; }
+                                    else {
+                                        if (currentPage <= 3) { pageNum = i + 1; }
+                                        else if (currentPage >= totalPages - 2) { pageNum = totalPages - 4 + i; }
+                                        else { pageNum = currentPage - 2 + i; }
                                     }
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => handlePageChange(pageNum)}
-                                            className={`px-2 py-1 border rounded-md ${currentPage === pageNum
-                                                ? 'bg-yellow-600 text-white border brder-yellow-600'
-                                                : 'bg-white text-gray-700 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
+                                    return (<button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-2 py-1 border rounded-md ${currentPage === pageNum ? 'bg-yellow-600 text-white border brder-yellow-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{pageNum}</button>);
                                 })}
                             </div>
-                            <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={!hasNext}
-                                className={`px-3 py-1 border rounded-md ${hasNext
-                                    ? 'bg-white text-gray-700 hover:bg-gray-50'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    }`}
-                            >
-                                Next
-                            </button>
+                            <button onClick={() => handlePageChange(currentPage + 1)} disabled={!hasNext} className={`px-3 py-1 border rounded-md ${hasNext ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Next</button>
                         </div>
                     )}
                 </div>
                 <style jsx>{`
                     @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                     .animate-slide-in { animation: slide-in 0.3s ease-out; }
+                    .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+                    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+                    .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #c1c1c1 #f1f1f1; }
                 `}</style>
                 {showDetailsModal && <DetailsModal application={selectedApplication} onClose={() => setShowDetailsModal(false)} />}
-                {showStatusModal && (
-                    <StatusModal
-                        key={statusUpdateApp?._id}
-                        show={showStatusModal}
-                        onClose={() => setShowStatusModal(false)}
-                        application={statusUpdateApp}
-                        onUpdate={updateStatus}
-                        loadingAction={loadingAction}
-                        remarks={remarks}
-                        setRemarks={setRemarks}
-                    />
-                )}
+                {showStatusModal && (<StatusModal key={statusUpdateApp?._id} show={showStatusModal} onClose={() => setShowStatusModal(false)} application={statusUpdateApp} onUpdate={updateStatus} loadingAction={loadingAction} remarks={remarks} setRemarks={setRemarks} />)}
                 {showDeleteModal && <DeleteConfirmationModal />}
                 {showBulkDeleteModal && <BulkDeleteConfirmationModal />}
+                {showBulkStatusModal && <BulkStatusModal />}
             </div>
         );
     }
 
     // ======================
-    // Add/Edit Form View
+    // Add/Edit Form View (unchanged)
     // ======================
     return (
         <div className="min-h-screen bg-gray-50">
@@ -2433,20 +2171,12 @@ export default function ApplicationManagement() {
                         </nav>
                     </div>
                     <form onSubmit={handleSubmit} className="p-6">
-                        {/* Personal Tab */}
                         {activeTab === 'personal' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
-                                    <UserSelect
-                                        users={usersList}
-                                        value={formData.referredById}
-                                        onChange={handleChange}
-                                        loading={loadingUsers}
-                                        required={true}
-                                        label="Referred By"
-                                    />
+                                    <UserSelect users={usersList} value={formData.referredById} onChange={handleChange} loading={loadingUsers} required={true} label="Referred By" />
                                     <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
                                     <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required={false} />
                                     <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required={false} />
@@ -2460,20 +2190,13 @@ export default function ApplicationManagement() {
                                 </div>
                             </div>
                         )}
-                        {/* Emergency Tab */}
                         {activeTab === 'emergency' && (
                             <div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Emergency Contact Details</h3>
-                                    {formData.emergencyContacts.length < 5 && <button type="button" onClick={addEmergencyContact} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">+ Add More Contact</button>}
-                                </div>
+                                <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-semibold text-gray-900">Emergency Contact Details</h3>{formData.emergencyContacts.length < 5 && <button type="button" onClick={addEmergencyContact} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">+ Add More Contact</button>}</div>
                                 <p className="text-sm text-gray-500 mb-4">You can add up to 5 contacts (optional).</p>
-                                {formData.emergencyContacts.map((contact, index) => (
-                                    <EmergencyContact key={index} index={index} contact={contact} onChange={handleEmergencyContactChange} onRemove={removeEmergencyContact} canRemove={formData.emergencyContacts.length > 1} />
-                                ))}
+                                {formData.emergencyContacts.map((contact, index) => (<EmergencyContact key={index} index={index} contact={contact} onChange={handleEmergencyContactChange} onRemove={removeEmergencyContact} canRemove={formData.emergencyContacts.length > 1} />))}
                             </div>
                         )}
-                        {/* Employment Tab */}
                         {activeTab === 'employment' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Employment Details</h3>
@@ -2482,18 +2205,13 @@ export default function ApplicationManagement() {
                                     <InputField label="Designation" name="previousDesignation" placeholder="Job title/designation" value={formData.previousDesignation} onChange={handleChange} required={false} />
                                     <InputField label="Educational Qualification" name="educationalQualification" placeholder="Highest educational qualification" value={formData.educationalQualification} onChange={handleChange} required={false} />
                                 </div>
-                                <div className="mt-6">
-                                    <RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required={false} />
-                                </div>
+                                <div className="mt-6"><RadioGroup label="Any Legal Cases Pending Till Date" name="legalCasesPending" options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={formData.legalCasesPending} onChange={handleChange} required={false} /></div>
                             </div>
                         )}
-                        {/* Bank Tab */}
                         {activeTab === 'bank' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Account Details</h3>
-                                <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                                    <p className="text-sm text-yellow-800"><span className="font-semibold">Note:</span> Please ensure all bank details are correct. Payments will be processed to the provided bank account.</p>
-                                </div>
+                                <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded"><p className="text-sm text-yellow-800"><span className="font-semibold">Note:</span> Please ensure all bank details are correct. Payments will be processed to the provided bank account.</p></div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InputField label="Name as per Bank" name="nameAsPerBank" placeholder="Name exactly as in bank account" value={formData.nameAsPerBank} onChange={handleChange} validation="name" required={false} />
                                     <InputField label="Bank Name" name="bankName" placeholder="Name of the bank" value={formData.bankName} onChange={handleChange} required={false} />
@@ -2504,7 +2222,6 @@ export default function ApplicationManagement() {
                                 </div>
                             </div>
                         )}
-                        {/* Signatures Tab */}
                         {activeTab === 'signatures' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signatures</h3>
@@ -2514,7 +2231,6 @@ export default function ApplicationManagement() {
                                 </div>
                             </div>
                         )}
-                        {/* Declaration Tab */}
                         {activeTab === 'declaration' && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Declaration</h3>
@@ -2522,24 +2238,15 @@ export default function ApplicationManagement() {
                                 <Checkbox label="I hereby declare that the above mentioned information is correct to my knowledge and I bear the responsibility for the correctness of the above mentioned information." name="declaration" checked={formData.declaration} onChange={handleChange} required={false} description="Please read and accept the declaration." />
                             </div>
                         )}
-                        {/* Navigation Buttons */}
                         <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
-                            <button type="button" onClick={handlePreviousTab} disabled={currentTabIndex === 0} className={`px-6 py-2 rounded-lg transition ${currentTabIndex === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}>
-                                Previous
-                            </button>
+                            <button type="button" onClick={handlePreviousTab} disabled={currentTabIndex === 0} className={`px-6 py-2 rounded-lg transition ${currentTabIndex === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}>Previous</button>
                             <div className="flex gap-4">
                                 {!isLastTab ? (
-                                    <button type="button" onClick={handleNextTab} disabled={!isCurrentTabValid()} className={`px-6 py-2 rounded-lg transition ${!isCurrentTabValid() ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-yellow-600 text-white hover:bg-yellow-700'}`}>
-                                        Next
-                                    </button>
+                                    <button type="button" onClick={handleNextTab} disabled={!isCurrentTabValid()} className={`px-6 py-2 rounded-lg transition ${!isCurrentTabValid() ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-yellow-600 text-white hover:bg-yellow-700'}`}>Next</button>
                                 ) : (
                                     <>
-                                        <button type="button" onClick={handleShowPreview} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-                                            Show Preview
-                                        </button>
-                                        <button type="submit" disabled={isLoading} className={`px-6 py-2 bg-yellow-600 text-white rounded-lg transition ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-700'}`}>
-                                            {isLoading ? 'Saving...' : currentView === 'add' ? 'Create Application' : 'Update Application'}
-                                        </button>
+                                        <button type="button" onClick={handleShowPreview} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">Show Preview</button>
+                                        <button type="submit" disabled={isLoading} className={`px-6 py-2 bg-yellow-600 text-white rounded-lg transition ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-700'}`}>{isLoading ? 'Saving...' : currentView === 'add' ? 'Create Application' : 'Update Application'}</button>
                                     </>
                                 )}
                             </div>
