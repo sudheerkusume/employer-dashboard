@@ -370,7 +370,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // Validate records – enforce fullName presence
+        // ---------- 1. Validate each record ----------
         const validRecords = [];
         const validationErrors = [];
 
@@ -407,11 +407,7 @@ export async function POST(req) {
             }, { status: 400 });
         }
 
-        const client = await clientPromise;
-        const db = client.db(process.env.MONGODB_DBNAME);
-        const col = db.collection("marketing_applications");
-
-        // Duplicate detection in batch (including appId if provided)
+        // ---------- 2. Duplicate detection (in‑batch) ----------
         const batchDuplicateWarnings = [];
         for (const field of DUP_FIELDS) {
             const vals = validRecords.map(r => r.value[field]);
@@ -421,7 +417,11 @@ export async function POST(req) {
             );
         }
 
-        // Check existing in DB for all unique fields (appId, userCode, mlmUserCode, etc.)
+        // ---------- 3. Check existing entries in DB ----------
+        const client = await clientPromise;
+        const db = client.db(process.env.MONGODB_DBNAME);
+        const col = db.collection("marketing_applications");
+
         const existingInDB = {};
         for (const field of DUP_FIELDS) {
             existingInDB[field] = await getExistingInDB(
@@ -429,16 +429,14 @@ export async function POST(req) {
             );
         }
 
+        // ---------- 4. Separate clean records from duplicates, and categorize by need for appId ----------
         const cleanRecords = [];
         const skippedRecords = [];
-
-        // Separate records that need new appId vs those that already have one
-        const needNewAppId = [];
-        const haveAppId = [];
+        const needNewAppId = [];   // rows that have no applicationId or empty string
+        const haveAppId = [];      // rows that already provide a non‑empty applicationId
 
         for (const rec of validRecords) {
             let dupReason = null;
-            // Check duplicates across all DUP_FIELDS (including applicationId)
             for (const field of DUP_FIELDS) {
                 const v = rec.value[field];
                 if (v && v !== "" && v !== "--" && existingInDB[field].has(v)) {
@@ -454,8 +452,9 @@ export async function POST(req) {
                 });
             } else {
                 cleanRecords.push(rec);
-                // Categorize by whether applicationId is provided
-                if (rec.value.applicationId && rec.value.applicationId.trim() !== "") {
+                // Check if applicationId is provided and not empty
+                const providedAppId = rec.value.applicationId;
+                if (providedAppId && providedAppId.trim() !== "") {
                     haveAppId.push(rec);
                 } else {
                     needNewAppId.push(rec);
@@ -472,68 +471,73 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // Reserve IDs only for records missing applicationId
+        // ---------- 5. Generate new application IDs only for those that need them ----------
         const newAppIds = needNewAppId.length > 0
             ? await reserveApplicationIds(db, needNewAppId.length)
             : [];
 
-        // Prepare final documents
-        const documents = [];
-
-        // Process records that need new appId
+        // Attach finalAppId to each record
         let newAppIdIndex = 0;
         for (const rec of needNewAppId) {
-            const applicationId = newAppIds[newAppIdIndex++];
-            const lvl = rec.value.level || "ME";
-            // userCode generation remains as before (per level)
-            // We'll keep the existing level-based userCode reservation logic
-            // For simplicity we reuse the level grouping approach after building docs,
-            // but we can integrate here. To avoid breaking existing email logic, we'll
-            // restructure slightly: we'll first collect all cleaned records with their
-            // final appId and then generate userCodes later.
-            rec.finalAppId = applicationId;
-            documents.push(rec);
+            rec.finalAppId = newAppIds[newAppIdIndex++];
         }
-
         for (const rec of haveAppId) {
-            rec.finalAppId = rec.value.applicationId;
-            documents.push(rec);
+            rec.finalAppId = rec.value.applicationId;   // use the provided one
         }
 
-        // Now handle userCode generation (level-based) – same as before but using documents array
-        // We need to group by level and call reserveUserCodes per level
+        // Now combine all records for userCode generation
+        const allCleanRecords = [...needNewAppId, ...haveAppId];
+
+        // ---------- 6. Generate userCodes (level‑based) ----------
         const levelGroups = {};
-        for (const docObj of documents) {
-            const lvl = docObj.value.level || "ME";
+        for (const rec of allCleanRecords) {
+            const lvl = rec.value.level || "ME";
             if (!levelGroups[lvl]) levelGroups[lvl] = [];
-            levelGroups[lvl].push(docObj);
+            levelGroups[lvl].push(rec);
         }
 
         const userCodePool = {};
-        for (const [lvl, objs] of Object.entries(levelGroups)) {
-            userCodePool[lvl] = await reserveUserCodes(db, lvl, objs.length);
+        for (const [lvl, recs] of Object.entries(levelGroups)) {
+            userCodePool[lvl] = await reserveUserCodes(db, lvl, recs.length);
         }
 
         const levelCursor = Object.fromEntries(
             Object.keys(levelGroups).map(lvl => [lvl, 0])
         );
 
-        // Build final documents with both appId and userCode
+        // Build final documents
         const finalDocs = [];
-        for (const docObj of documents) {
-            const lvl = docObj.value.level || "ME";
+        for (const rec of allCleanRecords) {
+            const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
-            const finalDoc = buildDocument(docObj.value, docObj.finalAppId, userCode);
+            const finalDoc = buildDocument(rec.value, rec.finalAppId, userCode);
             finalDocs.push(finalDoc);
         }
 
+        // ---------- 7. Insert into DB ----------
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
-        // Email sending (unchanged, uses finalDocs)
+        // ---------- 8. Send email notifications (if email exists) ----------
         const emailPromises = [];
         for (const doc of finalDocs) {
             if (!doc.email) continue;
-            const html = `...`; // same as before
+            const html = `
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                    <h2 style="color:#ca8a04">Application Received</h2>
+                    <p>Dear ${doc.fullName || "Applicant"},</p>
+                    <p>Your application has been successfully received.</p>
+                    <p><strong>Application ID:</strong> ${doc.applicationId}</p>
+                    <p><strong>Your User Code:</strong> ${doc.userCode}</p>
+                    <p>You will be notified once your application is reviewed.</p>
+                    <hr/>
+                    <div style="text-align:center; font-size:12px; color:#666; margin:15px 0;">
+                    For queries, please contact support.
+                    </div>
+                    <p style="font-size:12px;">
+                    For application login, please visit the link below:<br/>
+                    <a href="https://employer.real-beez.com" style="color:#ca8a04;">https://employer.real-beez.com</a>
+                    </p>
+                </div>`;
             emailPromises.push(
                 sendEmail(doc.email, "Application Received – Real Beez Projects Pvt Ltd", html)
                     .catch(err => console.error(`❌ Email failed for ${doc.email}:`, err))
@@ -548,6 +552,7 @@ export async function POST(req) {
 
         const maskedDocs = finalDocs.map(maskSensitive);
 
+        // ---------- 9. Return response ----------
         if (!isBulk) {
             const doc = finalDocs[0];
             return Response.json({

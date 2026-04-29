@@ -1916,33 +1916,130 @@ export default function ApplicationManagement() {
 
     const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By' }) => {
         const [query, setQuery] = useState('');
-        const selectedUser = users.find(user => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value);
-        const filteredUsers = query === '' ? users : users.filter(user => (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) || (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) || (user?.userCode || '').toLowerCase().includes(query.toLowerCase()));
-        const handleChange = (user) => { onChange({ target: { name: 'referredById', value: user ? user.applicationId : '', type: 'select-one', userName: user ? user.fullName : '' } }); };
-        const handleClear = (e) => { e.stopPropagation(); handleChange(null); setQuery(''); };
-        const displayValue = (user) => { if (!user) return ''; const base = user?.fullName || ''; const code = user?.userCode || user?.mlmUserCode; return code ? `${base} (${code})` : base; };
+
+        // Trim the incoming value
+        const trimmedValue = typeof value === 'string' ? value.trim() : value;
+
+        // Find selected user by applicationId or userCode or mlmUserCode
+        const selectedUser = users.find(user =>
+            user?.applicationId === trimmedValue ||
+            user?.userCode === trimmedValue ||
+            user?.mlmUserCode === trimmedValue
+        );
+
+        const filteredUsers = query === ''
+            ? users
+            : users.filter(user =>
+                (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) ||
+                (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) ||
+                (user?.userCode || '').toLowerCase().includes(query.toLowerCase())
+            );
+
+        const handleChange = (user) => {
+            // Pass trimmed value to parent
+            onChange({
+                target: {
+                    name: 'referredById',
+                    value: user ? user.applicationId.trim() : '',
+                    type: 'select-one',
+                    userName: user ? user.fullName : ''
+                }
+            });
+        };
+
+        const handleClear = (e) => {
+            e.stopPropagation();
+            handleChange(null);
+            setQuery('');
+        };
+
+        const displayValue = (user) => {
+            if (!user) return '';
+            const base = user?.fullName || '';
+            const code = user?.userCode || user?.mlmUserCode;
+            return code ? `${base} (${code})` : base;
+        };
+
         return (
             <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {label} {required && <span className="text-red-500">*</span>}
+                </label>
                 {loading ? (
-                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">Loading referrers...</div>
+                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">
+                        Loading referrers...
+                    </div>
                 ) : (
                     <Combobox value={selectedUser} onChange={handleChange}>
                         <div className="relative mt-1">
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-1 focus-within:ring-yellow-500 focus-within:border-yellow-500">
-                                <Combobox.Input className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none" displayValue={displayValue} onChange={(event) => setQuery(event.target.value)} placeholder="Search or select a referrer" />
+                                <Combobox.Input
+                                    className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
+                                    displayValue={displayValue}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    placeholder="Search or select a referrer"
+                                />
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
-                                    {selectedUser && (<button onClick={handleClear} className="text-gray-400 hover:text-gray-600 focus:outline-none" aria-label="Clear selection"><X className="h-4 w-4" /></button>)}
-                                    <Combobox.Button className="flex items-center"><ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" /></Combobox.Button>
+                                    {selectedUser && (
+                                        <button
+                                            onClick={handleClear}
+                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            aria-label="Clear selection"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <Combobox.Button className="flex items-center">
+                                        <ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                    </Combobox.Button>
                                 </div>
                             </div>
                             <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                                {filteredUsers.length === 0 && query !== '' ? (<div className="relative cursor-default select-none py-2 px-4 text-gray-700">No referrers found.</div>) : (filteredUsers.map((user) => (<Combobox.Option key={user?.userCode} className={({ active }) => `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`} value={user}>{({ selected, active }) => (<><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${(user?.userCode || user?.mlmUserCode)})` : ''}`}</span>{selected && (<span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}><Check className="h-5 w-5" aria-hidden="true" /></span>)}</>)}</Combobox.Option>)))}
+                                {filteredUsers.length === 0 && query !== '' ? (
+                                    <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                                        No referrers found.
+                                    </div>
+                                ) : (
+                                    filteredUsers.map((user) => (
+                                        <Combobox.Option
+                                            key={user?.userCode || user?.applicationId}
+                                            className={({ active }) =>
+                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
+                                                }`
+                                            }
+                                            value={user}
+                                        >
+                                            {({ selected, active }) => (
+                                                <>
+                                                    <span
+                                                        className={`block truncate ${selected ? 'font-medium' : 'font-normal'
+                                                            }`}
+                                                    >
+                                                        {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode)
+                                                            ? ` (${user?.userCode || user?.mlmUserCode})`
+                                                            : ''
+                                                            }`}
+                                                    </span>
+                                                    {selected && (
+                                                        <span
+                                                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'
+                                                                }`}
+                                                        >
+                                                            <Check className="h-5 w-5" aria-hidden="true" />
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </Combobox.Option>
+                                    ))
+                                )}
                             </Combobox.Options>
                         </div>
                     </Combobox>
                 )}
-                <p className="text-xs text-gray-500 mt-1">This member will be placed under your selected referrer</p>
+                <p className="text-xs text-gray-500 mt-1">
+                    This member will be placed under your selected referrer
+                </p>
             </div>
         );
     };
@@ -2310,7 +2407,7 @@ export default function ApplicationManagement() {
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
-                                    <UserSelect users={usersList} value={formData.referredById} onChange={handleChange} loading={loadingUsers} required={true} label="Referred By" />
+                                    <UserSelect users={usersList} value={(formData.referredById || "").trim()} onChange={handleChange} loading={loadingUsers} required={true} label="Referred By" />
                                     <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
                                     <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required={false} />
                                     <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required={false} />
