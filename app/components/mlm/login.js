@@ -51,11 +51,12 @@ export default function LoginPage() {
             // Update context
             setRootContext(prev => ({
                 ...prev,
-                mlmUser: userData
+                mlmUser: userData,
+                user: userData
             }));
 
             setLoading(false);
-            router.push('/mlm/tree');
+            router.push('/');
             return;
         }
 
@@ -85,10 +86,11 @@ export default function LoginPage() {
                 // Update context
                 setRootContext(prev => ({
                     ...prev,
-                    mlmUser: userData
+                    mlmUser: userData,
+                    user: userData
                 }));
 
-                router.push('/mlm/tree');
+                router.push('/');
             } else {
                 setError(data.error || 'Invalid user applicationId');
             }
@@ -185,7 +187,7 @@ export default function LoginPage() {
                                 required
                                 value={applicationId}
                                 onChange={(e) => setApplicationId(e.target.value.toUpperCase())}
-                                placeholder="e.g., RB001 or SB-000000"
+                                placeholder="e.g., SB-000000"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                             />
                         </div>

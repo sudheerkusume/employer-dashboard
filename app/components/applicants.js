@@ -793,7 +793,7 @@ export default function ApplicationManagement() {
         status: 'pending',
         level: "ME",
         dateOfApplication: ""
-    });   
+    });
 
     const fetchApplications = async (page = 1) => {
         setTableLoading(true);
@@ -1893,10 +1893,6 @@ export default function ApplicationManagement() {
         </div>
     );
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
     const fetchUsers = async () => {
         setLoadingUsers(true);
         try {
@@ -1914,7 +1910,11 @@ export default function ApplicationManagement() {
         }
     };
 
-    const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By', }) => {
+    useEffect(() => {
+        fetchUsers();
+    }, [currentView]);
+
+    const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By' }) => {
         const [query, setQuery] = useState('');
         const selectedUser = users.find(user => user?.applicationId === value || user?.userCode === value || user?.mlmUserCode === value);
         const filteredUsers = query === '' ? users : users.filter(user => (user?.fullName || '').toLowerCase().includes(query.toLowerCase()) || (user?.applicationId || '').toLowerCase().includes(query.toLowerCase()) || (user?.userCode || '').toLowerCase().includes(query.toLowerCase()));

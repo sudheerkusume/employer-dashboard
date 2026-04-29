@@ -8,15 +8,16 @@ import RootContext from "../config/rootcontext";
 export default function Header() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
-    const user = rootContext?.mlmUser;
-    const isSuperAdmin = user?.userCode === "SB000001";
+    const user = rootContext?.user || rootContext?.mlmUser;
+    const isSuperAdmin = user?.isSuperAdmin || user?.role === "super_admin" || user?.userCode === "SB000000";
 
     const handleLogout = () => {
-        localStorage.removeItem("user_details");
+        localStorage.clear();
         setRootContext(prev => ({
             ...prev,
             authenticated: false,
-            mlmUser: {}
+            mlmUser: {},
+            user: {}
         }));
         router.push("/");
     };
@@ -24,18 +25,21 @@ export default function Header() {
     if (!rootContext.mlmUser) return null;
 
     return (
-        <header className="bg-white shadow-md px-6 py-3 flex justify-between items-center">
+        <header className="fixed top-0 w-full bg-white shadow-md px-6 py-1 flex justify-between items-center">
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2">                   
-                    <span className="text-xl font-bold text-yellow-600">Sales Beez</span>
+                <Link href="/" className="flex items-center space-x-2 cursor-pointer">
+                    <Image
+                        src="/salesbeez_logo.png"
+                        alt="Caterly"
+                        width={180}
+                        height={20}
+                        className="object-contain relative"
+                    />
                 </Link>
 
                 {/* Navigation */}
                 <nav className="flex gap-6">
-                    <Link href="/mlm/tree" className="text-gray-700 hover:text-yellow-600 font-medium">
-                        Tree
-                    </Link>
                     {isSuperAdmin && (
                         <Link href="/applicants" className="text-gray-700 hover:text-yellow-600 font-medium">
                             Applications
