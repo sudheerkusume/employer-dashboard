@@ -49,13 +49,14 @@ export default function Header() {
             </div>
 
             {/* User info & logout */}
-            <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">
-                    {user?.fullName} ({user?.userCode})
-                </span>
+            <div className="flex items-center space-x-4">
+                <div className="text-right">
+                    <p className="text-sm text-gray-600">{user?.fullName}</p>
+                    <p className="text-xs text-gray-500">Level: {user?.level}</p>
+                </div>
                 <button
                     onClick={handleLogout}
-                    className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition shadow-md"
                 >
                     Logout
                 </button>

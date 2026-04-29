@@ -212,39 +212,8 @@ export default function HomePage() {
   // Beautiful Dashboard for Logged-in Users
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-yellow-500 bg-clip-text text-transparent">
-                Sales Beez
-              </h1>
-              <div className="hidden md:flex space-x-4">
-                <Link href="/" className="text-gray-700 hover:text-yellow-600 px-3 py-2 rounded-md font-medium">Dashboard</Link>
-                <Link href={`/mlm/register?referrer=${userData?.userCode}`} className="text-gray-700 hover:text-yellow-600 px-3 py-2 rounded-md font-medium">Add Member</Link>
-                <Link href={`/mlm/tree?userCode=${userData?.userCode}`} className="text-gray-700 hover:text-yellow-600 px-3 py-2 rounded-md font-medium">Tree View</Link>
-                <Link href={`/mlm/commissions?userCode=${userData?.userCode}`} className="text-gray-700 hover:text-yellow-600 px-3 py-2 rounded-md font-medium">Commission</Link>
-                <Link href={`/mlm/sales?userCode=${userData?.userCode}`} className="text-gray-700 hover:text-yellow-600 px-3 py-2 rounded-md font-medium">Sales Record</Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">{userData?.fullName}</p>
-                <p className="text-xs text-gray-500">Level: {userData?.level}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition shadow-md"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900">Welcome back, {userData?.fullName}!</h1>
@@ -367,25 +336,25 @@ export default function HomePage() {
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <button
-              onClick={() => router.push(`/mlm/add-member`)}
+              onClick={() => router.push(`/mlm/register?referrer=${userData?.userCode}`)}
               className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
             >
               ➕ Add New Member
             </button>
             <button
-              onClick={() => router.push(`/mlm/tree`)}
+              onClick={() => router.push(`/mlm/tree?userCode=${userData?.userCode}`)}
               className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
             >
               🌳 View Tree
             </button>
             <button
-              onClick={() => router.push(`/mlm/commission-structure`)}
+              onClick={() => router.push(`/mlm/commissions?userCode=${userData?.userCode}`)}
               className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
             >
               📊 Commission History
             </button>
             <button
-              onClick={() => router.push(`/mlm/sales-record`)}
+              onClick={() => router.push(`/mlm/sales?userCode=${userData?.userCode}`)}
               className="bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
             >
               💰 Record Sale
