@@ -1782,28 +1782,62 @@ export default function ApplicationManagement() {
     };
 
     const BulkStatusModal = () => {
+        const textareaRef = useRef(null);
+
+        // Auto-focus textarea when modal opens
+        useEffect(() => {
+            if (showBulkStatusModal && textareaRef.current) {
+                // Small delay ensures DOM is fully rendered
+                setTimeout(() => {
+                    textareaRef.current?.focus();
+                }, 50);
+            }
+        }, [showBulkStatusModal]);
+
         if (!showBulkStatusModal) return null;
+
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Bulk Status Update</h2>
-                        <button onClick={() => setShowBulkStatusModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                        <button
+                            onClick={() => setShowBulkStatusModal(false)}
+                            className="text-gray-400 hover:text-gray-600"
+                        >
+                            <X size={24} />
+                        </button>
                     </div>
                     <div className="mb-4">
-                        <p className="text-gray-700">You are about to <strong>{bulkStatusAction}</strong> <strong>{selectedIds.length}</strong> selected application{selectedIds.length > 1 ? 's' : ''}.</p>
+                        <p className="text-gray-700">
+                            You are about to <strong>{bulkStatusAction}</strong> <strong>{selectedIds.length}</strong> selected application{selectedIds.length > 1 ? 's' : ''}.
+                        </p>
                         <p className="text-gray-700 mt-2">Remarks (optional):</p>
                         <textarea
+                            ref={textareaRef}
                             value={bulkRemarks}
                             onChange={(e) => setBulkRemarks(e.target.value)}
                             rows={3}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
                             placeholder="Add a common remark for all selected applications..."
+                            autoFocus  // fallback for browsers that support it
                         />
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
-                        <button onClick={() => setShowBulkStatusModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                        <button onClick={confirmBulkStatusUpdate} disabled={actionLoading} className={`px-4 py-2 rounded-md text-white transition ${bulkStatusAction === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-50`}>
+                        <button
+                            onClick={() => setShowBulkStatusModal(false)}
+                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmBulkStatusUpdate}
+                            disabled={actionLoading}
+                            className={`px-4 py-2 rounded-md text-white transition ${bulkStatusAction === 'approved'
+                                ? 'bg-green-600 hover:bg-green-700'
+                                : 'bg-red-600 hover:bg-red-700'
+                                } disabled:opacity-50`}
+                        >
                             {actionLoading ? 'Updating...' : `Confirm ${bulkStatusAction === 'approved' ? 'Approve' : 'Reject'}`}
                         </button>
                     </div>
@@ -1811,7 +1845,6 @@ export default function ApplicationManagement() {
             </div>
         );
     };
-
     const PreviewSection = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
