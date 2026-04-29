@@ -25,7 +25,7 @@ export default function Header() {
     if (!rootContext.mlmUser) return null;
 
     return (
-        <header className="fixed top-0 w-full bg-white shadow-md px-6 py-1 flex justify-between items-center">
+        <header className="fixed top-0 z-[99999] w-full bg-white shadow-md px-6 py-1 flex justify-between items-center">
             <div className="flex items-center gap-8">
                 {/* Logo */}
                 <Link href="/" className="flex items-center space-x-2 cursor-pointer">

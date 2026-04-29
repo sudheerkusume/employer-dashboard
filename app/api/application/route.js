@@ -50,30 +50,6 @@ async function reserveUserCodes(db, level, count = 1) {
 }
 
 // ----------------------------------------------------------------------
-// RANDOM UNIQUE APPLICATION ID GENERATOR
-// ----------------------------------------------------------------------
-async function generateUniqueApplicationId(db, maxRetries = 10) {
-    const col = db.collection("marketing_applications");
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        // Generate random 6-digit number (000001 to 999999)
-        const randomNum = Math.floor(Math.random() * 999999) + 1;
-        const appId = `SB-${randomNum.toString().padStart(6, "0")}`;
-
-        // Check if already used
-        const existing = await col.findOne({
-            applicationId: appId,
-            _type: { $ne: "__counter" }
-        });
-        if (!existing) return appId;
-
-        console.log(`⚠️ Duplicate random ID ${appId}, retrying (${attempt}/${maxRetries})...`);
-    }
-    // Fallback: use timestamp-based ID (very unlikely to collide)
-    const fallbackNum = Date.now() % 1000000;
-    return `SB-${fallbackNum.toString().padStart(6, "0")}`;
-}
-
-// ----------------------------------------------------------------------
 // MLM HELPERS
 // ----------------------------------------------------------------------
 const PROMOTION_THRESHOLDS = {
@@ -170,7 +146,7 @@ async function createMlmMemberFromApplication(db, application) {
 }
 
 // ----------------------------------------------------------------------
-// JOI SCHEMAS
+// JOI SCHEMAS – applicationId is optional
 // ----------------------------------------------------------------------
 const applicationSchema = Joi.object({
     applicationId: Joi.string().allow("").optional(),
@@ -321,7 +297,7 @@ function buildDocument(value, applicationId, userCode) {
     const level = value.level || "ME";
     return {
         _id: new ObjectId(),
-        applicationId,
+        applicationId: applicationId || "", // keep empty if not provided
         userCode,
         mlmUserCode: userCode,
         level,
@@ -463,7 +439,7 @@ export async function POST(req) {
                 continue;
             }
 
-            // For bulk import, applicationId is required
+            // For bulk import, applicationId is required (cannot be empty)
             if (isBulk && (!rest.applicationId || rest.applicationId.trim() === "")) {
                 validationErrors.push({
                     index: i,
@@ -530,6 +506,7 @@ export async function POST(req) {
             }
             if (!dupReason) {
                 const appId = rec.value.applicationId;
+                // Only check uniqueness if appId is not empty
                 if (appId && appId.trim() !== "" && existingInDB.applicationId.has(appId)) {
                     dupReason = `applicationId already exists: "${appId}"`;
                 }
@@ -554,45 +531,10 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ---------- 5. Generate missing applicationIds ONLY for single record mode ----------
-        const needNewAppId = [];
-        const haveAppId = [];
+        // ---------- 5. Prepare final documents (no ID generation) ----------
+        const allCleanRecords = cleanRecords; // no need to split into have/need
 
-        for (const rec of cleanRecords) {
-            const providedAppId = rec.value.applicationId;
-            if (providedAppId && providedAppId.trim() !== "") {
-                haveAppId.push(rec);
-            } else {
-                if (!isBulk) {
-                    needNewAppId.push(rec);
-                } else {
-                    skippedRecords.push({
-                        index: rec.originalIndex,
-                        name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
-                        reason: "applicationId is missing in bulk import",
-                    });
-                }
-            }
-        }
-
-        // For single record: generate random unique application IDs
-        for (const rec of needNewAppId) {
-            rec.finalAppId = await generateUniqueApplicationId(db);
-        }
-        for (const rec of haveAppId) {
-            rec.finalAppId = rec.value.applicationId;
-        }
-
-        const allCleanRecords = [...needNewAppId, ...haveAppId];
-        if (allCleanRecords.length === 0) {
-            return Response.json({
-                success: false,
-                error: "No records to insert after ID processing",
-                skipped: skippedRecords,
-            }, { status: 400 });
-        }
-
-        // ---------- 6. Generate userCodes (level‑based) ----------
+        // Generate userCodes for all clean records
         const levelGroups = {};
         for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
@@ -613,14 +555,15 @@ export async function POST(req) {
         for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
-            const finalDoc = buildDocument(rec.value, rec.finalAppId, userCode);
+            // Use the provided applicationId (may be empty string)
+            const finalDoc = buildDocument(rec.value, rec.value.applicationId || "", userCode);
             finalDocs.push(finalDoc);
         }
 
-        // ---------- 7. Insert into DB ----------
+        // ---------- 6. Insert into DB ----------
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
-        // ---------- 8. Send email notifications ----------
+        // ---------- 7. Send email notifications ----------
         const emailPromises = [];
         for (const doc of finalDocs) {
             if (!doc.email) continue;
@@ -629,7 +572,7 @@ export async function POST(req) {
                     <h2 style="color:#ca8a04">Application Received</h2>
                     <p>Dear ${doc.fullName || "Applicant"},</p>
                     <p>Your application has been successfully received.</p>
-                    <p><strong>Application ID:</strong> ${doc.applicationId}</p>
+                    <p><strong>Application ID:</strong> ${doc.applicationId || "Not assigned yet"}</p>
                     <p><strong>Your User Code:</strong> ${doc.userCode}</p>
                     <p>You will be notified once your application is reviewed.</p>
                     <hr/>
@@ -692,7 +635,7 @@ export async function POST(req) {
 }
 
 // ----------------------------------------------------------------------
-// GET – fetch applications
+// GET, PUT, DELETE remain unchanged (identical to previous version)
 // ----------------------------------------------------------------------
 export async function GET(req) {
     try {
@@ -770,9 +713,6 @@ export async function GET(req) {
     }
 }
 
-// ----------------------------------------------------------------------
-// PUT – status update OR partial field update
-// ----------------------------------------------------------------------
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -1045,9 +985,6 @@ export async function PUT(req) {
     }
 }
 
-// ----------------------------------------------------------------------
-// DELETE – delete one or multiple applications
-// ----------------------------------------------------------------------
 export async function DELETE(req) {
     try {
         const url = new URL(req.url);
