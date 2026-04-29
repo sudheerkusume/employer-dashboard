@@ -157,7 +157,7 @@ export default function LoginPage() {
                     <div className="absolute inset-0 rounded-2xl bg-white/5 pointer-events-none"></div>
                     <div className="flex justify-center mb-4">
                         <Image
-                            src="/realbeez.png"
+                            src="/salesbeez_logo.png"
                             alt="Logo"
                             width={200}
                             height={200}
@@ -165,14 +165,11 @@ export default function LoginPage() {
                     </div>
                     <div>
                         <h2 className="mt-6 text-center text-2xl font-extrabold text-gray-900">
-                            Real Beez Member Login
+                            Sales Beez Member Login
                         </h2>
                         <p className="mt-2 text-center text-sm text-gray-600">
                             Enter your user applicationId to access your dashboard
-                        </p>
-                        <p className="mt-1 text-center text-xs text-gray-500">
-                            (Super Admin: SB-000000)
-                        </p>
+                        </p>                       
                     </div>
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         <div>
@@ -187,7 +184,7 @@ export default function LoginPage() {
                                 required
                                 value={applicationId}
                                 onChange={(e) => setApplicationId(e.target.value.toUpperCase())}
-                                placeholder="e.g., SB-000000"
+                                placeholder="e.g., SB-000012"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                             />
                         </div>
