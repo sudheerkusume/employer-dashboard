@@ -33,22 +33,8 @@ async function sendEmail(to, subject, html) {
 }
 
 // ----------------------------------------------------------------------
-// ATOMIC COUNTER HELPERS
+// ATOMIC COUNTER HELPERS (only for userCodes now)
 // ----------------------------------------------------------------------
-async function reserveApplicationIds(db, count = 1) {
-    const col = db.collection("marketing_applications");
-    const result = await col.findOneAndUpdate(
-        { _type: "__counter", _key: "applicationId" },
-        { $inc: { seq: count } },
-        { upsert: true, returnDocument: "after" }
-    );
-    const endSeq = result?.seq ?? count;
-    const startSeq = endSeq - count + 1;
-    return Array.from({ length: count }, (_, i) =>
-        `SB-${(startSeq + i).toString().padStart(6, "0")}`
-    );
-}
-
 async function reserveUserCodes(db, level, count = 1) {
     const col = db.collection("marketing_applications");
     const result = await col.findOneAndUpdate(
@@ -160,10 +146,10 @@ async function createMlmMemberFromApplication(db, application) {
 }
 
 // ----------------------------------------------------------------------
-// JOI SCHEMAS
+// JOI SCHEMAS – applicationId is now required
 // ----------------------------------------------------------------------
 const applicationSchema = Joi.object({
-    applicationId: Joi.string().allow("").optional(),
+    applicationId: Joi.string().required(), // changed from optional to required
     fullName: Joi.string().min(2).max(100).required(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     modeOfPayment: Joi.string().allow("").optional(),
@@ -393,7 +379,7 @@ async function fetchGoogleSheetData(url) {
 }
 
 // ----------------------------------------------------------------------
-// POST – single object OR array (bulk) with support for Excel/Google Sheets
+// POST – single object OR array (bulk) – NO AUTO-GENERATION OF applicationId
 // ----------------------------------------------------------------------
 export async function POST(req) {
     try {
@@ -436,7 +422,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // ---------- 1. Validate each record ----------
+        // ---------- 1. Validate each record (applicationId is now required) ----------
         const validRecords = [];
         const validationErrors = [];
 
@@ -449,6 +435,16 @@ export async function POST(req) {
                     index: i,
                     name: `Row ${i + 1}`,
                     error: "fullName is required",
+                });
+                continue;
+            }
+
+            // Ensure applicationId is present
+            if (!rest.applicationId || rest.applicationId.trim() === "") {
+                validationErrors.push({
+                    index: i,
+                    name: rest.fullName || `Row ${i + 1}`,
+                    error: "applicationId is required (no auto-generation)",
                 });
                 continue;
             }
@@ -483,31 +479,37 @@ export async function POST(req) {
             );
         }
 
-        // ---------- 3. Check existing entries in DB ----------
+        // ---------- 3. Check existing entries in DB (including applicationId uniqueness) ----------
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
         const existingInDB = {};
-        for (const field of DUP_FIELDS) {
+        for (const field of [...DUP_FIELDS, "applicationId"]) {
             existingInDB[field] = await getExistingInDB(
                 col, field, validRecords.map(r => r.value[field])
             );
         }
 
-        // ---------- 4. Separate clean records from duplicates, and categorize by need for appId ----------
+        // ---------- 4. Separate clean records from duplicates ----------
         const cleanRecords = [];
         const skippedRecords = [];
-        const needNewAppId = [];
-        const haveAppId = [];
 
         for (const rec of validRecords) {
             let dupReason = null;
+            // Check standard unique fields
             for (const field of DUP_FIELDS) {
                 const v = rec.value[field];
                 if (v && v !== "" && v !== "--" && existingInDB[field].has(v)) {
                     dupReason = `${field} already exists: "${v}"`;
                     break;
+                }
+            }
+            // Also check applicationId uniqueness
+            if (!dupReason) {
+                const appId = rec.value.applicationId;
+                if (appId && existingInDB.applicationId.has(appId)) {
+                    dupReason = `applicationId already exists: "${appId}"`;
                 }
             }
             if (dupReason) {
@@ -518,12 +520,6 @@ export async function POST(req) {
                 });
             } else {
                 cleanRecords.push(rec);
-                const providedAppId = rec.value.applicationId;
-                if (providedAppId && providedAppId.trim() !== "") {
-                    haveAppId.push(rec);
-                } else {
-                    needNewAppId.push(rec);
-                }
             }
         }
 
@@ -536,64 +532,9 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ========== FIX: PREVENT APPLICATION ID COLLISIONS ==========
-        // 1. Get current max applicationId (numeric part) from the database
-        const maxAppIdDoc = await col.findOne(
-            { applicationId: { $regex: /^SB-\d+$/ }, _type: { $ne: "__counter" } },
-            { sort: { applicationId: -1 }, projection: { applicationId: 1 } }
-        );
-        let maxDbNumber = 0;
-        if (maxAppIdDoc?.applicationId) {
-            const match = maxAppIdDoc.applicationId.match(/^SB-(\d+)$/);
-            if (match) maxDbNumber = parseInt(match[1], 10);
-        }
-
-        // 2. Find the highest custom ID provided in this batch
-        let maxCustomNumber = 0;
-        for (const rec of haveAppId) {
-            const customId = rec.value.applicationId?.trim();
-            if (customId) {
-                const match = customId.match(/^SB-(\d+)$/);
-                if (match) {
-                    const num = parseInt(match[1], 10);
-                    if (num > maxCustomNumber) maxCustomNumber = num;
-                }
-            }
-        }
-
-        // 3. Overall maximum number (may be 0 if no IDs exist)
-        const overallMax = Math.max(maxDbNumber, maxCustomNumber);
-
-        // 4. Update counter ONLY if overallMax is greater than current seq (never decrease)
-        const counterCol = db.collection("marketing_applications");
-        const currentCounter = await counterCol.findOne({ _type: "__counter", _key: "applicationId" });
-        const currentSeq = currentCounter?.seq || 0;
-        if (overallMax > currentSeq) {
-            await counterCol.updateOne(
-                { _type: "__counter", _key: "applicationId" },
-                { $set: { seq: overallMax } },
-                { upsert: true }
-            );
-        }
-
-        // 5. Now reserve new IDs – they will be overallMax+1, overallMax+2, ...
-        const newAppIds = needNewAppId.length > 0
-            ? await reserveApplicationIds(db, needNewAppId.length)
-            : [];
-
-        let newAppIdIndex = 0;
-        for (const rec of needNewAppId) {
-            rec.finalAppId = newAppIds[newAppIdIndex++];
-        }
-        for (const rec of haveAppId) {
-            rec.finalAppId = rec.value.applicationId;
-        }
-
-        const allCleanRecords = [...needNewAppId, ...haveAppId];
-
-        // ---------- 6. Generate userCodes (level‑based) ----------
+        // ---------- 5. Generate userCodes (level‑based) – no applicationId generation ----------
         const levelGroups = {};
-        for (const rec of allCleanRecords) {
+        for (const rec of cleanRecords) {
             const lvl = rec.value.level || "ME";
             if (!levelGroups[lvl]) levelGroups[lvl] = [];
             levelGroups[lvl].push(rec);
@@ -609,25 +550,18 @@ export async function POST(req) {
         );
 
         const finalDocs = [];
-        for (const rec of allCleanRecords) {
+        for (const rec of cleanRecords) {
             const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
-            const finalDoc = buildDocument(rec.value, rec.finalAppId, userCode);
+            // Use the provided applicationId directly
+            const finalDoc = buildDocument(rec.value, rec.value.applicationId, userCode);
             finalDocs.push(finalDoc);
         }
 
-        // ---------- 7. Insert into DB – reorder: custom IDs first, then auto-generated ----------
-        finalDocs.sort((a, b) => {
-            const aIsCustom = haveAppId.some(rec => rec.finalAppId === a.applicationId);
-            const bIsCustom = haveAppId.some(rec => rec.finalAppId === b.applicationId);
-            if (aIsCustom && !bIsCustom) return -1;
-            if (!aIsCustom && bIsCustom) return 1;
-            return 0;
-        });
-
+        // ---------- 6. Insert into DB (no specific ordering needed) ----------
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
-        // ---------- 8. Send email notifications ----------
+        // ---------- 7. Send email notifications ----------
         const emailPromises = [];
         for (const doc of finalDocs) {
             if (!doc.email) continue;
@@ -724,7 +658,6 @@ export async function GET(req) {
             if (!application) {
                 return Response.json({ success: false, error: "Application not found" }, { status: 404 });
             }
-            // Mask sensitive data and ensure date fields exist
             const masked = {
                 ...application,
                 applicantSignature: application.applicantSignature || "[SIGNATURE]",
@@ -816,7 +749,6 @@ export async function PUT(req) {
             const results = [];
             const errors = [];
 
-            // Process each application in parallel
             const promises = applications.map(async (app) => {
                 try {
                     const updateFields = {
@@ -830,24 +762,27 @@ export async function PUT(req) {
 
                     if (status === "approved") {
                         if (!finalAppId) {
-                            const [newId] = await reserveApplicationIds(db, 1);
-                            finalAppId = newId;
+                            // Since we no longer generate applicationIds, we reject or just warn? 
+                            // We'll keep the fallback generation for approval only if needed, but your requirement said remove auto-generation.
+                            // To be safe, we'll still allow generation upon approval if missing? But the user said "remove auto generate application id as of now just take from excel sheet".
+                            // For consistency, we will NOT generate missing applicationId even on approval.
+                            // Instead, we'll skip assigning and log an error.
+                            console.error(`Application ${app._id} approved but missing applicationId – no auto-generation.`);
+                        } else {
                             updateFields.applicationId = finalAppId;
                         }
                     }
 
                     await col.updateOne({ _id: app._id }, { $set: updateFields });
 
-                    // Send email only if email exists
                     if (app.email) {
                         if (status === "approved") {
                             let mlmUserCode = null;
-                            let mlmCreationError = null;
                             if (app.referredById && !(app.mlmUserCode || app.userCode)) {
                                 try {
                                     mlmUserCode = await createMlmMemberFromApplication(db, app);
                                 } catch (e) {
-                                    mlmCreationError = e.message;
+                                    console.error(e);
                                 }
                             }
                             const html = `
@@ -855,10 +790,9 @@ export async function PUT(req) {
                                     <h2 style="color:#28a745">Application Approved!</h2>
                                     <p>Dear ${app.fullName || "Applicant"},</p>
                                     <p>Congratulations! Your application has been approved.</p>
-                                    <p><strong>Application ID:</strong> ${finalAppId}</p>
-                                    ${mlmUserCode ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>` : "<p>Your Real Beez account will be created once a sponsor is assigned.</p>"}
+                                    <p><strong>Application ID:</strong> ${finalAppId || "Not assigned"}</p>
+                                    ${mlmUserCode ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>` : ""}
                                     <hr/>
-                                    <div style="text-align:center; font-size:12px; color:#666;">Thank you for joining Real Beez Projects Pvt Ltd.</div>
                                     <p style="font-size:12px;"><a href="https://employer.real-beez.com">https://employer.real-beez.com</a></p>
                                 </div>`;
                             await sendEmail(app.email, "Application Approved – Real Beez Projects Pvt Ltd", html).catch(err => console.error(`Email failed for ${app.email}:`, err));
@@ -932,12 +866,15 @@ export async function PUT(req) {
                     if (!existing) {
                         finalAppId = preferredAppId;
                     } else {
-                        [finalAppId] = await reserveApplicationIds(db, 1);
+                        // no auto-generation, just keep original
+                        console.warn(`Preferred applicationId ${preferredAppId} already exists – keeping original ${finalAppId || "none"}`);
                     }
-                } else if (!finalAppId) {
-                    [finalAppId] = await reserveApplicationIds(db, 1);
                 }
-                updateFields.applicationId = finalAppId;
+                if (finalAppId) {
+                    updateFields.applicationId = finalAppId;
+                } else {
+                    console.error(`Application ${id} approved but missing applicationId – no auto-generation.`);
+                }
             }
 
             const updateResult = await col.updateOne(
@@ -948,7 +885,6 @@ export async function PUT(req) {
                 return Response.json({ error: "Failed to update status", success: false }, { status: 400 });
             }
 
-            // Send email for single approval/rejection (similar to bulk)
             if (application.email) {
                 if (status === "approved") {
                     let mlmUserCode = null;
@@ -964,7 +900,7 @@ export async function PUT(req) {
                             <h2 style="color:#28a745">Application Approved!</h2>
                             <p>Dear ${application.fullName || "Applicant"},</p>
                             <p>Congratulations! Your application has been approved.</p>
-                            <p><strong>Application ID:</strong> ${finalAppId}</p>
+                            <p><strong>Application ID:</strong> ${finalAppId || "Not assigned"}</p>
                             ${mlmUserCode ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>` : ""}
                             <hr/>
                             <p style="font-size:12px;"><a href="https://employer.real-beez.com">https://employer.real-beez.com</a></p>
@@ -1026,7 +962,6 @@ export async function PUT(req) {
             }));
         }
 
-        // Duplicate check for unique fields
         const dupCheckFields = ["email", "contactNo", "panNumber", "aadharNumber"];
         for (const field of dupCheckFields) {
             if (!filteredUpdate[field]) continue;
@@ -1133,31 +1068,10 @@ export async function DELETE(req) {
 
         const deleteResult = await col.deleteMany({ _id: { $in: existingDocs.map(d => d._id) } });
 
-        // Update counters after deletion
         const affectedLevels = new Set();
         for (const doc of existingDocs) {
             if (doc.level) affectedLevels.add(doc.level);
         }
-
-        const allApps = await col
-            .find(
-                { applicationId: { $exists: true, $nin: [null, ""] }, _type: { $ne: "__counter" } },
-                { projection: { applicationId: 1 } }
-            )
-            .toArray();
-        let maxAppNum = 0;
-        for (const doc of allApps) {
-            const match = doc.applicationId?.match(/^SB-(\d+)$/);
-            if (match) {
-                const num = parseInt(match[1], 10);
-                if (num > maxAppNum) maxAppNum = num;
-            }
-        }
-        await col.findOneAndUpdate(
-            { _type: "__counter", _key: "applicationId" },
-            { $set: { seq: maxAppNum } },
-            { upsert: true }
-        );
 
         for (const level of affectedLevels) {
             const userDocs = await col

@@ -1973,13 +1973,12 @@ export default function ApplicationManagement() {
         fetchUsers();
     }, [currentView]);
 
-    const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By' }) => {
+    const UserSelect = ({ users, value = '', onChange, loading, required = true, label = 'Referred By', fallbackName = '' }) => {
         const [query, setQuery] = useState('');
 
-        // Trim the incoming value
         const trimmedValue = typeof value === 'string' ? value.trim() : value;
 
-        // Find selected user by applicationId or userCode or mlmUserCode
+        // Try to find the selected user by any of the three identifiers
         const selectedUser = users.find(user =>
             user?.applicationId === trimmedValue ||
             user?.userCode === trimmedValue ||
@@ -1995,7 +1994,6 @@ export default function ApplicationManagement() {
             );
 
         const handleChange = (user) => {
-            // Pass trimmed value to parent
             onChange({
                 target: {
                     name: 'referredById',
@@ -2019,16 +2017,86 @@ export default function ApplicationManagement() {
             return code ? `${base} (${code})` : base;
         };
 
+        // If loading, show skeleton
+        if (loading) {
+            return (
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {label} {required && <span className="text-red-500">*</span>}
+                    </label>
+                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">
+                        Loading referrers...
+                    </div>
+                </div>
+            );
+        }
+
+        // If a value is stored but no matching user is found, show a fallback read‑only field
+        const showFallback = trimmedValue && !selectedUser && fallbackName;
+
         return (
             <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     {label} {required && <span className="text-red-500">*</span>}
                 </label>
-                {loading ? (
-                    <div className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500">
-                        Loading referrers...
+
+                {showFallback ? (
+                    <div className="relative">
+                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                            {fallbackName} <span className="text-xs text-gray-400">(original referrer – not in current user list)</span>
+                        </div>
+                        <p className="text-xs text-yellow-600 mt-1">
+                            ⚠️ The original referrer is not available. You may select a new referrer below.
+                        </p>
+                        <div className="mt-2">
+                            <Combobox value={null} onChange={handleChange}>
+                                <div className="relative mt-1">
+                                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-1 focus-within:ring-yellow-500">
+                                        <Combobox.Input
+                                            className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
+                                            onChange={(event) => setQuery(event.target.value)}
+                                            placeholder="Search and select a new referrer"
+                                        />
+                                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                                            <ChevronsUpDown className="h-5 w-5 text-gray-400" />
+                                        </Combobox.Button>
+                                    </div>
+                                    <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                        {filteredUsers.length === 0 && query !== '' ? (
+                                            <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                                                No referrers found.
+                                            </div>
+                                        ) : (
+                                            filteredUsers.map((user) => (
+                                                <Combobox.Option
+                                                    key={user?.userCode || user?.applicationId}
+                                                    className={({ active }) =>
+                                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`
+                                                    }
+                                                    value={user}
+                                                >
+                                                    {({ selected, active }) => (
+                                                        <>
+                                                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                                                {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${user?.userCode || user?.mlmUserCode})` : ''}`}
+                                                            </span>
+                                                            {selected && (
+                                                                <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}>
+                                                                    <Check className="h-5 w-5" />
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </Combobox.Option>
+                                            ))
+                                        )}
+                                    </Combobox.Options>
+                                </div>
+                            </Combobox>
+                        </div>
                     </div>
                 ) : (
+                    // Normal combobox when a matching user exists or no stored value
                     <Combobox value={selectedUser} onChange={handleChange}>
                         <div className="relative mt-1">
                             <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-1 focus-within:ring-yellow-500 focus-within:border-yellow-500">
@@ -2063,27 +2131,17 @@ export default function ApplicationManagement() {
                                         <Combobox.Option
                                             key={user?.userCode || user?.applicationId}
                                             className={({ active }) =>
-                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                                                }`
+                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'}`
                                             }
                                             value={user}
                                         >
                                             {({ selected, active }) => (
                                                 <>
-                                                    <span
-                                                        className={`block truncate ${selected ? 'font-medium' : 'font-normal'
-                                                            }`}
-                                                    >
-                                                        {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode)
-                                                            ? ` (${user?.userCode || user?.mlmUserCode})`
-                                                            : ''
-                                                            }`}
+                                                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                                        {`${user?.fullName || ''}${(user?.userCode || user?.mlmUserCode) ? ` (${user?.userCode || user?.mlmUserCode})` : ''}`}
                                                     </span>
                                                     {selected && (
-                                                        <span
-                                                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'
-                                                                }`}
-                                                        >
+                                                        <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-yellow-600' : 'text-yellow-600'}`}>
                                                             <Check className="h-5 w-5" aria-hidden="true" />
                                                         </span>
                                                     )}
@@ -2096,6 +2154,7 @@ export default function ApplicationManagement() {
                         </div>
                     </Combobox>
                 )}
+
                 <p className="text-xs text-gray-500 mt-1">
                     This member will be placed under your selected referrer
                 </p>
@@ -2291,7 +2350,7 @@ export default function ApplicationManagement() {
                     )}
 
                     {/* Gmail‑style Table */}
-                    <div className="bg-white rounded-b-lg shadow-sm overflow-hidden relative">
+                    <div className={`${filteredApplications.length >= 1 ? "rounded-b-lg" : "rounded-lg"} bg-white shadow-sm overflow-hidden relative`}>
                         {tableLoading ? (
                             <div className="flex justify-center items-center py-12">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
@@ -2301,7 +2360,7 @@ export default function ApplicationManagement() {
                                 {filteredApplications.length >= 1 ? (
                                     <div className="overflow-x-auto">
                                         <table className="min-w-full">
-                                            <thead className="border-b border-gray-200">
+                                            <thead className={`bg-gray-100 border-b border-gray-200`}>
                                                 <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                     <th className="w-8 px-4 py-3">
                                                         <CustomCheckbox
@@ -2466,7 +2525,7 @@ export default function ApplicationManagement() {
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InputField label="Application ID" name="applicationId" placeholder="Application ID" value={formData.applicationId} onChange={handleChange} required={false} />
-                                    <UserSelect users={usersList} value={(formData.referredById || "").trim()} onChange={handleChange} loading={loadingUsers} required={true} label="Referred By" />
+                                    <UserSelect users={usersList} value={(formData.referredById || "").trim()} onChange={handleChange} loading={loadingUsers} required={true} label="Referred By" fallbackName={formData.referredByName || ""} />
                                     <InputField label="Full Name" name="fullName" placeholder="Enter full name" value={formData.fullName} onChange={handleChange} validation="name" required maxLength={100} />
                                     <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} validation="dob" required={false} />
                                     <InputField label="Father's/Husband's Name" name="fatherName" placeholder="Father's or husband's name" value={formData.fatherName} onChange={handleChange} validation="name" required={false} />
