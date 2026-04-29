@@ -2396,7 +2396,7 @@ export default function ApplicationManagement() {
                                                         </td>
                                                         <td className="px-4 py-2.5">
                                                             <div className="text-sm font-medium text-gray-900">{app.fullName}</div>
-                                                            <div className="text-xs text-gray-500">
+                                                            <div className="text-xs text-gray-500 uppercase">
                                                                 ID: {app.applicationId || app._id?.slice(-6)}
                                                             </div>
                                                         </td>

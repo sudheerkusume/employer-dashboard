@@ -53,21 +53,21 @@ async function reserveUserCodes(db, level, count = 1) {
 // MLM HELPERS
 // ----------------------------------------------------------------------
 const PROMOTION_THRESHOLDS = {
-    ME: { next: "MM", required: 5 },
-    MM: { next: "SMM", required: 5 },
-    SMM: { next: "AGM", required: 5 },
-    AGM: { next: "DGM", required: 5 },
-    DGM: { next: "GM", required: 5 },
+    ME: { next: "MM", required: 12 },
+    MM: { next: "SMM", required: 12 },
+    SMM: { next: "AGM", required: 12 },
+    AGM: { next: "DGM", required: 12 },
+    DGM: { next: "GM", required: 12 },
     GM: { next: null, required: null },
 };
 
 const TARGETS = {
-    ME: 300000,
-    MM: 1000000,
-    SMM: 3500000,
-    AGM: 10000000,
-    DGM: 20000000,
-    GM: 50000000,
+    ME: 24000,
+    MM: 288000,
+    SMM: 3456000,
+    AGM: 41472000,
+    DGM: 497664000,
+    GM: 5971968000,
 };
 
 async function promoteUserIfNeeded(db, userCode) {
@@ -293,11 +293,11 @@ function maskSensitive(doc) {
     return r;
 }
 
-function buildDocument(value, applicationId, userCode) {
+function buildDocument(value, userCode) {
     const level = value.level || "ME";
     return {
         _id: new ObjectId(),
-        applicationId: applicationId || "", // keep empty if not provided
+        applicationId: value.applicationId || "",
         userCode,
         mlmUserCode: userCode,
         level,
@@ -556,7 +556,7 @@ export async function POST(req) {
             const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
             // Use the provided applicationId (may be empty string)
-            const finalDoc = buildDocument(rec.value, rec.value.applicationId || "", userCode);
+            const finalDoc = buildDocument(rec.value, userCode);
             finalDocs.push(finalDoc);
         }
 
