@@ -1,13 +1,11 @@
 import clientPromise from "@/app/components/lib/db";
 import { NextResponse } from "next/server";
 
-// Commission percentages per depth
+// Commission percentages per depth (1 = direct children, 2 = depth 2, etc.)
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
-// Max depth a user can earn from based on their rank
-const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
 const DEFAULT_SALE_VALUE = 2000;
 
-// Helper: compute team sales, downline count, and depth sales
+// Compute total downline count and cumulative sale value per depth
 function computeDepthSalesAndDownline(userId, childrenMap, maxDepth = 6) {
     let totalDownlineCount = 0;
     const depthSales = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
@@ -42,19 +40,19 @@ export async function GET(request) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // Get the logged‑in user
+        // 1. Get the logged‑in user
         const user = await col.findOne({ applicationId, _type: { $ne: "__counter" } });
         if (!user) {
             return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
         }
 
-        // Get all approved users for downline calculation
+        // 2. Get all approved users (downline members)
         const allUsers = await col.find(
             { status: "approved", _type: { $ne: "__counter" } },
             { projection: { applicationId: 1, referredById: 1, saleValue: 1, level: 1 } }
         ).toArray();
 
-        // Build children map (referredById -> array of children)
+        // 3. Build children map (referredById → array of children)
         const childrenMap = new Map();
         for (const doc of allUsers) {
             const refId = doc.referredById;
@@ -67,15 +65,13 @@ export async function GET(request) {
             });
         }
 
-        // Direct children count
+        // 4. Direct count
         const directCount = (childrenMap.get(applicationId) || []).length;
 
-        // Compute depth sales and total downline (all depths 1-6)
+        // 5. Compute depth sales and total downline count
         const { totalDownlineCount, depthSales } = computeDepthSalesAndDownline(applicationId, childrenMap, 6);
 
-        // Commission based on user's own rank (only eligible depths)
-        const userLevel = user.level || "ME";
-        const maxDepth = RANK_UNLOCKED_DEPTHS[userLevel] || 1;
+        // 6. Commission for ALL depths (no rank restriction)
         let totalCommission = 0;
         const commissionByDepth = [];
 
@@ -83,20 +79,20 @@ export async function GET(request) {
             const saleValue = depthSales[depth] || 0;
             const percent = COMMISSION_PERCENTS[depth] || 0;
             const commission = saleValue * percent;
-            if (depth <= maxDepth) totalCommission += commission;
+            totalCommission += commission;
             commissionByDepth.push({
                 depth,
                 saleValue,
                 percent: percent * 100,
                 commission,
-                eligible: depth <= maxDepth,
+                eligible: true,   // now all depths count
             });
         }
 
-        // Team sales = sum of all downline sales (all depths)
+        // 7. Team sales = sum of all downline sales (all depths)
         const teamSales = Object.values(depthSales).reduce((a, b) => a + b, 0);
         const personalSales = user.saleValue ?? DEFAULT_SALE_VALUE;
-        const wallet = user.wallet ?? 0; // use stored wallet, default 0
+        const wallet = user.wallet ?? 0;
 
         return NextResponse.json({
             success: true,
@@ -121,7 +117,7 @@ export async function GET(request) {
             commission: {
                 total: totalCommission,
                 breakdown: commissionByDepth,
-                maxDepthEligible: maxDepth,
+                maxDepthEligible: 6,
             },
         });
     } catch (error) {

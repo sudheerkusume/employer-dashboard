@@ -196,7 +196,7 @@ export default function HomePage() {
 
   // ------------------ LOGGED-IN DASHBOARD (with commission) ------------------
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Logout */}
         <div>
@@ -266,7 +266,7 @@ export default function HomePage() {
         </div>
 
         {/* Commission Card */}
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200">
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
