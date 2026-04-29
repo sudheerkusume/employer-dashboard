@@ -427,7 +427,8 @@ export async function POST(req) {
         const validationErrors = [];
 
         for (let i = 0; i < rawList.length; i++) {
-            const { _id, _type, applicationId, userCode, mlmUserCode,
+            // FIX: Do NOT extract applicationId – keep it inside rest
+            const { _id, _type, userCode, mlmUserCode,
                 appliedAt, updatedAt, remarks, role, ...rest } = rawList[i];
 
             if (!rest.fullName || rest.fullName.trim() === "") {
@@ -435,16 +436,6 @@ export async function POST(req) {
                     index: i,
                     name: `Row ${i + 1}`,
                     error: "fullName is required",
-                });
-                continue;
-            }
-
-            // For bulk import, applicationId is required (cannot be empty)
-            if (isBulk && (!rest.applicationId || rest.applicationId.trim() === "")) {
-                validationErrors.push({
-                    index: i,
-                    name: rest.fullName || `Row ${i + 1}`,
-                    error: "applicationId is required for bulk import",
                 });
                 continue;
             }
@@ -532,7 +523,7 @@ export async function POST(req) {
         }
 
         // ---------- 5. Prepare final documents (no ID generation) ----------
-        const allCleanRecords = cleanRecords; // no need to split into have/need
+        const allCleanRecords = cleanRecords;
 
         // Generate userCodes for all clean records
         const levelGroups = {};
@@ -555,7 +546,6 @@ export async function POST(req) {
         for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
-            // Use the provided applicationId (may be empty string)
             const finalDoc = buildDocument(rec.value, userCode);
             finalDocs.push(finalDoc);
         }
@@ -635,7 +625,7 @@ export async function POST(req) {
 }
 
 // ----------------------------------------------------------------------
-// GET, PUT, DELETE remain unchanged (identical to previous version)
+// GET, PUT, DELETE (unchanged, included as is)
 // ----------------------------------------------------------------------
 export async function GET(req) {
     try {
