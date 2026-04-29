@@ -28,6 +28,7 @@
     "react": "19.1.0",
     "react-big-calendar": "^1.19.4",
     "react-calendar": "^6.0.0",
+    "react-d3-tree": "^3.6.6",
     "react-dom": "19.1.0",
     "react-image-crop": "^11.0.10",
     "swr": "^2.3.6",
