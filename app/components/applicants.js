@@ -1785,21 +1785,19 @@ export default function ApplicationManagement() {
     const BulkStatusModal = () => {
         const textareaRef = useRef(null);
 
-        // Auto-focus and set cursor at the end of the text
+        // Auto-focus and set cursor at the end of the text (only when modal opens)
         useEffect(() => {
             if (showBulkStatusModal && textareaRef.current) {
-                // Small delay to ensure modal is fully rendered
                 setTimeout(() => {
                     const textarea = textareaRef.current;
                     if (textarea) {
                         textarea.focus();
-                        // Move cursor to the end of the current value
                         const length = textarea.value.length;
                         textarea.setSelectionRange(length, length);
                     }
                 }, 50);
             }
-        }, [showBulkStatusModal, bulkRemarks]); // re-run when bulkRemarks changes (optional)
+        }, [showBulkStatusModal]); // ✅ No bulkRemarks here, so it won't re-run on typing
 
         if (!showBulkStatusModal) return null;
 
