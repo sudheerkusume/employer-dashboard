@@ -3,6 +3,7 @@ import clientPromise from "@/app/components/lib/db";
 import { ObjectId } from "mongodb";
 import Joi from "joi";
 import nodemailer from "nodemailer";
+import * as XLSX from "xlsx";
 
 // ----------------------------------------------------------------------
 // EMAIL HELPER
@@ -161,7 +162,6 @@ async function createMlmMemberFromApplication(db, application) {
 // ----------------------------------------------------------------------
 // JOI SCHEMAS
 // ----------------------------------------------------------------------
-// For POST (creation) – fullName is required, all others optional
 const applicationSchema = Joi.object({
     applicationId: Joi.string().allow("").optional(),
     fullName: Joi.string().min(2).max(100).required(),
@@ -206,7 +206,6 @@ const applicationSchema = Joi.object({
     dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
-// For PUT partial updates – all fields optional (including fullName)
 const updateApplicationSchema = Joi.object({
     id: Joi.string().required(),
     applicationId: Joi.string().allow("").optional(),
@@ -252,7 +251,6 @@ const updateApplicationSchema = Joi.object({
     dateOfApplication: Joi.string().allow("").default(new Date()).optional(),
 });
 
-// For status-only update (approve/reject)
 const updateStatusSchema = Joi.object({
     id: Joi.string().required(),
     status: Joi.string().required(),
@@ -358,13 +356,81 @@ function buildDocument(value, applicationId, userCode) {
 }
 
 // ----------------------------------------------------------------------
-// POST – single object OR array (bulk)
+// HELPER: FETCH GOOGLE SHEET DATA
+// ----------------------------------------------------------------------
+async function fetchGoogleSheetData(url) {
+    let csvUrl = url;
+    if (url.includes("/edit") || url.includes("/spreadsheets/d/")) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match) {
+            const sheetId = match[1];
+            csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+        } else {
+            throw new Error("Invalid Google Sheets URL");
+        }
+    } else if (!url.includes("export?format=csv")) {
+        throw new Error("Unrecognized Google Sheets URL format");
+    }
+
+    const response = await fetch(csvUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch Google Sheet: ${response.statusText}`);
+    }
+    const csvText = await response.text();
+    const lines = csvText.split("\n").filter(line => line.trim());
+    if (lines.length < 2) throw new Error("CSV has no data rows");
+    const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map(v => v.trim().replace(/^"|"$/g, ""));
+        if (values.length === headers.length) {
+            const obj = {};
+            headers.forEach((h, idx) => { obj[h] = values[idx]; });
+            data.push(obj);
+        }
+    }
+    return data;
+}
+
+// ----------------------------------------------------------------------
+// POST – single object OR array (bulk) with support for Excel/Google Sheets
 // ----------------------------------------------------------------------
 export async function POST(req) {
     try {
-        const body = await req.json();
-        const isBulk = Array.isArray(body);
-        const rawList = isBulk ? body : [body];
+        const contentType = req.headers.get("content-type") || "";
+        let rawList = null;
+
+        if (contentType.includes("application/json")) {
+            const body = await req.json();
+            rawList = Array.isArray(body) ? body : [body];
+        }
+        else if (contentType.includes("multipart/form-data")) {
+            const formData = await req.formData();
+            const file = formData.get("file");
+            const googleSheetUrl = formData.get("googleSheetUrl");
+            if (file && file instanceof File) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const workbook = XLSX.read(buffer, { type: "buffer" });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+                if (!rows || rows.length === 0) {
+                    return Response.json({ success: false, error: "Excel file contains no data rows" }, { status: 400 });
+                }
+                rawList = rows;
+            }
+            else if (googleSheetUrl && typeof googleSheetUrl === "string") {
+                rawList = await fetchGoogleSheetData(googleSheetUrl);
+            }
+            else {
+                return Response.json({ success: false, error: "No file or Google Sheet URL provided" }, { status: 400 });
+            }
+        }
+        else {
+            return Response.json({ success: false, error: `Unsupported Content-Type: ${contentType}` }, { status: 415 });
+        }
+
+        const isBulk = Array.isArray(rawList) && rawList.length > 1;
 
         if (rawList.length === 0) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
@@ -432,8 +498,8 @@ export async function POST(req) {
         // ---------- 4. Separate clean records from duplicates, and categorize by need for appId ----------
         const cleanRecords = [];
         const skippedRecords = [];
-        const needNewAppId = [];   // rows that have no applicationId or empty string
-        const haveAppId = [];      // rows that already provide a non‑empty applicationId
+        const needNewAppId = [];
+        const haveAppId = [];
 
         for (const rec of validRecords) {
             let dupReason = null;
@@ -452,7 +518,6 @@ export async function POST(req) {
                 });
             } else {
                 cleanRecords.push(rec);
-                // Check if applicationId is provided and not empty
                 const providedAppId = rec.value.applicationId;
                 if (providedAppId && providedAppId.trim() !== "") {
                     haveAppId.push(rec);
@@ -471,21 +536,19 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ---------- 5. Generate new application IDs only for those that need them ----------
+        // ---------- 5. Generate new application IDs ONLY for records that need them ----------
         const newAppIds = needNewAppId.length > 0
             ? await reserveApplicationIds(db, needNewAppId.length)
             : [];
 
-        // Attach finalAppId to each record
         let newAppIdIndex = 0;
         for (const rec of needNewAppId) {
             rec.finalAppId = newAppIds[newAppIdIndex++];
         }
         for (const rec of haveAppId) {
-            rec.finalAppId = rec.value.applicationId;   // use the provided one
+            rec.finalAppId = rec.value.applicationId;
         }
 
-        // Now combine all records for userCode generation
         const allCleanRecords = [...needNewAppId, ...haveAppId];
 
         // ---------- 6. Generate userCodes (level‑based) ----------
@@ -505,7 +568,6 @@ export async function POST(req) {
             Object.keys(levelGroups).map(lvl => [lvl, 0])
         );
 
-        // Build final documents
         const finalDocs = [];
         for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
@@ -517,7 +579,7 @@ export async function POST(req) {
         // ---------- 7. Insert into DB ----------
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
-        // ---------- 8. Send email notifications (if email exists) ----------
+        // ---------- 8. Send email notifications ----------
         const emailPromises = [];
         for (const doc of finalDocs) {
             if (!doc.email) continue;
@@ -552,7 +614,6 @@ export async function POST(req) {
 
         const maskedDocs = finalDocs.map(maskSensitive);
 
-        // ---------- 9. Return response ----------
         if (!isBulk) {
             const doc = finalDocs[0];
             return Response.json({
@@ -585,7 +646,7 @@ export async function POST(req) {
 
     } catch (err) {
         console.error("❌ POST error:", err);
-        return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+        return Response.json({ success: false, error: "Internal Server Error: " + err.message }, { status: 500 });
     }
 }
 
@@ -644,7 +705,6 @@ export async function GET(req) {
             .limit(limit)
             .toArray();
 
-        // Ensure every application has the date fields (fallback to empty string)
         const maskedResults = results.map(app => ({
             ...app,
             applicantSignature: app.applicantSignature || "[SIGNATURE]",
@@ -840,8 +900,42 @@ export async function PUT(req) {
                 return Response.json({ error: "Failed to update status", success: false }, { status: 400 });
             }
 
-            // Handle email for single update (same as before, omitted for brevity – keep your existing code here)
-            // ... (your existing email sending logic for single approve/reject)
+            // Send email for single approval/rejection (similar to bulk)
+            if (application.email) {
+                if (status === "approved") {
+                    let mlmUserCode = null;
+                    if (application.referredById && !(application.mlmUserCode || application.userCode)) {
+                        try {
+                            mlmUserCode = await createMlmMemberFromApplication(db, application);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+                    const html = `
+                        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                            <h2 style="color:#28a745">Application Approved!</h2>
+                            <p>Dear ${application.fullName || "Applicant"},</p>
+                            <p>Congratulations! Your application has been approved.</p>
+                            <p><strong>Application ID:</strong> ${finalAppId}</p>
+                            ${mlmUserCode ? `<p><strong>Your Real Beez User Code:</strong> ${mlmUserCode}</p>` : ""}
+                            <hr/>
+                            <p style="font-size:12px;"><a href="https://employer.real-beez.com">https://employer.real-beez.com</a></p>
+                        </div>`;
+                    await sendEmail(application.email, "Application Approved – Real Beez Projects Pvt Ltd", html).catch(err => console.error(`Email failed for ${application.email}:`, err));
+                } else if (status === "rejected") {
+                    const html = `
+                        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                            <h2 style="color:#dc3545">Application Status Update</h2>
+                            <p>Dear ${application.fullName || "Applicant"},</p>
+                            <p>We regret to inform you that your application has been rejected.</p>
+                            <p><strong>Application ID:</strong> ${finalAppId || application.applicationId}</p>
+                            ${remarks ? `<p><strong>Reason:</strong> ${remarks}</p>` : ""}
+                            <hr/>
+                            <p style="font-size:12px;color:#666">Thank you for your interest.</p>
+                        </div>`;
+                    await sendEmail(application.email, "Application Status Update – Real Beez Projects Pvt Ltd", html).catch(err => console.error(`Email failed for ${application.email}:`, err));
+                }
+            }
 
             return Response.json({
                 success: true,
@@ -1005,7 +1099,6 @@ export async function DELETE(req) {
             .toArray();
         let maxAppNum = 0;
         for (const doc of allApps) {
-            // Updated regex to include dash: SB-000000
             const match = doc.applicationId?.match(/^SB-(\d+)$/);
             if (match) {
                 const num = parseInt(match[1], 10);

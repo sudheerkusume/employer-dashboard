@@ -1781,18 +1781,25 @@ export default function ApplicationManagement() {
         );
     };
 
+
     const BulkStatusModal = () => {
         const textareaRef = useRef(null);
 
-        // Auto-focus textarea when modal opens
+        // Auto-focus and set cursor at the end of the text
         useEffect(() => {
             if (showBulkStatusModal && textareaRef.current) {
-                // Small delay ensures DOM is fully rendered
+                // Small delay to ensure modal is fully rendered
                 setTimeout(() => {
-                    textareaRef.current?.focus();
+                    const textarea = textareaRef.current;
+                    if (textarea) {
+                        textarea.focus();
+                        // Move cursor to the end of the current value
+                        const length = textarea.value.length;
+                        textarea.setSelectionRange(length, length);
+                    }
                 }, 50);
             }
-        }, [showBulkStatusModal]);
+        }, [showBulkStatusModal, bulkRemarks]); // re-run when bulkRemarks changes (optional)
 
         if (!showBulkStatusModal) return null;
 
@@ -1820,7 +1827,6 @@ export default function ApplicationManagement() {
                             rows={3}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
                             placeholder="Add a common remark for all selected applications..."
-                            autoFocus  // fallback for browsers that support it
                         />
                     </div>
                     <div className="flex justify-end space-x-3 mt-4">
@@ -1834,8 +1840,8 @@ export default function ApplicationManagement() {
                             onClick={confirmBulkStatusUpdate}
                             disabled={actionLoading}
                             className={`px-4 py-2 rounded-md text-white transition ${bulkStatusAction === 'approved'
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'bg-red-600 hover:bg-red-700'
+                                    ? 'bg-green-600 hover:bg-green-700'
+                                    : 'bg-red-600 hover:bg-red-700'
                                 } disabled:opacity-50`}
                         >
                             {actionLoading ? 'Updating...' : `Confirm ${bulkStatusAction === 'approved' ? 'Approve' : 'Reject'}`}
@@ -1845,6 +1851,9 @@ export default function ApplicationManagement() {
             </div>
         );
     };
+
+
+
     const PreviewSection = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white text-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
