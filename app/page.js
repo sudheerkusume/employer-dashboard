@@ -1,4 +1,4 @@
-// app/page.js - Beautiful Dashboard (Improved)
+// app/page.js - Beautiful Dashboard (with commission)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,25 +14,26 @@ export default function HomePage() {
     teamSales: 0,
     wallet: 0,
     directCount: 0,
-    totalDownline: 0
+    totalDownline: 0,
   });
+  const [commission, setCommission] = useState({ total: 0, breakdown: [], maxDepthEligible: 1 });
+  const [showCommissionBreakdown, setShowCommissionBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const userCode = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
+  const applicationId = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
 
   useEffect(() => {
-    if (userCode) {
-      fetchDashboardData(userCode);
+    if (applicationId) {
+      fetchDashboardData(applicationId);
     } else {
       setLoading(false);
     }
-  }, [userCode]);
+  }, [applicationId]);
 
-  const fetchDashboardData = async (userCode) => {
+  const fetchDashboardData = async (appId) => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/mlm/dashboard?applicationId=${userCode}`);
+      const res = await fetch(`/api/mlm/dashboard?applicationId=${appId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -42,21 +43,20 @@ export default function HomePage() {
           teamSales: data.stats.teamSales,
           wallet: data.stats.wallet,
           directCount: data.stats.directCount,
-          totalDownline: data.stats.totalDownline
+          totalDownline: data.stats.totalDownline,
         });
+        setCommission(data.commission || { total: 0, breakdown: [], maxDepthEligible: 1 });
       } else {
-        // If user not found, clear local storage and redirect to login
+        // Session expired or user not found
         localStorage.removeItem('mlm_user_code');
         localStorage.removeItem('mlm_user_name');
         localStorage.removeItem('mlm_user_level');
         localStorage.removeItem('mlm_user_role');
         setUserData(null);
-        setError(data.error || 'Session expired');
         router.push('/');
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -70,10 +70,11 @@ export default function HomePage() {
     );
   }
 
+  // ------------------ GUEST VIEW (not logged in) ------------------
   if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-        {/* Hero Section (unchanged) */}
+        {/* Hero Section */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
@@ -111,7 +112,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Features Section (unchanged) */}
+        {/* Features Section */}
         <section className="bg-gray-50 py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -134,7 +135,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CTA Section (unchanged) */}
+        {/* CTA Section */}
         <section className="bg-gradient-to-r from-yellow-600 to-yellow-500 py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl font-bold text-white">Ready to Start Your Real Beez Journey?</h2>
@@ -152,7 +153,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer (unchanged) */}
+        {/* Footer */}
         <footer className="bg-gray-900 text-gray-400 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-4 gap-8">
@@ -193,17 +194,18 @@ export default function HomePage() {
     );
   }
 
-  // ========== LOGGED-IN DASHBOARD (using only dashboard API) ==========
+  // ------------------ LOGGED-IN DASHBOARD (with commission) ------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header with Logout */}
+        <div>
           <h1 className="text-4xl font-bold text-gray-900">Welcome back, {userData?.fullName}!</h1>
           <p className="text-gray-600 mt-2">Here's what's happening with your network today.</p>
+          <p className="text-sm text-gray-500 mt-1">Level: {userData?.level} | ID: {userData?.applicationId}</p>
         </div>
 
-        {/* Stats Cards - Beautiful Design */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
             <div className="flex items-center justify-between">
@@ -261,6 +263,63 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Commission Card */}
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Based on downline sales up to depth {commission.maxDepthEligible} (your rank: {userData?.level})
+              </p>
+            </div>
+            <div className="text-3xl font-bold text-green-600">{formatCurrency(commission.total)}</div>
+          </div>
+          <button
+            onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)}
+            className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            {showCommissionBreakdown ? 'Hide breakdown' : 'View breakdown by depth'}
+          </button>
+          {showCommissionBreakdown && commission.breakdown && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Depth Level</th>
+                    <th className="px-3 py-2 text-left">Commission %</th>
+                    <th className="px-3 py-2 text-right">Total Sale Value</th>
+                    <th className="px-3 py-2 text-right">Commission Earned</th>
+                    <th className="px-3 py-2 text-center">Eligible?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commission.breakdown.map((item) => (
+                    <tr key={item.depth} className="border-b">
+                      <td className="px-3 py-2">Level {item.depth}</td>
+                      <td className="px-3 py-2">{item.percent}%</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(item.saleValue)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-green-600">
+                        {formatCurrency(item.commission)}
+                      </td>
+                      <td className="px-3 py-2 text-center">{item.eligible ? '✓ Yes' : '✗ Need higher rank'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan="3" className="px-3 py-2 text-right font-bold">Total Commission:</td>
+                    <td className="px-3 py-2 text-right font-bold text-green-700">{formatCurrency(commission.total)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+              <p className="text-xs text-gray-500 mt-2">
+                * Commission is calculated only on downline sales up to depth level {commission.maxDepthEligible} (based on your rank {userData?.level}).
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
