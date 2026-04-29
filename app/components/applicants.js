@@ -1784,20 +1784,26 @@ export default function ApplicationManagement() {
 
     const BulkStatusModal = () => {
         const textareaRef = useRef(null);
+        const hasFocused = useRef(false); // prevent multiple focus attempts
 
-        // Auto-focus and set cursor at the end of the text (only when modal opens)
         useEffect(() => {
-            if (showBulkStatusModal && textareaRef.current) {
-                setTimeout(() => {
+            if (showBulkStatusModal && textareaRef.current && !hasFocused.current) {
+                hasFocused.current = true;
+                // Use requestAnimationFrame for better timing
+                requestAnimationFrame(() => {
                     const textarea = textareaRef.current;
                     if (textarea) {
                         textarea.focus();
                         const length = textarea.value.length;
                         textarea.setSelectionRange(length, length);
                     }
-                }, 50);
+                });
             }
-        }, [showBulkStatusModal]); // ✅ No bulkRemarks here, so it won't re-run on typing
+            // Reset flag when modal closes
+            if (!showBulkStatusModal) {
+                hasFocused.current = false;
+            }
+        }, [showBulkStatusModal]);
 
         if (!showBulkStatusModal) return null;
 
@@ -1823,7 +1829,8 @@ export default function ApplicationManagement() {
                             value={bulkRemarks}
                             onChange={(e) => setBulkRemarks(e.target.value)}
                             rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 transition-colors outline-none"
+                            // Removed transition-colors to prevent blinking, kept focus ring
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                             placeholder="Add a common remark for all selected applications..."
                         />
                     </div>
