@@ -536,7 +536,47 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ---------- 5. Generate new application IDs ONLY for records that need them ----------
+        // ========== FIX: PREVENT APPLICATION ID COLLISIONS ==========
+        // 1. Get current max applicationId (numeric part) from the database
+        const maxAppIdDoc = await col.findOne(
+            { applicationId: { $regex: /^SB-\d+$/ }, _type: { $ne: "__counter" } },
+            { sort: { applicationId: -1 }, projection: { applicationId: 1 } }
+        );
+        let maxDbNumber = 0;
+        if (maxAppIdDoc?.applicationId) {
+            const match = maxAppIdDoc.applicationId.match(/^SB-(\d+)$/);
+            if (match) maxDbNumber = parseInt(match[1], 10);
+        }
+
+        // 2. Find the highest custom ID provided in this batch
+        let maxCustomNumber = 0;
+        for (const rec of haveAppId) {
+            const customId = rec.value.applicationId?.trim();
+            if (customId) {
+                const match = customId.match(/^SB-(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxCustomNumber) maxCustomNumber = num;
+                }
+            }
+        }
+
+        // 3. Overall maximum number (may be 0 if no IDs exist)
+        const overallMax = Math.max(maxDbNumber, maxCustomNumber);
+
+        // 4. Update counter ONLY if overallMax is greater than current seq (never decrease)
+        const counterCol = db.collection("marketing_applications");
+        const currentCounter = await counterCol.findOne({ _type: "__counter", _key: "applicationId" });
+        const currentSeq = currentCounter?.seq || 0;
+        if (overallMax > currentSeq) {
+            await counterCol.updateOne(
+                { _type: "__counter", _key: "applicationId" },
+                { $set: { seq: overallMax } },
+                { upsert: true }
+            );
+        }
+
+        // 5. Now reserve new IDs – they will be overallMax+1, overallMax+2, ...
         const newAppIds = needNewAppId.length > 0
             ? await reserveApplicationIds(db, needNewAppId.length)
             : [];
@@ -576,7 +616,15 @@ export async function POST(req) {
             finalDocs.push(finalDoc);
         }
 
-        // ---------- 7. Insert into DB ----------
+        // ---------- 7. Insert into DB – reorder: custom IDs first, then auto-generated ----------
+        finalDocs.sort((a, b) => {
+            const aIsCustom = haveAppId.some(rec => rec.finalAppId === a.applicationId);
+            const bIsCustom = haveAppId.some(rec => rec.finalAppId === b.applicationId);
+            if (aIsCustom && !bIsCustom) return -1;
+            if (!aIsCustom && bIsCustom) return 1;
+            return 0;
+        });
+
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
         // ---------- 8. Send email notifications ----------

@@ -1351,6 +1351,11 @@ export default function ApplicationManagement() {
         return date.toISOString().split('T')[0];
     };
 
+    const cleanId = (value) => {
+        if (!value) return '';
+        return String(value).replace(/\s+/g, '');
+    };
+
     const mapExcelRowToFormData = (row) => {
         const getStr = (key) => (row[key] ? String(row[key]).trim() : '');
         let emergencyContacts = [];
@@ -1385,8 +1390,13 @@ export default function ApplicationManagement() {
         if (emergencyContacts.length === 0) {
             emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
         }
+
+        // Get raw IDs and clean them (remove all spaces)
+        const rawAppId = getStr('Application ID');
+        const rawReferredById = getStr('Referred By Id');
+
         return {
-            applicationId: getStr('Application ID'),
+            applicationId: rawAppId ? cleanId(rawAppId) : '',
             dateOfApplication: getStr('Date Of Application'),
             modeOfPayment: getStr('UTR No / Cash'),
             dateOfPayment: getStr('Date Of Payment'),
@@ -1416,7 +1426,7 @@ export default function ApplicationManagement() {
             declaration: getStr('Declaration Accepted') === 'Yes',
             referrerSignature: '',
             applicantSignature: '',
-            referredById: getStr('Referred By Id') || 'SB-000000',
+            referredById: rawReferredById ? cleanId(rawReferredById) : 'SB-000012',
             referredByName: getStr('Referred By Name') || 'K Srinivas',
             status: getStr('Status') || 'pending',
         };
@@ -1479,7 +1489,9 @@ export default function ApplicationManagement() {
         if (searchTerm) filtered = filtered.filter(app =>
             app.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             app.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            app.contactNo?.includes(searchTerm)
+            app.contactNo?.includes(searchTerm) ||
+            app.applicationId?.includes(searchTerm) ||
+            app.mlmUserCode?.includes(searchTerm)
         );
         return filtered;
     }, [applications, searchTerm]);
@@ -1845,8 +1857,8 @@ export default function ApplicationManagement() {
                             onClick={confirmBulkStatusUpdate}
                             disabled={actionLoading}
                             className={`px-4 py-2 rounded-md text-white transition ${bulkStatusAction === 'approved'
-                                    ? 'bg-green-600 hover:bg-green-700'
-                                    : 'bg-red-600 hover:bg-red-700'
+                                ? 'bg-green-600 hover:bg-green-700'
+                                : 'bg-red-600 hover:bg-red-700'
                                 } disabled:opacity-50`}
                         >
                             {actionLoading ? 'Updating...' : `Confirm ${bulkStatusAction === 'approved' ? 'Approve' : 'Reject'}`}
