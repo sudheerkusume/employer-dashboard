@@ -103,16 +103,35 @@ function RealTimeCommission({ currentNode }) {
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
             <h2 className="text-lg font-semibold mb-3">💰 Real-Time Commission for {currentNode.fullName} ({currentNode.level})</h2>
             <table className="min-w-full text-sm">
-                <thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left">Depth Level</th><th className="px-4 py-2 text-left">Commission %</th><th className="px-4 py-2 text-right">Total Sale Value</th><th className="px-4 py-2 text-right">Commission Earned</th></tr></thead>
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-4 py-2 text-left">Depth Level</th>
+                        <th className="px-4 py-2 text-left">Commission %</th>
+                        <th className="px-4 py-2 text-right">Total Sale Value</th>
+                        <th className="px-4 py-2 text-right">Commission Earned</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {[1, 2, 3, 4, 5, 6].map(depth => {
                         const data = commissionData.byDepth[depth];
                         if (!data || data.sumSaleValue === 0) return null;
                         const percent = (COMMISSION_PERCENTS[depth] || 0) * 100;
-                        return <tr key={depth} className="border-b"><td className="px-4 py-2">Level {depth}</td><td className="px-4 py-2">{percent}%</td><td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td><td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(data.commission)}</td></tr>;
+                        return (
+                            <tr key={depth} className="border-b">
+                                <td className="px-4 py-2">Level {depth}</td>
+                                <td className="px-4 py-2">{percent}%</td>
+                                <td className="px-4 py-2 text-right">{formatCurrency(data.sumSaleValue)}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(data.commission)}</td>
+                            </tr>
+                        );
                     })}
                 </tbody>
-                <tfoot className="bg-gray-100"><tr><td colSpan="3" className="px-4 py-2 text-right font-bold">Total Commission (all depths):</td><td className="px-4 py-2 text-right font-bold text-green-700">{formatCurrency(commissionData.totalCommission)}</td></tr></tfoot>
+                <tfoot className="bg-gray-100">
+                    <tr>
+                        <td colSpan="3" className="px-4 py-2 text-right font-bold">Total Commission (all depths):</td>
+                        <td className="px-4 py-2 text-right font-bold text-green-700">{formatCurrency(commissionData.totalCommission)}</td>
+                    </tr>
+                </tfoot>
             </table>
             <p className="text-xs text-gray-500 mt-2">* As a {currentNode.level}, you earn commission only up to depth level {maxDepth}.</p>
         </div>
@@ -143,8 +162,13 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
                 <div className="bg-white rounded-lg shadow p-4">
                     <h3 className="text-lg font-semibold text-gray-800">Promotion to {nextRank}</h3>
                     <div className="mt-2">
-                        <div className="flex justify-between text-sm text-gray-600"><span>{promotedDirectCount} of {totalDirect} direct members have reached {nextRank}</span><span>{Math.round(progressPercent)}%</span></div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div></div>
+                        <div className="flex justify-between text-sm text-gray-600">
+                            <span>{promotedDirectCount} of {totalDirect} direct members have reached {nextRank}</span>
+                            <span>{Math.round(progressPercent)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -152,12 +176,24 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">💰 Commission Structure</h3>
                 <p className="text-sm text-gray-600 mb-3">As a {rank}, you earn from downline up to depth level {maxDepth}.</p>
                 <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50"><tr><th className="px-3 py-2">Depth Level</th><th className="px-3 py-2">Commission</th><th className="px-3 py-2">Eligible?</th></tr></thead>
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-3 py-2">Depth Level</th>
+                            <th className="px-3 py-2">Commission</th>
+                            <th className="px-3 py-2">Eligible?</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {[1, 2, 3, 4, 5, 6].map(depth => {
                             const percent = COMMISSION_PERCENTS[depth] * 100;
                             const eligible = depth <= maxDepth;
-                            return <tr key={depth} className="border-b"><td className="px-3 py-2">Level {depth}</td><td className="px-3 py-2">{percent}%</td><td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td></tr>;
+                            return (
+                                <tr key={depth} className="border-b">
+                                    <td className="px-3 py-2">Level {depth}</td>
+                                    <td className="px-3 py-2">{percent}%</td>
+                                    <td className="px-3 py-2">{eligible ? "✓ Yes" : "✗ Need higher rank"}</td>
+                                </tr>
+                            );
                         })}
                     </tbody>
                 </table>
@@ -165,8 +201,14 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
             <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-800">📊 Network Summary</h3>
                 <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div><div className="text-gray-500 text-sm">Direct Members</div><div className="text-2xl font-bold text-blue-600">{directCount}</div></div>
-                    <div><div className="text-gray-500 text-sm">Total Downline</div><div className="text-2xl font-bold text-green-600">{totalDownline}</div></div>
+                    <div>
+                        <div className="text-gray-500 text-sm">Direct Members</div>
+                        <div className="text-2xl font-bold text-blue-600">{directCount}</div>
+                    </div>
+                    <div>
+                        <div className="text-gray-500 text-sm">Total Downline</div>
+                        <div className="text-2xl font-bold text-green-600">{totalDownline}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -174,9 +216,9 @@ function RankDashboard({ userNode, directCount, totalDownline }) {
 }
 
 // ----------------------------------------------------------------------
-// NEW TREE RENDERER – exactly like the image (vertical hierarchy with lines)
+// NEW TREE HIERARCHY WITH SVG LINES (matches reference image)
 // ----------------------------------------------------------------------
-function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode }) {
+function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode, depth = 0 }) {
     if (!node) return null;
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedNodes[node._id] === true;
@@ -184,10 +226,16 @@ function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode }) {
     const levelBg = getLevelBg(node.level);
     const displayName = node.fullName || node.userCode || "Unknown";
 
+    const handleToggle = (e) => {
+        e.stopPropagation();
+        toggleNode(node._id, e);
+    };
+
     return (
-        <div className="tree-node-wrapper">
+        <div className="tree-node-container">
+            {/* Node Card */}
             <div className={`tree-card ${levelBg} border rounded-xl shadow-sm hover:shadow-md transition-all`}>
-                <div className="flex items-center justify-between gap-3 p-3">
+                <div className="flex items-center justify-between gap-2 p-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className={`w-3 h-3 rounded-full ${levelColor} flex-shrink-0`} />
                         <span className="font-semibold text-gray-800 truncate">{displayName}</span>
@@ -196,7 +244,7 @@ function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode }) {
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                         {hasChildren && (
-                            <button onClick={(e) => toggleNode(node._id, e)} className="text-gray-500 hover:text-gray-700 text-sm px-2 py-1 rounded-md hover:bg-gray-100">
+                            <button onClick={handleToggle} className="text-gray-500 hover:text-gray-700 text-sm px-2 py-1 rounded-md hover:bg-gray-100">
                                 {isExpanded ? "▲" : "▼"}
                             </button>
                         )}
@@ -210,17 +258,49 @@ function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode }) {
                 </div>
             </div>
 
+            {/* Children & Lines */}
             {hasChildren && isExpanded && (
-                <div className="tree-children-area">
+                <div className="tree-children-wrapper">
+                    <svg className="tree-lines-svg" xmlns="http://www.w3.org/2000/svg">
+                        {/* Vertical line from this node to the horizontal bar */}
+                        <line x1="50%" y1="0" x2="50%" y2="20" stroke="#cbd5e1" strokeWidth="2" />
+                        {/* Horizontal bar across children */}
+                        <line
+                            x1="0"
+                            y1="20"
+                            x2="100%"
+                            y2="20"
+                            stroke="#cbd5e1"
+                            strokeWidth="2"
+                        />
+                        {/* Vertical lines down to each child (drawn per child) */}
+                        {node.children.map((_, idx) => {
+                            const childCount = node.children.length;
+                            const leftPercent = (idx + 0.5) * (100 / childCount);
+                            return (
+                                <line
+                                    key={`line-${node._id}-${idx}`}
+                                    x1={`${leftPercent}%`}
+                                    y1="20"
+                                    x2={`${leftPercent}%`}
+                                    y2="40"
+                                    stroke="#cbd5e1"
+                                    strokeWidth="2"
+                                />
+                            );
+                        })}
+                    </svg>
                     <div className="tree-children-row">
-                        {node.children.map(child => (
-                            <TreeHierarchy
-                                key={child._id}
-                                node={child}
-                                onViewUser={onViewUser}
-                                expandedNodes={expandedNodes}
-                                toggleNode={toggleNode}
-                            />
+                        {node.children.map((child, idx) => (
+                            <div key={child._id} className="tree-child-item" style={{ flexBasis: `${100 / node.children.length}%` }}>
+                                <TreeHierarchy
+                                    node={child}
+                                    onViewUser={onViewUser}
+                                    expandedNodes={expandedNodes}
+                                    toggleNode={toggleNode}
+                                    depth={depth + 1}
+                                />
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -230,7 +310,7 @@ function TreeHierarchy({ node, onViewUser, expandedNodes, toggleNode }) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component (same logic as before, only tree rendering changed)
+// Main Component
 // ----------------------------------------------------------------------
 export default function MLMTree() {
     const router = useRouter();
@@ -328,7 +408,9 @@ export default function MLMTree() {
         return (
             <Fragment key={node._id}>
                 <tr onClick={(e) => toggleNode(node._id, e)} className={`hover:bg-gray-50 ${hasChildren && "cursor-pointer"}`}>
-                    <td className="px-2 py-2 text-center">{hasChildren && <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200">{isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}</button>}</td>
+                    <td className="px-2 py-2 text-center">
+                        {hasChildren && <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200">{isExpanded ? <ArrowBigDownIcon size={17} /> : <ArrowBigRightIcon size={17} />}</button>}
+                    </td>
                     <td className="px-4 py-2" style={{ paddingLeft: level * 30 + 16 }}>{node.fullName || node.userCode || "Unknown"}</td>
                     <td className="px-4 py-2">{identifier || "-"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-1 text-xs rounded-full ${getLevelColor(node.level)} text-white`}>{node.level}</span></td>
@@ -404,7 +486,10 @@ export default function MLMTree() {
                         <h2 className="text-lg font-semibold mb-3">📊 Rank Distribution (Downline)</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                             {Object.entries(rankDist).map(([rank, count]) => (
-                                <div key={rank} className="text-center p-2 rounded-lg bg-gray-50"><div className="text-sm font-bold">{rank}</div><div className="text-2xl font-bold">{count}</div></div>
+                                <div key={rank} className="text-center p-2 rounded-lg bg-gray-50">
+                                    <div className="text-sm font-bold">{rank}</div>
+                                    <div className="text-2xl font-bold">{count}</div>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -429,7 +514,16 @@ export default function MLMTree() {
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50"><tr><th className="px-2 py-3 text-left w-10"></th><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Code</th><th className="px-4 py-3 text-left">Rank</th><th className="px-4 py-3 text-left">Sale Value</th><th className="px-4 py-3 text-left">Action</th></tr></thead>
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-2 py-3 text-left w-10"></th>
+                                            <th className="px-4 py-3 text-left">Name</th>
+                                            <th className="px-4 py-3 text-left">Code</th>
+                                            <th className="px-4 py-3 text-left">Rank</th>
+                                            <th className="px-4 py-3 text-left">Sale Value</th>
+                                            <th className="px-4 py-3 text-left">Action</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>{renderListView(currentNode)}</tbody>
                                 </table>
                             </div>
@@ -452,7 +546,7 @@ export default function MLMTree() {
                 </div>
             </div>
 
-            {/* CSS for the image‑like tree */}
+            {/* Styles for the new tree hierarchy */}
             <style jsx>{`
                 .tree-container {
                     display: flex;
@@ -460,7 +554,7 @@ export default function MLMTree() {
                     overflow-x: auto;
                     padding: 1rem;
                 }
-                .tree-node-wrapper {
+                .tree-node-container {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -469,55 +563,55 @@ export default function MLMTree() {
                 .tree-card {
                     width: 220px;
                     transition: all 0.2s;
+                    z-index: 2;
+                    background-color: white;
                 }
-                .tree-children-area {
+                .tree-children-wrapper {
                     position: relative;
-                    margin-top: 1.5rem;
+                    margin-top: 0.75rem;
                     width: 100%;
+                }
+                .tree-lines-svg {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 60px;
+                    pointer-events: none;
+                    z-index: 1;
                 }
                 .tree-children-row {
                     display: flex;
                     flex-wrap: wrap;
                     justify-content: center;
-                    gap: 2rem;
+                    gap: 1.5rem;
+                    margin-top: 2rem;
                     position: relative;
-                    padding-top: 1.5rem;
+                    z-index: 2;
                 }
-                /* Horizontal line above children */
-                .tree-children-row::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 10%;
-                    right: 10%;
-                    height: 2px;
-                    background: #cbd5e1;
+                .tree-child-item {
+                    flex: 1 1 auto;
+                    min-width: 180px;
+                    display: flex;
+                    justify-content: center;
                 }
-                /* Vertical line from parent to the horizontal bar */
-                .tree-node-wrapper:not(:first-child) > .tree-card {
-                    position: relative;
-                }
-                .tree-node-wrapper:not(:first-child) > .tree-card::before {
-                    content: '';
-                    position: absolute;
-                    top: -1.5rem;
-                    left: 50%;
-                    width: 2px;
-                    height: 1.5rem;
-                    background: #cbd5e1;
-                    transform: translateX(-50%);
-                }
-                /* Remove vertical line for the root node */
-                .tree-container > .tree-node-wrapper > .tree-card::before {
-                    display: none;
-                }
-                /* Responsive: smaller cards on mobile */
                 @media (max-width: 640px) {
                     .tree-card {
-                        width: 180px;
+                        width: 160px;
+                    }
+                    .tree-child-item {
+                        min-width: 140px;
                     }
                     .tree-children-row {
-                        gap: 1rem;
+                        gap: 0.75rem;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .tree-card {
+                        width: 130px;
+                    }
+                    .tree-child-item {
+                        min-width: 110px;
                     }
                 }
             `}</style>
