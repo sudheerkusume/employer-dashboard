@@ -1,10 +1,11 @@
 import clientPromise from "@/app/components/lib/db";
 import { NextResponse } from "next/server";
 
-// Commission percentages per depth (same as in static component)
+// Commission percentages per depth
 const COMMISSION_PERCENTS = { 1: 0.05, 2: 0.025, 3: 0.02, 4: 0.015, 5: 0.01, 6: 0.005 };
 // Max depth a user can earn from based on their rank
 const RANK_UNLOCKED_DEPTHS = { ME: 1, MM: 2, SMM: 3, DGM: 4, AGM: 5, GM: 6 };
+const DEFAULT_SALE_VALUE = 2000;
 
 // Helper: compute team sales, downline count, and depth sales
 function computeDepthSalesAndDownline(userId, childrenMap, maxDepth = 6) {
@@ -16,7 +17,7 @@ function computeDepthSalesAndDownline(userId, childrenMap, maxDepth = 6) {
         const children = childrenMap.get(nodeId) || [];
         for (const child of children) {
             totalDownlineCount++;
-            const childSale = child.saleValue || 0;
+            const childSale = child.saleValue ?? DEFAULT_SALE_VALUE;
             if (depth <= maxDepth) {
                 depthSales[depth] = (depthSales[depth] || 0) + childSale;
             }
@@ -41,7 +42,7 @@ export async function GET(request) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // Get logged‑in user
+        // Get the logged‑in user
         const user = await col.findOne({ applicationId, _type: { $ne: "__counter" } });
         if (!user) {
             return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
@@ -61,12 +62,12 @@ export async function GET(request) {
             if (!childrenMap.has(refId)) childrenMap.set(refId, []);
             childrenMap.get(refId).push({
                 applicationId: doc.applicationId,
-                saleValue: doc.saleValue || 0,
+                saleValue: doc.saleValue ?? DEFAULT_SALE_VALUE,
                 level: doc.level || "ME",
             });
         }
 
-        // Direct count
+        // Direct children count
         const directCount = (childrenMap.get(applicationId) || []).length;
 
         // Compute depth sales and total downline (all depths 1-6)
@@ -94,7 +95,8 @@ export async function GET(request) {
 
         // Team sales = sum of all downline sales (all depths)
         const teamSales = Object.values(depthSales).reduce((a, b) => a + b, 0);
-        const personalSales = user.saleValue || 0;
+        const personalSales = user.saleValue ?? DEFAULT_SALE_VALUE;
+        const wallet = user.wallet ?? 0; // use stored wallet, default 0
 
         return NextResponse.json({
             success: true,
@@ -107,12 +109,12 @@ export async function GET(request) {
                 referredById: user.referredById,
                 status: user.status,
                 saleValue: personalSales,
-                wallet: user.wallet || 0,
+                wallet,
             },
             stats: {
                 personalSales,
                 teamSales,
-                wallet: user.wallet || 0,
+                wallet,
                 directCount,
                 totalDownline: totalDownlineCount,
             },
