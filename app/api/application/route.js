@@ -33,7 +33,7 @@ async function sendEmail(to, subject, html) {
 }
 
 // ----------------------------------------------------------------------
-// ATOMIC COUNTER HELPERS (only for userCodes now)
+// ATOMIC COUNTER HELPERS (only for userCodes)
 // ----------------------------------------------------------------------
 async function reserveUserCodes(db, level, count = 1) {
     const col = db.collection("marketing_applications");
@@ -47,6 +47,30 @@ async function reserveUserCodes(db, level, count = 1) {
     return Array.from({ length: count }, (_, i) =>
         `${level}-${(startSeq + i).toString().padStart(3, "0")}`
     );
+}
+
+// ----------------------------------------------------------------------
+// RANDOM UNIQUE APPLICATION ID GENERATOR
+// ----------------------------------------------------------------------
+async function generateUniqueApplicationId(db, maxRetries = 10) {
+    const col = db.collection("marketing_applications");
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        // Generate random 6-digit number (000001 to 999999)
+        const randomNum = Math.floor(Math.random() * 999999) + 1;
+        const appId = `SB-${randomNum.toString().padStart(6, "0")}`;
+
+        // Check if already used
+        const existing = await col.findOne({
+            applicationId: appId,
+            _type: { $ne: "__counter" }
+        });
+        if (!existing) return appId;
+
+        console.log(`⚠️ Duplicate random ID ${appId}, retrying (${attempt}/${maxRetries})...`);
+    }
+    // Fallback: use timestamp-based ID (very unlikely to collide)
+    const fallbackNum = Date.now() % 1000000;
+    return `SB-${fallbackNum.toString().padStart(6, "0")}`;
 }
 
 // ----------------------------------------------------------------------
@@ -146,10 +170,10 @@ async function createMlmMemberFromApplication(db, application) {
 }
 
 // ----------------------------------------------------------------------
-// JOI SCHEMAS – applicationId is now required
+// JOI SCHEMAS
 // ----------------------------------------------------------------------
 const applicationSchema = Joi.object({
-    applicationId: Joi.string().required(), // changed from optional to required
+    applicationId: Joi.string().allow("").optional(),
     fullName: Joi.string().min(2).max(100).required(),
     dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)).optional(),
     modeOfPayment: Joi.string().allow("").optional(),
@@ -379,7 +403,7 @@ async function fetchGoogleSheetData(url) {
 }
 
 // ----------------------------------------------------------------------
-// POST – single object OR array (bulk) – NO AUTO-GENERATION OF applicationId
+// POST – single object OR array (bulk)
 // ----------------------------------------------------------------------
 export async function POST(req) {
     try {
@@ -422,7 +446,7 @@ export async function POST(req) {
             return Response.json({ success: false, error: "Empty request body" }, { status: 400 });
         }
 
-        // ---------- 1. Validate each record (applicationId is now required) ----------
+        // ---------- 1. Validate each record ----------
         const validRecords = [];
         const validationErrors = [];
 
@@ -439,12 +463,12 @@ export async function POST(req) {
                 continue;
             }
 
-            // Ensure applicationId is present
-            if (!rest.applicationId || rest.applicationId.trim() === "") {
+            // For bulk import, applicationId is required
+            if (isBulk && (!rest.applicationId || rest.applicationId.trim() === "")) {
                 validationErrors.push({
                     index: i,
                     name: rest.fullName || `Row ${i + 1}`,
-                    error: "applicationId is required (no auto-generation)",
+                    error: "applicationId is required for bulk import",
                 });
                 continue;
             }
@@ -479,7 +503,7 @@ export async function POST(req) {
             );
         }
 
-        // ---------- 3. Check existing entries in DB (including applicationId uniqueness) ----------
+        // ---------- 3. Check existing entries in DB ----------
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
@@ -497,7 +521,6 @@ export async function POST(req) {
 
         for (const rec of validRecords) {
             let dupReason = null;
-            // Check standard unique fields
             for (const field of DUP_FIELDS) {
                 const v = rec.value[field];
                 if (v && v !== "" && v !== "--" && existingInDB[field].has(v)) {
@@ -505,10 +528,9 @@ export async function POST(req) {
                     break;
                 }
             }
-            // Also check applicationId uniqueness
             if (!dupReason) {
                 const appId = rec.value.applicationId;
-                if (appId && existingInDB.applicationId.has(appId)) {
+                if (appId && appId.trim() !== "" && existingInDB.applicationId.has(appId)) {
                     dupReason = `applicationId already exists: "${appId}"`;
                 }
             }
@@ -532,9 +554,47 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        // ---------- 5. Generate userCodes (level‑based) – no applicationId generation ----------
-        const levelGroups = {};
+        // ---------- 5. Generate missing applicationIds ONLY for single record mode ----------
+        const needNewAppId = [];
+        const haveAppId = [];
+
         for (const rec of cleanRecords) {
+            const providedAppId = rec.value.applicationId;
+            if (providedAppId && providedAppId.trim() !== "") {
+                haveAppId.push(rec);
+            } else {
+                if (!isBulk) {
+                    needNewAppId.push(rec);
+                } else {
+                    skippedRecords.push({
+                        index: rec.originalIndex,
+                        name: rec.value.fullName || `Row ${rec.originalIndex + 1}`,
+                        reason: "applicationId is missing in bulk import",
+                    });
+                }
+            }
+        }
+
+        // For single record: generate random unique application IDs
+        for (const rec of needNewAppId) {
+            rec.finalAppId = await generateUniqueApplicationId(db);
+        }
+        for (const rec of haveAppId) {
+            rec.finalAppId = rec.value.applicationId;
+        }
+
+        const allCleanRecords = [...needNewAppId, ...haveAppId];
+        if (allCleanRecords.length === 0) {
+            return Response.json({
+                success: false,
+                error: "No records to insert after ID processing",
+                skipped: skippedRecords,
+            }, { status: 400 });
+        }
+
+        // ---------- 6. Generate userCodes (level‑based) ----------
+        const levelGroups = {};
+        for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
             if (!levelGroups[lvl]) levelGroups[lvl] = [];
             levelGroups[lvl].push(rec);
@@ -550,18 +610,17 @@ export async function POST(req) {
         );
 
         const finalDocs = [];
-        for (const rec of cleanRecords) {
+        for (const rec of allCleanRecords) {
             const lvl = rec.value.level || "ME";
             const userCode = userCodePool[lvl][levelCursor[lvl]++];
-            // Use the provided applicationId directly
-            const finalDoc = buildDocument(rec.value, rec.value.applicationId, userCode);
+            const finalDoc = buildDocument(rec.value, rec.finalAppId, userCode);
             finalDocs.push(finalDoc);
         }
 
-        // ---------- 6. Insert into DB (no specific ordering needed) ----------
+        // ---------- 7. Insert into DB ----------
         const insertResult = await col.insertMany(finalDocs, { ordered: false });
 
-        // ---------- 7. Send email notifications ----------
+        // ---------- 8. Send email notifications ----------
         const emailPromises = [];
         for (const doc of finalDocs) {
             if (!doc.email) continue;
@@ -649,7 +708,6 @@ export async function GET(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // Single application by ID
         if (applicationId) {
             const application = await col.findOne({
                 _id: new ObjectId(applicationId),
@@ -669,7 +727,6 @@ export async function GET(req) {
             return Response.json({ success: true, application: masked });
         }
 
-        // Build filter for list view
         const filter = { _type: { $ne: "__counter" } };
         if (email) filter.email = email;
         if (phone) filter.contactNo = phone;
@@ -723,9 +780,7 @@ export async function PUT(req) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const col = db.collection("marketing_applications");
 
-        // ======================
-        // BRANCH A: Bulk status update (ids array)
-        // ======================
+        // Bulk status update
         if (body.ids && Array.isArray(body.ids) && body.ids.length > 0 && body.status) {
             const { ids, status, remarks = '' } = body;
             if (!['approved', 'rejected'].includes(status)) {
@@ -762,11 +817,6 @@ export async function PUT(req) {
 
                     if (status === "approved") {
                         if (!finalAppId) {
-                            // Since we no longer generate applicationIds, we reject or just warn? 
-                            // We'll keep the fallback generation for approval only if needed, but your requirement said remove auto-generation.
-                            // To be safe, we'll still allow generation upon approval if missing? But the user said "remove auto generate application id as of now just take from excel sheet".
-                            // For consistency, we will NOT generate missing applicationId even on approval.
-                            // Instead, we'll skip assigning and log an error.
                             console.error(`Application ${app._id} approved but missing applicationId – no auto-generation.`);
                         } else {
                             updateFields.applicationId = finalAppId;
@@ -828,9 +878,7 @@ export async function PUT(req) {
             });
         }
 
-        // ======================
-        // BRANCH B: Single status update (id + status)
-        // ======================
+        // Single status update
         if (body.id && body.status && !body.fullName) {
             const { error, value } = updateStatusSchema.validate(body);
             if (error) {
@@ -866,7 +914,6 @@ export async function PUT(req) {
                     if (!existing) {
                         finalAppId = preferredAppId;
                     } else {
-                        // no auto-generation, just keep original
                         console.warn(`Preferred applicationId ${preferredAppId} already exists – keeping original ${finalAppId || "none"}`);
                     }
                 }
@@ -931,9 +978,7 @@ export async function PUT(req) {
             });
         }
 
-        // ======================
-        // BRANCH C: Partial field update (edit entire application)
-        // ======================
+        // Partial field update (edit)
         const { error, value } = updateApplicationSchema.validate(body);
         if (error) {
             return Response.json({ error: error.details[0].message, success: false }, { status: 400 });
