@@ -16,8 +16,6 @@ export default function HomePage() {
     directCount: 0,
     totalDownline: 0
   });
-  const [recentSales, setRecentSales] = useState([]);
-  const [recentCommissions, setRecentCommissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -34,48 +32,34 @@ export default function HomePage() {
   const fetchDashboardData = async (userCode) => {
     try {
       setLoading(true);
-      const userRes = await fetch(`/api/mlm/users?userId=${userCode}`);
-      const userData = await userRes.json();
+      const res = await fetch(`/api/mlm/dashboard?applicationId=${userCode}`);
+      const data = await res.json();
 
-      if (userData.success) {
-        setUserData(userData.user);
+      if (data.success) {
+        setUserData(data.user);
         setStats({
-          personalSales: userData.user.personalSales || 0,
-          teamSales: userData.user.teamSales || 0,
-          wallet: userData.user.wallet || 0,
-          directCount: userData.user.directCount || 0,
-          totalDownline: userData.user.totalTeamCount || 0
+          personalSales: data.stats.personalSales,
+          teamSales: data.stats.teamSales,
+          wallet: data.stats.wallet,
+          directCount: data.stats.directCount,
+          totalDownline: data.stats.totalDownline
         });
       } else {
+        // If user not found, clear local storage and redirect to login
         localStorage.removeItem('mlm_user_code');
         localStorage.removeItem('mlm_user_name');
         localStorage.removeItem('mlm_user_level');
         localStorage.removeItem('mlm_user_role');
         setUserData(null);
+        setError(data.error || 'Session expired');
+        router.push('/');
       }
-
-      const salesRes = await fetch(`/api/mlm/sales?userCode=${userCode}&limit=5`);
-      const salesData = await salesRes.json();
-      if (salesData.success) setRecentSales(salesData.sales);
-
-      const commissionRes = await fetch(`/api/mlm/commission?userCode=${userCode}&limit=5`);
-      const commissionData = await commissionRes.json();
-      if (commissionData.success) setRecentCommissions(commissionData.commissions);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('mlm_user_code');
-    localStorage.removeItem('mlm_user_name');
-    localStorage.removeItem('mlm_user_level');
-    localStorage.removeItem('mlm_user_role');
-    setUserData(null);
-    router.push('/');
   };
 
   if (loading) {
@@ -89,7 +73,7 @@ export default function HomePage() {
   if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-        {/* Hero Section */}
+        {/* Hero Section (unchanged) */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
@@ -127,7 +111,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Features Section */}
+        {/* Features Section (unchanged) */}
         <section className="bg-gray-50 py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -150,7 +134,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CTA Section */}
+        {/* CTA Section (unchanged) */}
         <section className="bg-gradient-to-r from-yellow-600 to-yellow-500 py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl font-bold text-white">Ready to Start Your Real Beez Journey?</h2>
@@ -168,7 +152,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
+        {/* Footer (unchanged) */}
         <footer className="bg-gray-900 text-gray-400 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-4 gap-8">
@@ -209,10 +193,9 @@ export default function HomePage() {
     );
   }
 
-  // Beautiful Dashboard for Logged-in Users
+  // ========== LOGGED-IN DASHBOARD (using only dashboard API) ==========
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
@@ -276,57 +259,6 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Recent Sales
-            </h2>
-            <div className="space-y-3">
-              {recentSales.length > 0 ? (
-                recentSales.map((sale) => (
-                  <div key={sale._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div>
-                      <p className="font-medium text-gray-900">{sale.description || "Sale"}</p>
-                      <p className="text-sm text-gray-500">{new Date(sale.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <p className="font-bold text-green-600">{formatCurrency(sale.amount)}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-8">No sales recorded yet</p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <svg className="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Recent Commissions
-            </h2>
-            <div className="space-y-3">
-              {recentCommissions.length > 0 ? (
-                recentCommissions.map((commission) => (
-                  <div key={commission._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div>
-                      <p className="font-medium text-gray-900">{commission.level} Commission</p>
-                      <p className="text-sm text-gray-500">{new Date(commission.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <p className="font-bold text-purple-600">{formatCurrency(commission.commissionAmount)}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-8">No commissions received yet</p>
-              )}
             </div>
           </div>
         </div>
