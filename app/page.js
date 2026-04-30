@@ -1,4 +1,4 @@
-// app/page.js - Beautiful Dashboard (with super_admin support)
+// app/page.js - Beautiful Dashboard (with super_admin support - admin may not have own record)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,6 +20,9 @@ export default function HomePage() {
   const [showCommissionBreakdown, setShowCommissionBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Check super_admin from localStorage first (before any API call)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
   // Admin‑specific states
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -28,35 +31,49 @@ export default function HomePage() {
   const [viewingCommission, setViewingCommission] = useState(null);
   const [loadingViewing, setLoadingViewing] = useState(false);
 
-  const applicationId = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
+  // Get stored data
+  const storedAppId = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
+  const storedRole = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_role') : null;
+  const storedName = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_name') : null;
 
-  // 1. Fetch logged‑in user's own data
+  // 1. Determine if super_admin
   useEffect(() => {
-    if (applicationId) {
-      fetchDashboardData(applicationId);
+    if (storedRole === 'super_admin') {
+      setIsSuperAdmin(true);
+      // For super_admin, we don't have personal userData in marketing_applications, so set a placeholder
+      setUserData({
+        fullName: storedName || 'Super Admin',
+        role: 'super_admin',
+        level: 'N/A',
+        applicationId: 'SB-000000',
+        userCode: 'SB-000000'
+      });
+      // Skip loading own dashboard; directly fetch all users
+      fetchAllUsers();
+    } else if (storedAppId) {
+      // Normal user - fetch dashboard
+      fetchDashboardData(storedAppId);
     } else {
       setLoading(false);
     }
-  }, [applicationId]);
+  }, []);
 
-  // 2. If super_admin, fetch list of all users
+  // 2. For super_admin, after fetching all users, load first user's dashboard
   useEffect(() => {
-    if (userData && userData.role === 'super_admin') {
-      fetchAllUsers();
+    if (isSuperAdmin && allUsers.length > 0 && !selectedUserId) {
+      // Select the first user automatically
+      const firstUserId = allUsers[0].applicationId;
+      setSelectedUserId(firstUserId);
+      loadUserDashboard(firstUserId);
     }
-  }, [userData]);
+  }, [isSuperAdmin, allUsers]);
 
-  // 3. When super_admin selects a different user, load that user's dashboard data
+  // 3. When super_admin selects a different user, load that user's dashboard
   useEffect(() => {
-    if (selectedUserId && userData?.role === 'super_admin') {
+    if (isSuperAdmin && selectedUserId) {
       loadUserDashboard(selectedUserId);
-    } else if (!selectedUserId && userData?.role === 'super_admin') {
-      // If no user selected, default to super_admin's own dashboard
-      setViewingUserData(userData);
-      setViewingStats(stats);
-      setViewingCommission(commission);
     }
-  }, [selectedUserId, userData, stats, commission]);
+  }, [selectedUserId, isSuperAdmin]);
 
   const fetchDashboardData = async (appId) => {
     try {
@@ -96,11 +113,6 @@ export default function HomePage() {
       const data = await res.json();
       if (data.success) {
         setAllUsers(data.users);
-        if (data.users.length > 0) {
-          // Default: select the super_admin's own user record or the first user
-          const own = data.users.find(u => u.applicationId === applicationId);
-          setSelectedUserId(own ? own.applicationId : data.users[0].applicationId);
-        }
       } else {
         console.error('Failed to fetch users:', data.error);
       }
@@ -135,17 +147,20 @@ export default function HomePage() {
   };
 
   const resetToMyDashboard = () => {
-    if (userData) {
-      setSelectedUserId(userData.applicationId);
+    if (isSuperAdmin && allUsers.length > 0) {
+      // For super_admin, reset to first user (since admin has no personal dashboard)
+      setSelectedUserId(allUsers[0].applicationId);
     }
   };
 
-  // Determine which data to display (super_admin viewing or user's own)
-  const displayUser = (userData?.role === 'super_admin' && viewingUserData) ? viewingUserData : userData;
-  const displayStats = (userData?.role === 'super_admin' && viewingStats) ? viewingStats : stats;
-  const displayCommission = (userData?.role === 'super_admin' && viewingCommission) ? viewingCommission : commission;
+  // Determine which data to display
+  // For super_admin, use viewing data; for normal user, use own data
+  const displayUser = isSuperAdmin ? viewingUserData : userData;
+  const displayStats = isSuperAdmin ? viewingStats : stats;
+  const displayCommission = isSuperAdmin ? viewingCommission : commission;
 
-  if (loading) {
+  // Loading state (wait for either normal user data or super_admin user list)
+  if (loading || (isSuperAdmin && allUsers.length === 0 && !viewingUserData)) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-600"></div>
@@ -154,7 +169,7 @@ export default function HomePage() {
   }
 
   // ------------------ GUEST VIEW (not logged in) ------------------
-  if (!userData) {
+  if (!userData && !isSuperAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
         {/* Hero Section */}
@@ -277,7 +292,7 @@ export default function HomePage() {
     );
   }
 
-  // ------------------ LOGGED-IN DASHBOARD (with commission & super_admin support) ------------------
+  // ------------------ LOGGED-IN DASHBOARD (with super_admin support) ------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -285,11 +300,13 @@ export default function HomePage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Welcome back, {userData?.fullName}!
+              Welcome back, {isSuperAdmin ? (viewingUserData?.fullName || 'Super Admin') : userData?.fullName}!
             </h1>
-            <p className="text-gray-600 mt-2">Here's what's happening with your network today.</p>
+            <p className="text-gray-600 mt-2">
+              {isSuperAdmin ? 'Super Admin Dashboard - Viewing user data' : "Here's what's happening with your network today."}
+            </p>
             <p className="text-sm text-gray-500 mt-1">
-              Role: {userData?.role} | Level: {userData?.level} | ID: {userData?.applicationId}
+              Role: {isSuperAdmin ? 'super_admin' : userData?.role} | Level: {displayUser?.level || 'N/A'} | ID: {displayUser?.applicationId || 'ADMIN'}
             </p>
           </div>
           <button
@@ -306,8 +323,8 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Admin User Selector */}
-        {userData?.role === 'super_admin' && (
+        {/* Super Admin User Selector */}
+        {isSuperAdmin && (
           <div className="mt-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
             <label className="font-medium text-gray-700">View dashboard for:</label>
             <select
@@ -317,7 +334,7 @@ export default function HomePage() {
             >
               {allUsers.map(user => (
                 <option key={user.applicationId} value={user.applicationId}>
-                  {user.fullName} ({user.applicationId})
+                  {user.fullName} ({user.applicationId}) - {user.level}
                 </option>
               ))}
             </select>
@@ -325,7 +342,7 @@ export default function HomePage() {
               onClick={resetToMyDashboard}
               className="text-blue-600 hover:text-blue-800 text-sm underline"
             >
-              Reset to my dashboard
+              Reset to first user
             </button>
             {loadingViewing && (
               <div className="inline-block ml-2">
@@ -335,153 +352,159 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Stats Cards (using displayUser / displayStats) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Personal Sales</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{formatCurrency(displayStats.personalSales)}</p>
+        {/* Only show stats cards if we have displayUser and not loading */}
+        {displayUser && displayStats && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-8">
+              {/* ... same stats cards as before, using displayStats ... */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Personal Sales</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">{formatCurrency(displayStats.personalSales)}</p>
+                  </div>
+                  <div className="bg-blue-100 rounded-full p-3">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Team Sales</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(displayStats.teamSales)}</p>
+              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-green-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Team Sales</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(displayStats.teamSales)}</p>
+                  </div>
+                  <div className="bg-green-100 rounded-full p-3">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Wallet Balance</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(displayStats.wallet)}</p>
+              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-purple-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Wallet Balance</p>
+                    <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(displayStats.wallet)}</p>
+                  </div>
+                  <div className="bg-purple-100 rounded-full p-3">
+                    <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Team Size</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">{displayStats.totalDownline}</p>
-                <p className="text-sm text-gray-500 mt-1">Direct: {displayStats.directCount}</p>
+              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-orange-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Team Size</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-2">{displayStats.totalDownline}</p>
+                    <p className="text-sm text-gray-500 mt-1">Direct: {displayStats.directCount}</p>
+                  </div>
+                  <div className="bg-orange-100 rounded-full p-3">
+                    <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="bg-orange-100 rounded-full p-3">
-                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+            </div>
+
+            {/* Commission Card */}
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Based on downline sales up to depth {displayCommission.maxDepthEligible} (rank: {displayUser?.level})
+                  </p>
+                </div>
+                <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
+              </div>
+              <button
+                onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)}
+                className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                {showCommissionBreakdown ? 'Hide breakdown' : 'View breakdown by depth'}
+              </button>
+              {showCommissionBreakdown && displayCommission.breakdown && (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Depth Level</th>
+                        <th className="px-3 py-2 text-left">Commission %</th>
+                        <th className="px-3 py-2 text-right">Total Sale Value</th>
+                        <th className="px-3 py-2 text-right">Commission Earned</th>
+                        <th className="px-3 py-2 text-center">Eligible?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayCommission.breakdown.map((item) => (
+                        <tr key={item.depth} className="border-b">
+                          <td className="px-3 py-2">Level {item.depth}</td>
+                          <td className="px-3 py-2">{item.percent}%</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(item.saleValue)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-green-600">
+                            {formatCurrency(item.commission)}
+                          </td>
+                          <td className="px-3 py-2 text-center">{item.eligible ? '✓ Yes' : '✗ Need higher rank'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan="3" className="px-3 py-2 text-right font-bold">Total Commission:</td>
+                        <td className="px-3 py-2 text-right font-bold text-green-700">{formatCurrency(displayCommission.total)}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                  <p className="text-xs text-gray-500 mt-2">
+                    * Commission is calculated only on downline sales up to depth level {displayCommission.maxDepthEligible} (based on rank {displayUser?.level}).
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
+                >
+                  ➕ Add New Member
+                </button>
+                <button
+                  onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
+                  className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
+                >
+                  🌳 View Tree
+                </button>
+                <button
+                  onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
+                  className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
+                >
+                  📊 Commission History
+                </button>
+                <button
+                  onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
+                  className="bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
+                >
+                  💰 Record Sale
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Commission Card (using displayCommission / displayUser) */}
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Based on downline sales up to depth {displayCommission.maxDepthEligible} (rank: {displayUser?.level})
-              </p>
-            </div>
-            <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
-          </div>
-          <button
-            onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)}
-            className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
-          >
-            {showCommissionBreakdown ? 'Hide breakdown' : 'View breakdown by depth'}
-          </button>
-          {showCommissionBreakdown && displayCommission.breakdown && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Depth Level</th>
-                    <th className="px-3 py-2 text-left">Commission %</th>
-                    <th className="px-3 py-2 text-right">Total Sale Value</th>
-                    <th className="px-3 py-2 text-right">Commission Earned</th>
-                    <th className="px-3 py-2 text-center">Eligible?</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayCommission.breakdown.map((item) => (
-                    <tr key={item.depth} className="border-b">
-                      <td className="px-3 py-2">Level {item.depth}</td>
-                      <td className="px-3 py-2">{item.percent}%</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(item.saleValue)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-green-600">
-                        {formatCurrency(item.commission)}
-                      </td>
-                      <td className="px-3 py-2 text-center">{item.eligible ? '✓ Yes' : '✗ Need higher rank'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50">
-                  <tr>
-                    <td colSpan="3" className="px-3 py-2 text-right font-bold">Total Commission:</td>
-                    <td className="px-3 py-2 text-right font-bold text-green-700">{formatCurrency(displayCommission.total)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-              <p className="text-xs text-gray-500 mt-2">
-                * Commission is calculated only on downline sales up to depth level {displayCommission.maxDepthEligible} (based on rank {displayUser?.level}).
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Actions (use selected user's code for super_admin, otherwise logged-in user) */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
-            >
-              ➕ Add New Member
-            </button>
-            <button
-              onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
-              className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
-            >
-              🌳 View Tree
-            </button>
-            <button
-              onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
-            >
-              📊 Commission History
-            </button>
-            <button
-              onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
-              className="bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
-            >
-              💰 Record Sale
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useState, useEffect, useContext, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Tree from "react-d3-tree";
-import { ArrowBigDownIcon, ArrowBigRightIcon } from "lucide-react";
+import { ArrowBigDownIcon, ArrowBigRightIcon, Search } from "lucide-react";
 import RootContext from "../config/rootcontext";
 
 // ----------------------------------------------------------------------
@@ -148,7 +148,29 @@ export default function MLMTree() {
     const [viewMode, setViewMode] = useState("tree");
     const [expandedNodes, setExpandedNodes] = useState({});
     const [stats, setStats] = useState(null);
-    const [rankDist, setRankDist] = useState(null);
+    const [upline, setUpline] = useState([]);
+    const [loadingUpline, setLoadingUpline] = useState(false);
+
+    // Helper to fetch upline chain
+    const fetchUpline = async (applicationId) => {
+        if (!applicationId) return;
+        setLoadingUpline(true);
+        try {
+            const res = await fetch(`/api/mlm/upline?applicationId=${encodeURIComponent(applicationId)}`);
+            const data = await res.json();
+            if (data.success) {
+                setUpline(data.upline || []);
+            } else {
+                console.warn("Upline fetch failed:", data.error);
+                setUpline([]);
+            }
+        } catch (err) {
+            console.error("Error fetching upline:", err);
+            setUpline([]);
+        } finally {
+            setLoadingUpline(false);
+        }
+    };
 
     // Helper to fetch tree by applicationId
     const fetchTree = async (applicationId) => {
@@ -165,17 +187,19 @@ export default function MLMTree() {
             setTreeData(convertToD3Tree(tree));
             const computed = computeNodeStats(tree);
             setStats(computed);
-            setRankDist(computed.rankDistribution);
             // Expand all nodes
             const allIds = getAllNodeIds(tree);
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
             setExpandedNodes(expanded);
+            // Fetch upline for this user
+            await fetchUpline(applicationId);
         } catch (err) {
             console.error(err);
             setError(err.message);
             setTreeData(null);
             setCurrentNode(null);
+            setUpline([]);
         } finally {
             setLoading(false);
         }
@@ -204,12 +228,10 @@ export default function MLMTree() {
         }
         if (userData) {
             setLoggedInUser(userData);
-            // Now we need to get the user's applicationId. If not stored, fetch it.
             const storedAppId = localStorage.getItem('mlm_application_id');
             if (storedAppId) {
                 fetchTree(storedAppId);
             } else {
-                // Fetch user details using userCode to get applicationId
                 fetch(`/api/mlm/users?userId=${userData.userCode}`)
                     .then(res => res.json())
                     .then(data => {
@@ -230,22 +252,15 @@ export default function MLMTree() {
         }
     }, [rootContext, setRootContext, router]);
 
-    // Search: accept applicationId or fullName – we'll assume the search term is an applicationId directly,
-    // but also try to resolve by name via a user lookup.
+    // Search: accept applicationId or fullName
     const handleSearch = async (e) => {
         e.preventDefault();
         if (!searchCode.trim()) return;
         setLoading(true);
         setError(null);
         const term = searchCode.trim();
-        // Try direct as applicationId first
         try {
             let appId = term;
-            // If term doesn't look like an application ID (e.g., not starting with "SB-" or similar), we may need to resolve.
-            // For simplicity, we'll try to fetch user by name via a separate endpoint.
-            // But assuming the tree API can also accept a name, we can call the tree API with a parameter? 
-            // Instead, we'll first try to get the user by name if needed.
-            // Here we call /api/mlm/users?fullName=... to get applicationId.
             if (!term.startsWith("SB-")) {
                 const userRes = await fetch(`/api/mlm/users?fullName=${encodeURIComponent(term)}`);
                 const userData = await userRes.json();
@@ -326,6 +341,52 @@ export default function MLMTree() {
         );
     };
 
+    const renderUpline = () => {
+        if (loadingUpline) {
+            return (
+                <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-blue-700">Loading upline...</span>
+                </div>
+            );
+        }
+        if (!upline.length && currentNode && currentNode.sponsorId) {
+            return (
+                <div className="mb-6 bg-gray-50 rounded-lg p-4 border border-gray-200 text-gray-500 text-sm">
+                    No upline data available.
+                </div>
+            );
+        }
+        if (!upline.length) return null;
+
+        return (
+            <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <h2 className="text-md font-semibold text-blue-800 mb-2">⬆️ Upline (Sponsor Chain)</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                    {upline.map((node, idx) => (
+                        <Fragment key={node._id}>
+                            <button
+                                onClick={() => setViewToUser(node.applicationId || node.userCode)}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full shadow-sm border hover:bg-blue-100 transition"
+                            >
+                                <div className={`w-2 h-2 rounded-full`} style={{ backgroundColor: getLevelColor(node.level) }} />
+                                <span className="text-sm font-medium">{getDisplayName(node)}</span>
+                                <span className="text-xs text-gray-500">({node.level})</span>
+                            </button>
+                            {idx < upline.length - 1 && <span className="text-gray-400">→</span>}
+                        </Fragment>
+                    ))}
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 rounded-full shadow-sm">
+                        <div className={`w-2 h-2 rounded-full`} style={{ backgroundColor: getLevelColor(currentNode?.level) }} />
+                        <span className="text-sm font-bold">{getDisplayName(currentNode)}</span>
+                        <span className="text-xs text-gray-600">({currentNode?.level})</span>
+                        <span className="text-xs text-green-600 ml-1">← You are here</span>
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-amber-50">
@@ -353,10 +414,13 @@ export default function MLMTree() {
                 {/* Header */}
                 <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">🌳 Real Beez Tree Network</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">🌳Sales Beez Tree Network</h1>
                         <p className="text-gray-700">
                             {currentNode ? `Viewing: ${currentNode.fullName} (${currentNode.level})` : "Select a user"}
                         </p>
+                        {currentNode && renderUpline()}
+                    </div>
+                    <div>
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setViewMode("tree")}
@@ -371,19 +435,19 @@ export default function MLMTree() {
                                 📋 List View
                             </button>
                         </div>
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <input
+                                type="text"
+                                value={searchCode}
+                                onChange={(e) => setSearchCode(e.target.value)}
+                                placeholder="Search by Application ID or Name"
+                                className="px-3 py-1.5 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-500"
+                            />
+                            <button type="submit" className="bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
+                                <Search size={16} className="text-white" /> View
+                            </button>
+                        </form>
                     </div>
-                    <form onSubmit={handleSearch} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={searchCode}
-                            onChange={(e) => setSearchCode(e.target.value)}
-                            placeholder="Search by Application ID or Name"
-                            className="px-3 py-1.5 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-500"
-                        />
-                        <button type="submit" className="bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
-                            🔍 View
-                        </button>
-                    </form>
                 </div>
 
                 {/* Stats summary */}
