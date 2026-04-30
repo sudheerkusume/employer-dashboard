@@ -74,7 +74,7 @@ const CustomNode = ({ nodeDatum, onNodeClick }) => {
 
     return (
         <g onClick={handleCardClick} style={{ cursor: "pointer" }}>
-            <foreignObject x="-110" y="-65" width="220" height="130">
+            <foreignObject x="-110" y="-65" width="220" height="100">
                 <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: "100%", height: "100%" }}>
                     <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4"
                         style={{ borderBottomColor: levelColor, cursor: "pointer", height: "100%", boxSizing: "border-box" }}>
@@ -82,29 +82,16 @@ const CustomNode = ({ nodeDatum, onNodeClick }) => {
                             <div className="flex-1 min-w-0">
                                 <div className="relative group inline-block">
                                     <p className="text-gray-900 text-xs font-semibold truncate">
-                                        {userName}
-                                    </p>
+                                        {userName}   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                                            style={{ backgroundColor: `${levelColor}20`, color: levelColor }}>
+                                            {levelIcon} {level}
+                                        </span> </p>
                                     <span style={{ backgroundColor: `${levelColor}` }} className={`z-50 absolute top-4 left-1/2 -translate-x-1/2 text-gray-800 text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md`}>
                                         {`${userName} (${applicationId})`}
                                     </span>
                                 </div>
-                                <div className="mt-2">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                                        style={{ backgroundColor: `${levelColor}20`, color: levelColor }}>
-                                        {levelIcon} {level}
-                                    </span>
-                                </div>
                                 <div className="mt-2 text-gray-600 text-xs">
-                                    <span>🌿 Direct: {directCount}</span>
-                                </div>
-                                <p className="mt-1 text-green-600 text-xs font-medium">
-                                    💰 {saleValue}
-                                </p>
-                            </div>
-                            <div className="ml-2 flex-shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-opacity-10 flex items-center justify-center text-xl"
-                                    style={{ backgroundColor: `${levelColor}20`, color: levelColor }}>
-                                    {levelIcon}
+                                    <span>Direct: {directCount}</span>
                                 </div>
                             </div>
                         </div>

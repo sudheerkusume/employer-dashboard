@@ -1,4 +1,4 @@
-// app/page.js - Beautiful Dashboard (with commission)
+// app/page.js - Beautiful Dashboard (with super_admin support)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,8 +20,17 @@ export default function HomePage() {
   const [showCommissionBreakdown, setShowCommissionBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Admin‑specific states
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [viewingUserData, setViewingUserData] = useState(null);
+  const [viewingStats, setViewingStats] = useState(null);
+  const [viewingCommission, setViewingCommission] = useState(null);
+  const [loadingViewing, setLoadingViewing] = useState(false);
+
   const applicationId = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
 
+  // 1. Fetch logged‑in user's own data
   useEffect(() => {
     if (applicationId) {
       fetchDashboardData(applicationId);
@@ -29,6 +38,25 @@ export default function HomePage() {
       setLoading(false);
     }
   }, [applicationId]);
+
+  // 2. If super_admin, fetch list of all users
+  useEffect(() => {
+    if (userData && userData.role === 'super_admin') {
+      fetchAllUsers();
+    }
+  }, [userData]);
+
+  // 3. When super_admin selects a different user, load that user's dashboard data
+  useEffect(() => {
+    if (selectedUserId && userData?.role === 'super_admin') {
+      loadUserDashboard(selectedUserId);
+    } else if (!selectedUserId && userData?.role === 'super_admin') {
+      // If no user selected, default to super_admin's own dashboard
+      setViewingUserData(userData);
+      setViewingStats(stats);
+      setViewingCommission(commission);
+    }
+  }, [selectedUserId, userData, stats, commission]);
 
   const fetchDashboardData = async (appId) => {
     try {
@@ -61,6 +89,61 @@ export default function HomePage() {
       setLoading(false);
     }
   };
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch('/api/mlm/users');
+      const data = await res.json();
+      if (data.success) {
+        setAllUsers(data.users);
+        if (data.users.length > 0) {
+          // Default: select the super_admin's own user record or the first user
+          const own = data.users.find(u => u.applicationId === applicationId);
+          setSelectedUserId(own ? own.applicationId : data.users[0].applicationId);
+        }
+      } else {
+        console.error('Failed to fetch users:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const loadUserDashboard = async (appId) => {
+    try {
+      setLoadingViewing(true);
+      const res = await fetch(`/api/mlm/dashboard?applicationId=${appId}`);
+      const data = await res.json();
+      if (data.success) {
+        setViewingUserData(data.user);
+        setViewingStats({
+          personalSales: data.stats.personalSales,
+          teamSales: data.stats.teamSales,
+          wallet: data.stats.wallet,
+          directCount: data.stats.directCount,
+          totalDownline: data.stats.totalDownline,
+        });
+        setViewingCommission(data.commission || { total: 0, breakdown: [], maxDepthEligible: 1 });
+      } else {
+        console.error('Error loading user dashboard:', data.error);
+      }
+    } catch (err) {
+      console.error('Error loading user dashboard:', err);
+    } finally {
+      setLoadingViewing(false);
+    }
+  };
+
+  const resetToMyDashboard = () => {
+    if (userData) {
+      setSelectedUserId(userData.applicationId);
+    }
+  };
+
+  // Determine which data to display (super_admin viewing or user's own)
+  const displayUser = (userData?.role === 'super_admin' && viewingUserData) ? viewingUserData : userData;
+  const displayStats = (userData?.role === 'super_admin' && viewingStats) ? viewingStats : stats;
+  const displayCommission = (userData?.role === 'super_admin' && viewingCommission) ? viewingCommission : commission;
 
   if (loading) {
     return (
@@ -194,24 +277,71 @@ export default function HomePage() {
     );
   }
 
-  // ------------------ LOGGED-IN DASHBOARD (with commission) ------------------
+  // ------------------ LOGGED-IN DASHBOARD (with commission & super_admin support) ------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Logout */}
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Welcome back, {userData?.fullName}!</h1>
-          <p className="text-gray-600 mt-2">Here's what's happening with your network today.</p>
-          <p className="text-sm text-gray-500 mt-1">Level: {userData?.level} | ID: {userData?.applicationId}</p>
+        <div className="flex justify-between items-start flex-wrap gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">
+              Welcome back, {userData?.fullName}!
+            </h1>
+            <p className="text-gray-600 mt-2">Here's what's happening with your network today.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Role: {userData?.role} | Level: {userData?.level} | ID: {userData?.applicationId}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('mlm_user_code');
+              localStorage.removeItem('mlm_user_name');
+              localStorage.removeItem('mlm_user_level');
+              localStorage.removeItem('mlm_user_role');
+              router.push('/');
+            }}
+            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition"
+          >
+            Logout
+          </button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Admin User Selector */}
+        {userData?.role === 'super_admin' && (
+          <div className="mt-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
+            <label className="font-medium text-gray-700">View dashboard for:</label>
+            <select
+              value={selectedUserId || ''}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500"
+            >
+              {allUsers.map(user => (
+                <option key={user.applicationId} value={user.applicationId}>
+                  {user.fullName} ({user.applicationId})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={resetToMyDashboard}
+              className="text-blue-600 hover:text-blue-800 text-sm underline"
+            >
+              Reset to my dashboard
+            </button>
+            {loadingViewing && (
+              <div className="inline-block ml-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-600"></div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats Cards (using displayUser / displayStats) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Personal Sales</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{formatCurrency(stats.personalSales)}</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">{formatCurrency(displayStats.personalSales)}</p>
               </div>
               <div className="bg-blue-100 rounded-full p-3">
                 <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -225,7 +355,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Team Sales</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(stats.teamSales)}</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(displayStats.teamSales)}</p>
               </div>
               <div className="bg-green-100 rounded-full p-3">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +369,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Wallet Balance</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(stats.wallet)}</p>
+                <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(displayStats.wallet)}</p>
               </div>
               <div className="bg-purple-100 rounded-full p-3">
                 <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,8 +383,8 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Team Size</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalDownline}</p>
-                <p className="text-sm text-gray-500 mt-1">Direct: {stats.directCount}</p>
+                <p className="text-3xl font-bold text-orange-600 mt-2">{displayStats.totalDownline}</p>
+                <p className="text-sm text-gray-500 mt-1">Direct: {displayStats.directCount}</p>
               </div>
               <div className="bg-orange-100 rounded-full p-3">
                 <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,16 +395,16 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Commission Card */}
+        {/* Commission Card (using displayCommission / displayUser) */}
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Based on downline sales up to depth {commission.maxDepthEligible} (your rank: {userData?.level})
+                Based on downline sales up to depth {displayCommission.maxDepthEligible} (rank: {displayUser?.level})
               </p>
             </div>
-            <div className="text-3xl font-bold text-green-600">{formatCurrency(commission.total)}</div>
+            <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
           </div>
           <button
             onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)}
@@ -282,7 +412,7 @@ export default function HomePage() {
           >
             {showCommissionBreakdown ? 'Hide breakdown' : 'View breakdown by depth'}
           </button>
-          {showCommissionBreakdown && commission.breakdown && (
+          {showCommissionBreakdown && displayCommission.breakdown && (
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-100">
@@ -295,7 +425,7 @@ export default function HomePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {commission.breakdown.map((item) => (
+                  {displayCommission.breakdown.map((item) => (
                     <tr key={item.depth} className="border-b">
                       <td className="px-3 py-2">Level {item.depth}</td>
                       <td className="px-3 py-2">{item.percent}%</td>
@@ -310,42 +440,42 @@ export default function HomePage() {
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="3" className="px-3 py-2 text-right font-bold">Total Commission:</td>
-                    <td className="px-3 py-2 text-right font-bold text-green-700">{formatCurrency(commission.total)}</td>
+                    <td className="px-3 py-2 text-right font-bold text-green-700">{formatCurrency(displayCommission.total)}</td>
                     <td></td>
                   </tr>
                 </tfoot>
               </table>
               <p className="text-xs text-gray-500 mt-2">
-                * Commission is calculated only on downline sales up to depth level {commission.maxDepthEligible} (based on your rank {userData?.level}).
+                * Commission is calculated only on downline sales up to depth level {displayCommission.maxDepthEligible} (based on rank {displayUser?.level}).
               </p>
             </div>
           )}
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions (use selected user's code for super_admin, otherwise logged-in user) */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8">
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <button
-              onClick={() => router.push(`/mlm/register?referrer=${userData?.userCode}`)}
+              onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
               className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
             >
               ➕ Add New Member
             </button>
             <button
-              onClick={() => router.push(`/mlm/tree?userCode=${userData?.userCode}`)}
+              onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
               className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
             >
               🌳 View Tree
             </button>
             <button
-              onClick={() => router.push(`/mlm/commissions?userCode=${userData?.userCode}`)}
+              onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
               className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
             >
               📊 Commission History
             </button>
             <button
-              onClick={() => router.push(`/mlm/sales?userCode=${userData?.userCode}`)}
+              onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
               className="bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
             >
               💰 Record Sale
