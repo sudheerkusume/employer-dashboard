@@ -511,19 +511,15 @@ export default function MLMTree() {
             <div className="w-full max-w-7xl mx-auto px-4 py-6">
                 {/* Header */}
                 <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
-                    <div>
-                        <div className="flex gap-2 text-xl font-bold text-gray-800">
-                            <ArrowLeft onClick={() => router.back()} className="cursor-pointer" size={18} />
-                            Sales Beez Tree Network
-                        </div>
-                        <p className="text-gray-700">
-                            {isSuperAdmin
-                                ? `Super Admin Viewing: ${currentNode?.fullName || "Select a user"}`
-                                : currentNode ? `Viewing: ${currentNode.fullName} (${currentNode.level})` : "Select a user"}
-                        </p>
-                        {currentNode && renderUpline()}
+                    <div className="flex gap-2 items-center justify-center text-xl font-bold text-gray-800">
+                        <ArrowLeft onClick={() => router.back()} className="cursor-pointer" size={18} />
+                        Sales Beez Tree Network
                     </div>
-
+                    <p className="text-gray-700">
+                        {isSuperAdmin
+                            ? `Super Admin Viewing: ${currentNode?.fullName || "Select a user"}`
+                            : currentNode ? `Viewing: ${currentNode.fullName} (${currentNode.level})` : "Select a user"}
+                    </p>
                     {/* Super Admin User Selector */}
                     {isSuperAdmin && allUsers.length > 0 && (
                         <div className="bg-white rounded-xl shadow-md p-3 flex flex-wrap items-center gap-4">
@@ -577,18 +573,17 @@ export default function MLMTree() {
                             )}
                         </div>
                     )}
-
-                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-center">
+                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-end">
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setViewMode("tree")}
-                                className={`flex gap-1 px-3 py-1.5 rounded-full ${viewMode === "tree" ? "bg-green-600 text-white" : "bg-gray-200"}`}
+                                className={`flex gap-1 items-center justify-center px-3 py-1.5 rounded-full ${viewMode === "tree" ? "bg-green-600 text-white" : "bg-gray-200"}`}
                             >
                                 <Network size={16} className="text-white" />  Tree View
                             </button>
                             <button
                                 onClick={() => setViewMode("list")}
-                                className={`flex gap-1 px-3 py-1.5 rounded-full ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                                className={`flex gap-1 items-center justify-center px-3 py-1.5 rounded-full ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
                             >
                                 <File size={16} className="text-white" /> List View
                             </button>
@@ -607,6 +602,8 @@ export default function MLMTree() {
                         </form>
                     </div>
                 </div>
+
+                {currentNode && renderUpline()}
 
                 {/* Stats summary */}
                 {stats && currentNode && (

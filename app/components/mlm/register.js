@@ -960,7 +960,7 @@ export default function ApplicationManagement() {
             )}
             <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-6">
-                    <div className="flex justify-between items-center">
+                    <div className="flex gap-1 justify-between items-center">
                         <ArrowLeft onClick={() => { router.back() }} size={20} />
                         <h1 className="text-3xl font-bold text-gray-900">{'Register Here'}</h1>
                     </div>

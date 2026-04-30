@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { formatCurrency } from '@/app/components/lib/mlmUtils';
 import { Listbox, Transition } from '@headlessui/react'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
-import { ArrowDown } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -477,7 +477,7 @@ export default function HomePage() {
             </div>
 
             {/* Commission Card */}
-            <div onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)} className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
+            <div onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)} className="cursor-pointer bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
@@ -485,8 +485,10 @@ export default function HomePage() {
                     Based on downline sales up to depth {displayCommission.maxDepthEligible} (rank: {displayUser?.level})
                   </p>
                 </div>
-                <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
-                {!showCommissionBreakdown ? <ArrowDown size={20} /> : <ArrowDown size={20} />}
+                <div className='flex gap-2 items-center justify-center'>
+                  <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
+                  {!showCommissionBreakdown ? <ArrowBigUp size={20} /> : <ArrowBigDown size={20} />}
+                </div>
               </div>
               {showCommissionBreakdown && displayCommission.breakdown && (
                 <div className="mt-4 overflow-x-auto">
