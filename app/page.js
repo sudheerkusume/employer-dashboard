@@ -1,4 +1,4 @@
-// app/page.js - Beautiful Dashboard (with super_admin support - admin may not have own record)
+// app/page.js - Beautiful Dashboard (with super_admin support)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,9 +20,6 @@ export default function HomePage() {
   const [showCommissionBreakdown, setShowCommissionBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Check super_admin from localStorage first (before any API call)
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
   // Admin‑specific states
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -31,50 +28,39 @@ export default function HomePage() {
   const [viewingCommission, setViewingCommission] = useState(null);
   const [loadingViewing, setLoadingViewing] = useState(false);
 
-  // Get stored data
+  // Get stored values once
   const storedAppId = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_code') : null;
   const storedRole = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_role') : null;
   const storedName = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_name') : null;
+  const isSuperAdmin = storedRole === 'super_admin';
 
-  // 1. Determine if super_admin
+  // 1. For super_admin: set placeholder userData without DB fetch, then load all users
   useEffect(() => {
-    if (storedRole === 'super_admin') {
-      setIsSuperAdmin(true);
-      // For super_admin, we don't have personal userData in marketing_applications, so set a placeholder
-      setUserData({
+    if (isSuperAdmin) {
+      // Create a placeholder admin user object
+      const adminUser = {
         fullName: storedName || 'Super Admin',
         role: 'super_admin',
-        level: 'N/A',
-        applicationId: 'SB-000000',
-        userCode: 'SB-000000'
-      });
-      // Skip loading own dashboard; directly fetch all users
+        level: 'Admin',
+        applicationId: storedAppId || 'SB-000000',
+        userCode: storedAppId || 'SB-000000',
+      };
+      setUserData(adminUser);
+      // Set viewing data to null initially
+      setViewingUserData(null);
+      setViewingStats(null);
+      setViewingCommission(null);
+      setLoading(false);
       fetchAllUsers();
     } else if (storedAppId) {
-      // Normal user - fetch dashboard
+      // Normal user: fetch their dashboard
       fetchDashboardData(storedAppId);
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [storedAppId, storedRole, storedName]);
 
-  // 2. For super_admin, after fetching all users, load first user's dashboard
-  useEffect(() => {
-    if (isSuperAdmin && allUsers.length > 0 && !selectedUserId) {
-      // Select the first user automatically
-      const firstUserId = allUsers[0].applicationId;
-      setSelectedUserId(firstUserId);
-      loadUserDashboard(firstUserId);
-    }
-  }, [isSuperAdmin, allUsers]);
-
-  // 3. When super_admin selects a different user, load that user's dashboard
-  useEffect(() => {
-    if (isSuperAdmin && selectedUserId) {
-      loadUserDashboard(selectedUserId);
-    }
-  }, [selectedUserId, isSuperAdmin]);
-
+  // 2. For normal users, fetch their own data
   const fetchDashboardData = async (appId) => {
     try {
       setLoading(true);
@@ -113,6 +99,10 @@ export default function HomePage() {
       const data = await res.json();
       if (data.success) {
         setAllUsers(data.users);
+        if (data.users.length > 0) {
+          // Select the first user by default
+          setSelectedUserId(data.users[0].applicationId);
+        }
       } else {
         console.error('Failed to fetch users:', data.error);
       }
@@ -147,20 +137,27 @@ export default function HomePage() {
   };
 
   const resetToMyDashboard = () => {
-    if (isSuperAdmin && allUsers.length > 0) {
-      // For super_admin, reset to first user (since admin has no personal dashboard)
-      setSelectedUserId(allUsers[0].applicationId);
-    }
+    // For super_admin, resetting means clearing selected user and showing placeholder?
+    // Actually we just set selectedUserId to null and set viewing data to null
+    setSelectedUserId(null);
+    setViewingUserData(null);
+    setViewingStats(null);
+    setViewingCommission(null);
   };
 
   // Determine which data to display
-  // For super_admin, use viewing data; for normal user, use own data
-  const displayUser = isSuperAdmin ? viewingUserData : userData;
-  const displayStats = isSuperAdmin ? viewingStats : stats;
-  const displayCommission = isSuperAdmin ? viewingCommission : commission;
+  const displayUser = (userData?.role === 'super_admin' && viewingUserData) ? viewingUserData : userData;
+  const displayStats = (userData?.role === 'super_admin' && viewingStats) ? viewingStats : stats;
+  const displayCommission = (userData?.role === 'super_admin' && viewingCommission) ? viewingCommission : commission;
 
-  // Loading state (wait for either normal user data or super_admin user list)
-  if (loading || (isSuperAdmin && allUsers.length === 0 && !viewingUserData)) {
+  // Effect to load selected user's dashboard when selection changes
+  useEffect(() => {
+    if (userData?.role === 'super_admin' && selectedUserId) {
+      loadUserDashboard(selectedUserId);
+    }
+  }, [selectedUserId, userData]);
+
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-600"></div>
@@ -169,10 +166,10 @@ export default function HomePage() {
   }
 
   // ------------------ GUEST VIEW (not logged in) ------------------
-  if (!userData && !isSuperAdmin) {
+  if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-        {/* Hero Section */}
+        {/* Hero Section - same as before */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
@@ -292,7 +289,7 @@ export default function HomePage() {
     );
   }
 
-  // ------------------ LOGGED-IN DASHBOARD (with super_admin support) ------------------
+  // ------------------ LOGGED-IN DASHBOARD ------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -300,13 +297,15 @@ export default function HomePage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Welcome back, {isSuperAdmin ? (viewingUserData?.fullName || 'Super Admin') : userData?.fullName}!
+              Welcome back, {userData?.fullName}!
             </h1>
             <p className="text-gray-600 mt-2">
-              {isSuperAdmin ? 'Super Admin Dashboard - Viewing user data' : "Here's what's happening with your network today."}
+              {userData?.role === 'super_admin'
+                ? "You have super admin access. Select a user to view their dashboard."
+                : "Here's what's happening with your network today."}
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              Role: {isSuperAdmin ? 'super_admin' : userData?.role} | Level: {displayUser?.level || 'N/A'} | ID: {displayUser?.applicationId || 'ADMIN'}
+              Role: {userData?.role} | Level: {userData?.level} | ID: {userData?.applicationId}
             </p>
           </div>
           <button
@@ -324,7 +323,7 @@ export default function HomePage() {
         </div>
 
         {/* Super Admin User Selector */}
-        {isSuperAdmin && (
+        {userData?.role === 'super_admin' && (
           <div className="mt-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
             <label className="font-medium text-gray-700">View dashboard for:</label>
             <select
@@ -332,9 +331,10 @@ export default function HomePage() {
               onChange={(e) => setSelectedUserId(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500"
             >
+              <option value="">-- Select a user --</option>
               {allUsers.map(user => (
                 <option key={user.applicationId} value={user.applicationId}>
-                  {user.fullName} ({user.applicationId}) - {user.level}
+                  {user.fullName} ({user.applicationId})
                 </option>
               ))}
             </select>
@@ -342,7 +342,7 @@ export default function HomePage() {
               onClick={resetToMyDashboard}
               className="text-blue-600 hover:text-blue-800 text-sm underline"
             >
-              Reset to first user
+              Clear Selection
             </button>
             {loadingViewing && (
               <div className="inline-block ml-2">
@@ -352,12 +352,18 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Only show stats cards if we have displayUser and not loading */}
+        {/* Show message if super_admin and no user selected */}
+        {userData?.role === 'super_admin' && !selectedUserId && (
+          <div className="mt-8 bg-blue-50 rounded-xl p-6 text-center text-blue-700">
+            Please select a user from the dropdown above to view their dashboard.
+          </div>
+        )}
+
+        {/* Stats Cards - only show if we have display data */}
         {displayUser && displayStats && (
           <>
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-8">
-              {/* ... same stats cards as before, using displayStats ... */}
+              {/* Personal Sales */}
               <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
                 <div className="flex items-center justify-between">
                   <div>
@@ -372,6 +378,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* Team Sales */}
               <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-green-500">
                 <div className="flex items-center justify-between">
                   <div>
@@ -386,6 +393,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* Wallet Balance */}
               <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-purple-500">
                 <div className="flex items-center justify-between">
                   <div>
@@ -400,6 +408,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* Team Size */}
               <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-orange-500">
                 <div className="flex items-center justify-between">
                   <div>
