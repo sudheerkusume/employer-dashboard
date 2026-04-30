@@ -76,19 +76,22 @@ const CustomNode = ({ nodeDatum, onNodeClick }) => {
 
     return (
         <g onClick={handleCardClick} style={{ cursor: "pointer" }}>
-            <foreignObject x="-110" y="-65" width="220" height="100">
+            <foreignObject x="-110" y="-65" width="220" height="120">
                 <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: "100%", height: "100%" }}>
                     <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4"
                         style={{ borderBottomColor: levelColor, cursor: "pointer", height: "100%", boxSizing: "border-box" }}>
                         <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                                <div className="relative group inline-block">
-                                    <p className="text-gray-900 text-xs font-semibold truncate">
-                                        {userName}   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                                <div className="relative group inline-block w-full">
+                                    <p className="text-gray-900 text-xs font-semibold truncate max-w-full flex items-center gap-1">
+                                        <span className="truncate">{userName}</span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
                                             style={{ backgroundColor: `${levelColor}20`, color: levelColor }}>
                                             {levelIcon} {level}
-                                        </span> </p>
-                                    <span style={{ backgroundColor: `${levelColor}` }} className={`z-50 absolute top-4 left-1/2 -translate-x-1/2 text-gray-800 text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md`}>
+                                        </span>
+                                    </p>
+                                    <span style={{ backgroundColor: `${levelColor}` }}
+                                        className={`z-50 absolute top-4 left-1/2 -translate-x-1/2 text-gray-800 text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md pointer-events-none`}>
                                         {`${userName} (${applicationId})`}
                                     </span>
                                 </div>
@@ -573,7 +576,7 @@ export default function MLMTree() {
                             )}
                         </div>
                     )}
-                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-end">
+                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-center">
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setViewMode("tree")}
@@ -596,7 +599,7 @@ export default function MLMTree() {
                                 placeholder={isSuperAdmin ? "Search by Name or ID" : "Search by Application ID or Name"}
                                 className="px-3 py-1.5 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-500"
                             />
-                            <button type="submit" className="flex gap-1 bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
+                            <button type="submit" className="flex gap-1 items-center bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
                                 <Search size={16} className="text-white" /> View
                             </button>
                         </form>
