@@ -1,10 +1,13 @@
 // app/page.js - Beautiful Dashboard (with super_admin support)
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency } from '@/app/components/lib/mlmUtils';
+import { Listbox, Transition } from '@headlessui/react'
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
+import { ArrowDown } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -308,42 +311,91 @@ export default function HomePage() {
               Role: {userData?.role} | Level: {userData?.level} | ID: {userData?.applicationId}
             </p>
           </div>
-          <button
-            onClick={() => {
-              localStorage.removeItem('mlm_user_code');
-              localStorage.removeItem('mlm_user_name');
-              localStorage.removeItem('mlm_user_level');
-              localStorage.removeItem('mlm_user_role');
-              router.push('/');
-            }}
-            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition"
-          >
-            Logout
-          </button>
         </div>
 
         {/* Super Admin User Selector */}
         {userData?.role === 'super_admin' && (
           <div className="mt-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
             <label className="font-medium text-gray-700">View dashboard for:</label>
-            <select
-              value={selectedUserId || ''}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500"
-            >
-              <option value="">-- Select a user --</option>
-              {allUsers.map(user => (
-                <option key={user.applicationId} value={user.applicationId}>
-                  {user.fullName} ({user.applicationId})
-                </option>
-              ))}
-            </select>
+
+            <div className="relative w-64">
+              <Listbox value={selectedUserId || ''} onChange={setSelectedUserId}>
+                <div className="relative">
+                  <Listbox.Button className="relative w-full cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
+                    <span className="block truncate">
+                      {selectedUserId
+                        ? allUsers.find(u => u.applicationId === selectedUserId)?.fullName
+                        : '-- Select a user --'}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                      <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </span>
+                  </Listbox.Button>
+
+                  <Transition
+                    as={Fragment}
+                    leave="transition ease-in duration-100"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                  >
+                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                      <Listbox.Option
+                        className={({ active }) =>
+                          `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
+                          }`
+                        }
+                        value=""
+                      >
+                        {({ selected, active }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                              -- Select a user --
+                            </span>
+                            {selected && (
+                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
+                                <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Listbox.Option>
+
+                      {allUsers.map(user => (
+                        <Listbox.Option
+                          key={user.applicationId}
+                          className={({ active }) =>
+                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
+                            }`
+                          }
+                          value={user.applicationId}
+                        >
+                          {({ selected }) => (
+                            <>
+                              <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                {user.fullName} ({user.applicationId})
+                              </span>
+                              {selected && (
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
+                                  <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </Transition>
+                </div>
+              </Listbox>
+            </div>
+
             <button
               onClick={resetToMyDashboard}
               className="text-blue-600 hover:text-blue-800 text-sm underline"
             >
               Clear Selection
             </button>
+
             {loadingViewing && (
               <div className="inline-block ml-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-600"></div>
@@ -362,9 +414,9 @@ export default function HomePage() {
         {/* Stats Cards - only show if we have display data */}
         {displayUser && displayStats && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-6">
               {/* Personal Sales */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
+              <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4 border-blue-500">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm font-medium">Personal Sales</p>
@@ -379,7 +431,7 @@ export default function HomePage() {
               </div>
 
               {/* Team Sales */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-green-500">
+              <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4 border-green-500">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm font-medium">Team Sales</p>
@@ -393,28 +445,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Wallet Balance */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-purple-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm font-medium">Wallet Balance</p>
-                    <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(displayStats.wallet)}</p>
-                  </div>
-                  <div className="bg-purple-100 rounded-full p-3">
-                    <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
               {/* Team Size */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-b-4 border-orange-500">
+              <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4 border-orange-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm font-medium">Team Size</p>
+                    <p className="text-gray-500 text-sm font-medium">Team Size  <span className="text-sm text-gray-500 mt-1">Direct: {displayStats.directCount}</span></p>
                     <p className="text-3xl font-bold text-orange-600 mt-2">{displayStats.totalDownline}</p>
-                    <p className="text-sm text-gray-500 mt-1">Direct: {displayStats.directCount}</p>
                   </div>
                   <div className="bg-orange-100 rounded-full p-3">
                     <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,10 +459,25 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+
+              {/* Total Sales */}
+              <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4 border-purple-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Total Sales</p>
+                    <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency((displayStats.teamSales || 0) + (displayStats.personalSales || 0))}</p>
+                  </div>
+                  <div className="bg-purple-100 rounded-full p-3">
+                    <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Commission Card */}
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
+            <div onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)} className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-8 border border-yellow-200 text-gray-900">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-800">💰 Commission Earned</h2>
@@ -435,13 +486,8 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="text-3xl font-bold text-green-600">{formatCurrency(displayCommission.total)}</div>
+                {!showCommissionBreakdown ? <ArrowDown size={20} /> : <ArrowDown size={20} />}
               </div>
-              <button
-                onClick={() => setShowCommissionBreakdown(!showCommissionBreakdown)}
-                className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
-              >
-                {showCommissionBreakdown ? 'Hide breakdown' : 'View breakdown by depth'}
-              </button>
               {showCommissionBreakdown && displayCommission.breakdown && (
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full text-sm">

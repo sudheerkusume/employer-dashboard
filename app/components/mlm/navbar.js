@@ -19,7 +19,7 @@ export default function Header() {
             mlmUser: {},
             user: {}
         }));
-        router.push("/");
+        window.location.href = "/";
     };
 
     if (!rootContext.mlmUser) return null;

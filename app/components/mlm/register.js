@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Check, ChevronsUpDown, } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Check, ChevronsUpDown, ArrowLeft, } from 'lucide-react';
 import { Combobox } from '@headlessui/react';
+import { useRouter } from 'next/navigation';
 
 // ======================
 // Date Picker Dropdown Component
@@ -477,7 +478,7 @@ export default function ApplicationManagement() {
     const [activeTab, setActiveTab] = useState('personal');
     const [showPreview, setShowPreview] = useState(false);
     const [tabErrors, setTabErrors] = useState({});
-
+    const router = useRouter();
     const tabs = ['personal', 'emergency', 'employment', 'bank', 'signatures', 'declaration'];
     const currentTabIndex = tabs.indexOf(activeTab);
     const isLastTab = currentTabIndex === tabs.length - 1;
@@ -960,6 +961,7 @@ export default function ApplicationManagement() {
             <div className="w-full sm:w-[80%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-6">
                     <div className="flex justify-between items-center">
+                        <ArrowLeft onClick={() => { router.back() }} size={20} />
                         <h1 className="text-3xl font-bold text-gray-900">{'Register Here'}</h1>
                     </div>
                 </div>

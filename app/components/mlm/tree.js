@@ -3,11 +3,13 @@
 import { useState, useEffect, useContext, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Tree from "react-d3-tree";
-import { ArrowBigDownIcon, ArrowBigRightIcon, Search } from "lucide-react";
+import { ArrowBigDownIcon, ArrowBigRightIcon, ArrowLeft, Network, Search, File } from "lucide-react";
+import { Listbox, Transition } from "@headlessui/react";
+import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import RootContext from "../config/rootcontext";
 
 // ----------------------------------------------------------------------
-// Utility functions (same as before)
+// Utility functions (unchanged)
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -102,7 +104,6 @@ const CustomNode = ({ nodeDatum, onNodeClick }) => {
     );
 };
 
-// Helper to find node in tree by applicationId (only for internal expansion, not needed if we always fetch from API)
 function getAllNodeIds(node) {
     let ids = [node._id];
     if (node.children) {
@@ -134,7 +135,7 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component
+// Main Component with Super Admin Support
 // ----------------------------------------------------------------------
 export default function MLMTree() {
     const router = useRouter();
@@ -151,7 +152,17 @@ export default function MLMTree() {
     const [upline, setUpline] = useState([]);
     const [loadingUpline, setLoadingUpline] = useState(false);
 
-    // Helper to fetch upline chain
+    // Super admin states
+    const [allUsers, setAllUsers] = useState([]);
+    const [selectedUserId, setSelectedUserId] = useState(null);
+    const [loadingViewing, setLoadingViewing] = useState(false);
+
+    // Get stored role
+    const isSuperAdmin = loggedInUser?.role === "super_admin";
+
+    // ------------------------------------------------------------------
+    // Data fetching functions (use the same API endpoints)
+    // ------------------------------------------------------------------
     const fetchUpline = async (applicationId) => {
         if (!applicationId) return;
         setLoadingUpline(true);
@@ -172,10 +183,10 @@ export default function MLMTree() {
         }
     };
 
-    // Helper to fetch tree by applicationId
-    const fetchTree = async (applicationId) => {
+    const fetchTree = async (applicationId, setAsViewing = false) => {
         if (!applicationId) return;
-        setLoading(true);
+        if (!setAsViewing) setLoading(true);
+        else setLoadingViewing(true);
         setError(null);
         try {
             const url = `/api/mlm/tree?applicationId=${encodeURIComponent(applicationId)}`;
@@ -201,11 +212,33 @@ export default function MLMTree() {
             setCurrentNode(null);
             setUpline([]);
         } finally {
-            setLoading(false);
+            if (!setAsViewing) setLoading(false);
+            else setLoadingViewing(false);
         }
     };
 
+    const fetchAllUsers = async () => {
+        try {
+            const res = await fetch('/api/mlm/users');
+            const data = await res.json();
+            if (data.success && data.users.length) {
+                setAllUsers(data.users);
+                // Select the first user by default
+                const firstUser = data.users[0];
+                setSelectedUserId(firstUser.applicationId);
+                fetchTree(firstUser.applicationId, true); // load first user's tree
+            } else {
+                setError("No users found");
+            }
+        } catch (err) {
+            console.error("Error fetching users:", err);
+            setError("Could not load user list");
+        }
+    };
+
+    // ------------------------------------------------------------------
     // Authentication and initial load
+    // ------------------------------------------------------------------
     useEffect(() => {
         let userData = null;
         if (rootContext?.mlmUser?.isLoggedIn) userData = rootContext.mlmUser;
@@ -228,62 +261,111 @@ export default function MLMTree() {
         }
         if (userData) {
             setLoggedInUser(userData);
-            const storedAppId = localStorage.getItem('mlm_application_id');
-            if (storedAppId) {
-                fetchTree(storedAppId);
+            if (userData.role === 'super_admin') {
+                // For super_admin, load all users (no personal tree)
+                fetchAllUsers().then(() => setLoading(false));
             } else {
-                fetch(`/api/mlm/users?userId=${userData.userCode}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success && data.user.applicationId) {
-                            localStorage.setItem('mlm_application_id', data.user.applicationId);
-                            fetchTree(data.user.applicationId);
-                        } else {
-                            throw new Error("Could not retrieve application ID");
-                        }
-                    })
-                    .catch(err => {
-                        setError("Failed to get your application ID. Please login again.");
-                        setLoading(false);
-                    });
+                // Normal user: get applicationId and load their tree
+                const storedAppId = localStorage.getItem('mlm_application_id');
+                if (storedAppId) {
+                    fetchTree(storedAppId);
+                } else {
+                    fetch(`/api/mlm/users?userId=${userData.userCode}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.user.applicationId) {
+                                localStorage.setItem('mlm_application_id', data.user.applicationId);
+                                fetchTree(data.user.applicationId);
+                            } else {
+                                throw new Error("Could not retrieve application ID");
+                            }
+                        })
+                        .catch(err => {
+                            setError("Failed to get your application ID. Please login again.");
+                            setLoading(false);
+                        });
+                }
             }
         } else {
             router.push('/mlm/login');
         }
     }, [rootContext, setRootContext, router]);
 
-    // Search: accept applicationId or fullName
+    // When super_admin selects a different user, fetch that user's tree
+    useEffect(() => {
+        if (isSuperAdmin && selectedUserId) {
+            fetchTree(selectedUserId, true);
+        }
+    }, [selectedUserId, isSuperAdmin]);
+
+    // ------------------------------------------------------------------
+    // Event handlers
+    // ------------------------------------------------------------------
     const handleSearch = async (e) => {
         e.preventDefault();
         if (!searchCode.trim()) return;
-        setLoading(true);
-        setError(null);
-        const term = searchCode.trim();
-        try {
-            let appId = term;
-            if (!term.startsWith("SB-")) {
-                const userRes = await fetch(`/api/mlm/users?fullName=${encodeURIComponent(term)}`);
-                const userData = await userRes.json();
-                if (userData.success && userData.user.applicationId) {
-                    appId = userData.user.applicationId;
-                } else {
-                    throw new Error("User not found by name");
+        if (isSuperAdmin) {
+            // For super_admin, search across all users
+            const term = searchCode.trim();
+            let foundUser = allUsers.find(u => u.applicationId === term || u.fullName.toLowerCase().includes(term.toLowerCase()));
+            if (!foundUser && !term.startsWith("SB-")) {
+                // Try API search
+                try {
+                    const userRes = await fetch(`/api/mlm/users?fullName=${encodeURIComponent(term)}`);
+                    const userData = await userRes.json();
+                    if (userData.success && userData.user.applicationId) {
+                        foundUser = userData.user;
+                    }
+                } catch (err) { }
+            }
+            if (foundUser) {
+                setSelectedUserId(foundUser.applicationId);
+                setSearchCode("");
+            } else {
+                setError("User not found");
+            }
+        } else {
+            // Normal user search (same as before)
+            let appId = searchCode.trim();
+            if (!appId.startsWith("SB-")) {
+                try {
+                    const userRes = await fetch(`/api/mlm/users?fullName=${encodeURIComponent(appId)}`);
+                    const userData = await userRes.json();
+                    if (userData.success && userData.user.applicationId) {
+                        appId = userData.user.applicationId;
+                    } else {
+                        throw new Error("User not found by name");
+                    }
+                } catch (err) {
+                    setError(err.message);
+                    setLoading(false);
+                    return;
                 }
             }
             await fetchTree(appId);
             setSearchCode("");
-        } catch (err) {
-            setError(err.message);
-            setLoading(false);
         }
     };
 
     const handleNodeClick = (nodeDatum) => {
         const appId = nodeDatum.attributes?.ApplicationID;
-        if (appId && appId !== "-") fetchTree(appId);
+        if (appId && appId !== "-") {
+            if (isSuperAdmin) {
+                // Update selected user in dropdown
+                setSelectedUserId(appId);
+            } else {
+                fetchTree(appId);
+            }
+        }
     };
 
-    const setViewToUser = fetchTree; // alias
+    const setViewToUser = (appId) => {
+        if (isSuperAdmin) {
+            setSelectedUserId(appId);
+        } else {
+            fetchTree(appId);
+        }
+    };
 
     const toggleNode = (nodeId, e) => {
         e.stopPropagation();
@@ -387,10 +469,25 @@ export default function MLMTree() {
         );
     };
 
-    if (loading) {
+    // ------------------------------------------------------------------
+    // Loading state
+    // ------------------------------------------------------------------
+    if (loading && !isSuperAdmin) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-amber-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600"></div>
+            </div>
+        );
+    }
+
+    // Super admin loading users list
+    if (isSuperAdmin && loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-amber-50">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading user list...</p>
+                </div>
             </div>
         );
     }
@@ -408,31 +505,92 @@ export default function MLMTree() {
         );
     }
 
+    // Render main UI
     return (
         <div className="min-h-screen bg-gradient-to-b from-green-100 to-yellow-50 text-gray-900">
             <div className="w-full max-w-7xl mx-auto px-4 py-6">
                 {/* Header */}
                 <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">🌳Sales Beez Tree Network</h1>
+                        <div className="flex gap-2 text-xl font-bold text-gray-800">
+                            <ArrowLeft onClick={() => router.back()} className="cursor-pointer" size={18} />
+                            Sales Beez Tree Network
+                        </div>
                         <p className="text-gray-700">
-                            {currentNode ? `Viewing: ${currentNode.fullName} (${currentNode.level})` : "Select a user"}
+                            {isSuperAdmin
+                                ? `Super Admin Viewing: ${currentNode?.fullName || "Select a user"}`
+                                : currentNode ? `Viewing: ${currentNode.fullName} (${currentNode.level})` : "Select a user"}
                         </p>
                         {currentNode && renderUpline()}
                     </div>
-                    <div>
+
+                    {/* Super Admin User Selector */}
+                    {isSuperAdmin && allUsers.length > 0 && (
+                        <div className="bg-white rounded-xl shadow-md p-3 flex flex-wrap items-center gap-4">
+                            <label className="font-medium text-gray-700 text-sm">Switch user:</label>
+                            <div className="relative w-64">
+                                <Listbox value={selectedUserId || ""} onChange={setSelectedUserId}>
+                                    <div className="relative">
+                                        <Listbox.Button className="relative w-full cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 sm:text-sm">
+                                            <span className="block truncate">
+                                                {selectedUserId
+                                                    ? allUsers.find(u => u.applicationId === selectedUserId)?.fullName
+                                                    : "-- Select a user --"}
+                                            </span>
+                                            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                            </span>
+                                        </Listbox.Button>
+                                        <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                                            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                                {allUsers.map((user) => (
+                                                    <Listbox.Option
+                                                        key={user.applicationId}
+                                                        className={({ active }) =>
+                                                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-green-100 text-green-900" : "text-gray-900"}`
+                                                        }
+                                                        value={user.applicationId}
+                                                    >
+                                                        {({ selected }) => (
+                                                            <>
+                                                                <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                                                                    {user.fullName} ({user.applicationId})
+                                                                </span>
+                                                                {selected && (
+                                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-green-600">
+                                                                        <CheckIcon className="h-5 w-5" />
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </Transition>
+                                    </div>
+                                </Listbox>
+                            </div>
+                            {loadingViewing && (
+                                <div className="inline-block ml-2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-600"></div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-center">
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setViewMode("tree")}
-                                className={`px-3 py-1.5 rounded ${viewMode === "tree" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                                className={`flex gap-1 px-3 py-1.5 rounded-full ${viewMode === "tree" ? "bg-green-600 text-white" : "bg-gray-200"}`}
                             >
-                                🌲 Tree View
+                                <Network size={16} className="text-white" />  Tree View
                             </button>
                             <button
                                 onClick={() => setViewMode("list")}
-                                className={`px-3 py-1.5 rounded ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+                                className={`flex gap-1 px-3 py-1.5 rounded-full ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
                             >
-                                📋 List View
+                                <File size={16} className="text-white" /> List View
                             </button>
                         </div>
                         <form onSubmit={handleSearch} className="flex gap-2">
@@ -440,10 +598,10 @@ export default function MLMTree() {
                                 type="text"
                                 value={searchCode}
                                 onChange={(e) => setSearchCode(e.target.value)}
-                                placeholder="Search by Application ID or Name"
+                                placeholder={isSuperAdmin ? "Search by Name or ID" : "Search by Application ID or Name"}
                                 className="px-3 py-1.5 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-500"
                             />
-                            <button type="submit" className="bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
+                            <button type="submit" className="flex gap-1 bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition">
                                 <Search size={16} className="text-white" /> View
                             </button>
                         </form>
@@ -462,7 +620,7 @@ export default function MLMTree() {
                             <div className="text-2xl font-bold text-green-600">{stats.totalDownline}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-4">
-                            <div className="text-gray-500 text-sm">Your Rank</div>
+                            <div className="text-gray-500 text-sm">Current Rank</div>
                             <div className="text-2xl font-bold text-purple-600">{stats.level}</div>
                         </div>
                     </div>

@@ -54,7 +54,7 @@ export default function Toast() {
 
     return (
         (rootContext.toast.show) ? (
-            <div className="fixed top-[6rem] w-full left-1/2 transform -translate-x-1/2 pointer-events-none py-10 z-50">
+            <div className="fixed top-[6rem] w-full left-1/2 transform -translate-x-1/2 pointer-events-none py-10 z-[9999999999999">
                 <div className="flex flex-col items-center space-y-4">
                     <Transition
                         show={rootContext.toast.show}
