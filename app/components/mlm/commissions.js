@@ -1,11 +1,18 @@
 // app/mlm/real-time-commission/page.jsx
 "use client";
 
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Listbox, Transition } from "@headlessui/react";
+import {
+    Combobox,
+    ComboboxInput,
+    ComboboxButton,
+    ComboboxOptions,
+    ComboboxOption,
+    Transition,
+} from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
-import { ArrowDown, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowLeft, XCircle } from "lucide-react";
 import { formatCurrency } from "@/app/components/lib/mlmUtils";
 
 export default function RealTimeCommissionPage() {
@@ -21,12 +28,25 @@ export default function RealTimeCommissionPage() {
     const [viewingCommission, setViewingCommission] = useState(null);
     const [viewingUserData, setViewingUserData] = useState(null);
     const [loadingViewing, setLoadingViewing] = useState(false);
+    const [query, setQuery] = useState("");
 
     // Get stored credentials
     const storedAppId = typeof window !== "undefined" ? localStorage.getItem("mlm_user_code") : null;
     const storedRole = typeof window !== "undefined" ? localStorage.getItem("mlm_user_role") : null;
     const storedName = typeof window !== "undefined" ? localStorage.getItem("mlm_user_name") : null;
     const isSuperAdmin = storedRole === "super_admin";
+
+    // Filter users based on query (search by name or applicationId)
+    const filteredUsers = useMemo(() => {
+        if (!allUsers.length) return [];
+        if (query === "") return allUsers;
+        return allUsers.filter(
+            (user) =>
+                user.fullName.toLowerCase().includes(query.toLowerCase()) ||
+                user.applicationId.toLowerCase().includes(query.toLowerCase()) ||
+                (user.mlmUserCode && user.mlmUserCode.toLowerCase().includes(query.toLowerCase()))
+        );
+    }, [query, allUsers]);
 
     // Fetch current user's commission (or placeholder for super_admin)
     useEffect(() => {
@@ -64,7 +84,6 @@ export default function RealTimeCommissionPage() {
                 }
             } else {
                 if (!setAsViewing) {
-                    // Session expired
                     localStorage.removeItem("mlm_user_code");
                     localStorage.removeItem("mlm_user_name");
                     localStorage.removeItem("mlm_user_level");
@@ -85,6 +104,7 @@ export default function RealTimeCommissionPage() {
             const data = await res.json();
             if (data.success && data.users.length) {
                 setAllUsers(data.users);
+                // Optionally set first user as default
                 setSelectedUserId(data.users[0].applicationId);
             }
         } catch (err) {
@@ -99,6 +119,13 @@ export default function RealTimeCommissionPage() {
             fetchCommissionData(selectedUserId, true).finally(() => setLoadingViewing(false));
         }
     }, [selectedUserId, isSuperAdmin]);
+
+    const resetToMyDashboard = () => {
+        setSelectedUserId("");
+        setQuery("");
+        setViewingCommission(null);
+        setViewingUserData(null);
+    };
 
     // Determine what to display
     const displayCommission = isSuperAdmin && viewingCommission ? viewingCommission : commission;
@@ -125,62 +152,118 @@ export default function RealTimeCommissionPage() {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-8 text-center">
                     <div className="flex gap-2 justify-center items-center">
-                        <ArrowLeft onClick={() => { router.back() }} size={20} />
-                        <h1 className="text-3xl font-bold text-gray-900">{'Commission Breakdown'}</h1>
+                        <ArrowLeft onClick={() => router.back()} size={20} className="cursor-pointer" />
+                        <h1 className="text-3xl font-bold text-gray-900">Commission Breakdown</h1>
                     </div>
                     <p className="text-gray-600 mt-2">
                         Depth‑based commission structure – calculated from your downline sales
                     </p>
                 </div>
 
-                {/* Super Admin User Selector */}
+                {/* Super Admin User Selector with ComboBox */}
                 {isSuperAdmin && (
                     <div className="mb-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
                         <label className="font-medium text-gray-700">View commission for:</label>
 
-                        <div className="relative w-64">
-                            <Listbox value={selectedUserId || ""} onChange={setSelectedUserId}>
+                        <div className="relative w-full sm:w-96">
+                            <Combobox value={selectedUserId || ""} onChange={setSelectedUserId}>
                                 <div className="relative">
-                                    <Listbox.Button className="relative w-full cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm">
-                                        <span className="block truncate">
-                                            {selectedUserId
-                                                ? allUsers.find((u) => u.applicationId === selectedUserId)?.fullName
-                                                : "-- Select a user --"}
-                                        </span>
-                                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-                                        </span>
-                                    </Listbox.Button>
-                                    <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                                            {allUsers.map((user) => (
-                                                <Listbox.Option
-                                                    key={user.applicationId}
-                                                    className={({ active }) =>
-                                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
-                                                        }`
-                                                    }
-                                                    value={user.applicationId}
-                                                >
-                                                    {({ selected }) => (
-                                                        <>
-                                                            <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                                                                {user.fullName} ({user.applicationId})
-                                                            </span>
-                                                            {selected && (
-                                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                                                                    <CheckIcon className="h-5 w-5" />
+                                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 sm:text-sm">
+                                        <ComboboxInput
+                                            className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                                            displayValue={(userId) => {
+                                                const user = allUsers.find((u) => u.applicationId === userId);
+                                                return user ? `${user.fullName} (${user.applicationId})` : "";
+                                            }}
+                                            onChange={(event) => setQuery(event.target.value)}
+                                            placeholder="-- Select a user --"
+                                        />
+                                        <ComboboxButton className="absolute inset-y-0 right-0 flex items-center pr-2">
+                                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                        </ComboboxButton>
+                                    </div>
+
+                                    <Transition
+                                        as={Fragment}
+                                        leave="transition ease-in duration-100"
+                                        leaveFrom="opacity-100"
+                                        leaveTo="opacity-0"
+                                        afterLeave={() => setQuery("")}
+                                    >
+                                        <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                            {filteredUsers.length === 0 && query !== "" ? (
+                                                <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                                                    No users found.
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {/* Clear selection option */}
+                                                    <ComboboxOption
+                                                        className={({ active }) =>
+                                                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                                            }`
+                                                        }
+                                                        value=""
+                                                    >
+                                                        {({ selected, active }) => (
+                                                            <>
+                                                                <span
+                                                                    className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                                                        }`}
+                                                                >
+                                                                    -- Clear selection --
                                                                 </span>
+                                                                {selected && (
+                                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                                                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </ComboboxOption>
+
+                                                    {filteredUsers.map((user) => (
+                                                        <ComboboxOption
+                                                            key={user.applicationId}
+                                                            className={({ active }) =>
+                                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                                                }`
+                                                            }
+                                                            value={user.applicationId}
+                                                        >
+                                                            {({ selected }) => (
+                                                                <>
+                                                                    <span
+                                                                        className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                                                            }`}
+                                                                    >
+                                                                        {user.fullName} ({user.applicationId})
+                                                                        {user.mlmUserCode && ` • ${user.mlmUserCode}`}
+                                                                    </span>
+                                                                    {selected && (
+                                                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                                                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                                                        </span>
+                                                                    )}
+                                                                </>
                                                             )}
-                                                        </>
-                                                    )}
-                                                </Listbox.Option>
-                                            ))}
-                                        </Listbox.Options>
+                                                        </ComboboxOption>
+                                                    ))}
+                                                </>
+                                            )}
+                                        </ComboboxOptions>
                                     </Transition>
                                 </div>
-                            </Listbox>
+                            </Combobox>
                         </div>
+
+                        <button
+                            onClick={resetToMyDashboard}
+                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm underline"
+                        >
+                            <XCircle className="h-4 w-4" />
+                            Clear Selection
+                        </button>
 
                         {loadingViewing && (
                             <div className="inline-block ml-2">

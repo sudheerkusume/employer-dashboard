@@ -93,12 +93,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <Head>
         <title>Sales Beez</title>
-        <meta name="description" content="Realbeez Holding Pvt Ltd" />
+        <meta name="description" content="Realbeez Projects Pvt Ltd" />
       </Head>
-      <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
+      <body className={`${inter.className} antialiased bg-white`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
           {showHeader && <Header />}
-          <main className={`${showHeader && "mt-10"}`}>
+          <main>
             {children}
           </main>
           {rootContext?.toast?.show && <Toast />}

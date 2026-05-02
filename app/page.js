@@ -5,7 +5,14 @@ import { Fragment, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency } from '@/app/components/lib/mlmUtils';
-import { Listbox, Transition } from '@headlessui/react'
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxButton,
+  ComboboxOptions,
+  ComboboxOption,
+  Transition,
+} from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 import { ArrowBigDown, ArrowBigUp } from 'lucide-react';
 
@@ -318,75 +325,96 @@ export default function HomePage() {
           <div className="mt-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
             <label className="font-medium text-gray-700">View dashboard for:</label>
 
-            <div className="relative w-64">
-              <Listbox value={selectedUserId || ''} onChange={setSelectedUserId}>
+            <div className="relative w-full sm:w-96">
+              <Combobox value={selectedUserId || ""} onChange={setSelectedUserId}>
                 <div className="relative">
-                  <Listbox.Button className="relative w-full cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                    <span className="block truncate">
-                      {selectedUserId
-                        ? allUsers.find(u => u.applicationId === selectedUserId)?.fullName
-                        : '-- Select a user --'}
-                    </span>
-                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                  <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 sm:text-sm">
+                    <ComboboxInput
+                      className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                      displayValue={(userId) => {
+                        const user = allUsers.find((u) => u.applicationId === userId);
+                        return user ? `${user.fullName} (${user.applicationId})` : "";
+                      }}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="-- Select a user --"
+                    />
+                    <ComboboxButton className="absolute inset-y-0 right-0 flex items-center pr-2">
                       <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                    </span>
-                  </Listbox.Button>
+                    </ComboboxButton>
+                  </div>
 
                   <Transition
                     as={Fragment}
                     leave="transition ease-in duration-100"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
+                    afterLeave={() => setQuery("")}
                   >
-                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                      <Listbox.Option
-                        className={({ active }) =>
-                          `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                          }`
-                        }
-                        value=""
-                      >
-                        {({ selected, active }) => (
-                          <>
-                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                              -- Select a user --
-                            </span>
-                            {selected && (
-                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
-                                <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </Listbox.Option>
-
-                      {allUsers.map(user => (
-                        <Listbox.Option
-                          key={user.applicationId}
-                          className={({ active }) =>
-                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
-                            }`
-                          }
-                          value={user.applicationId}
-                        >
-                          {({ selected }) => (
-                            <>
-                              <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                {user.fullName} ({user.applicationId})
-                              </span>
-                              {selected && (
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
-                                  <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                    <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                      {filteredUsers.length === 0 && query !== "" ? (
+                        <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                          No users found.
+                        </div>
+                      ) : (
+                        <>
+                          {/* Clear selection option */}
+                          <ComboboxOption
+                            className={({ active }) =>
+                              `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                              }`
+                            }
+                            value=""
+                          >
+                            {({ selected, active }) => (
+                              <>
+                                <span
+                                  className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                    }`}
+                                >
+                                  -- Clear selection --
                                 </span>
+                                {selected && (
+                                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </ComboboxOption>
+
+                          {filteredUsers.map((user) => (
+                            <ComboboxOption
+                              key={user.applicationId}
+                              className={({ active }) =>
+                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                }`
+                              }
+                              value={user.applicationId}
+                            >
+                              {({ selected }) => (
+                                <>
+                                  <span
+                                    className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                      }`}
+                                  >
+                                    {user.fullName} ({user.applicationId})
+                                    {user.mlmUserCode && ` • ${user.mlmUserCode}`}
+                                  </span>
+                                  {selected && (
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </>
                               )}
-                            </>
-                          )}
-                        </Listbox.Option>
-                      ))}
-                    </Listbox.Options>
+                            </ComboboxOption>
+                          ))}
+                        </>
+                      )}
+                    </ComboboxOptions>
                   </Transition>
                 </div>
-              </Listbox>
+              </Combobox>
             </div>
 
             <button
@@ -533,7 +561,7 @@ export default function HomePage() {
             {/* Quick Actions */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-              <div className="flex flex-wrap gap-4">
+              <div className="w-full flex flex-wrap gap-4">
                 <button
                   onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
                   className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
@@ -542,19 +570,19 @@ export default function HomePage() {
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
-                  className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
                 >
                   🌳 View Tree
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
-                  className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
                 >
                   📊 Commission History
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
-                  className="bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
+                  className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
                 >
                   💰 Record Sale
                 </button>
