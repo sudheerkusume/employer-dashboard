@@ -577,27 +577,27 @@ export default function HomePage() {
               <div className="w-full flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
+                  className="w-full flex gap-1 items-center justify-center bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
                 >
-                  <Plus size={18} /> Add New Member
+                  <Plus size={20} /> Add New Member
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
+                  className="w-full flex gap-1 items-center justify-center bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
                 >
-                  <Network size={18} /> View Tree
+                  <Network size={20} /> View Tree
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
+                  className="w-full flex gap-1 items-center justify-center bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
                 >
-                  <HandCoins size={18} /> Commission History
+                  <HandCoins size={20} /> Commission History
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
-                  className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
+                  className="w-full flex gap-1 items-center justify-center bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
                 >
-                  <BadgePercent size={18} /> Record Sale
+                  <BadgePercent size={20} /> Record Sale
                 </button>
               </div>
             </div>
