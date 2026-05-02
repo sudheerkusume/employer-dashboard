@@ -363,9 +363,9 @@ export default function HomePage() {
                     leaveTo="opacity-0"
                     afterLeave={() => setQuery("")}
                   >
-                    <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500 bg-white text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                       {filteredUsers.length === 0 && query !== "" ? (
-                        <div className="relative cursor-pointer select-none py-2 px-4 text-gray-700">
+                        <div className="relative cursor-pointer select-none px-4 text-gray-700">
                           No users found.
                         </div>
                       ) : (
@@ -574,10 +574,10 @@ export default function HomePage() {
             {/* Quick Actions */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-              <div className="w-full flex flex-wrap gap-4">
+              <div className="w-full flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
                 >
                   ➕ Add New Member
                 </button>

@@ -197,7 +197,8 @@ export default function Header() {
                     {/* Desktop Navigation */}
                     <div className="hidden md:block">
                         <div className="px-5 bg-white shadow-md sticky left-0 right-0 top-0 z-10 flex items-center justify-between text-sm h-16 w-full hide-on-print">
-                            <Link href={"/"}>
+                          <div className="flex items-center justify-center gap-2">
+                              <Link href={"/"}>
                                 <Image
                                     src="/salesbeez_logo.png"
                                     alt="Realbeez logo"
@@ -213,6 +214,7 @@ export default function Header() {
                                 subMenuList={"items"}
                                 url={"url"}
                             />
+                          </div>
 
                             {/* Desktop Profile Dropdown */}
                             <div className="relative hide-on-print" ref={desktopDropdownRef}>
