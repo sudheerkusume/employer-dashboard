@@ -168,7 +168,7 @@ export default function RealTimeCommissionPage() {
                         <div className="relative w-full sm:w-96">
                             <Combobox value={selectedUserId || ""} onChange={setSelectedUserId}>
                                 <div className="relative">
-                                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500 sm:text-sm">
+                                    <div className="relative w-full cursor-pointer overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500 sm:text-sm">
                                         <ComboboxInput
                                             className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
                                             displayValue={(userId) => {
@@ -192,7 +192,7 @@ export default function RealTimeCommissionPage() {
                                     >
                                         <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                                             {filteredUsers.length === 0 && query !== "" ? (
-                                                <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                                                <div className="relative cursor-pointer select-none py-2 px-4 text-gray-700">
                                                     No users found.
                                                 </div>
                                             ) : (
@@ -200,7 +200,7 @@ export default function RealTimeCommissionPage() {
                                                     {/* Clear selection option */}
                                                     <ComboboxOption
                                                         className={({ active }) =>
-                                                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
+                                                            `relative cursor-pointer select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
                                                             }`
                                                         }
                                                         value=""
@@ -226,7 +226,7 @@ export default function RealTimeCommissionPage() {
                                                         <ComboboxOption
                                                             key={user.applicationId}
                                                             className={({ active }) =>
-                                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
+                                                                `relative cursor-pointer select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
                                                                 }`
                                                             }
                                                             value={user.applicationId}
