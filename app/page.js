@@ -1,7 +1,7 @@
 // app/page.js - Beautiful Dashboard (with super_admin support)
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency } from '@/app/components/lib/mlmUtils';
