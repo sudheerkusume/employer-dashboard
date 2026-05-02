@@ -168,7 +168,7 @@ export default function RealTimeCommissionPage() {
                         <div className="relative w-full sm:w-96">
                             <Combobox value={selectedUserId || ""} onChange={setSelectedUserId}>
                                 <div className="relative">
-                                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 sm:text-sm">
+                                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-yellow-500 focus-within:border-yellow-500 sm:text-sm">
                                         <ComboboxInput
                                             className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
                                             displayValue={(userId) => {
@@ -200,7 +200,7 @@ export default function RealTimeCommissionPage() {
                                                     {/* Clear selection option */}
                                                     <ComboboxOption
                                                         className={({ active }) =>
-                                                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                                            `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
                                                             }`
                                                         }
                                                         value=""
@@ -214,7 +214,7 @@ export default function RealTimeCommissionPage() {
                                                                     -- Clear selection --
                                                                 </span>
                                                                 {selected && (
-                                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
                                                                         <CheckIcon className="h-5 w-5" aria-hidden="true" />
                                                                     </span>
                                                                 )}
@@ -226,7 +226,7 @@ export default function RealTimeCommissionPage() {
                                                         <ComboboxOption
                                                             key={user.applicationId}
                                                             className={({ active }) =>
-                                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                                                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
                                                                 }`
                                                             }
                                                             value={user.applicationId}
@@ -241,7 +241,7 @@ export default function RealTimeCommissionPage() {
                                                                         {user.mlmUserCode && ` • ${user.mlmUserCode}`}
                                                                     </span>
                                                                     {selected && (
-                                                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                                                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-600">
                                                                             <CheckIcon className="h-5 w-5" aria-hidden="true" />
                                                                         </span>
                                                                     )}
