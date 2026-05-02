@@ -14,7 +14,7 @@ import {
   Transition,
 } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
-import { ArrowBigDown, ArrowBigUp } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, BadgePercent, HandCoins, Network, Plus } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -579,25 +579,25 @@ export default function HomePage() {
                   onClick={() => router.push(`/mlm/register?referrer=${displayUser?.userCode}`)}
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-600 transition shadow-md font-medium"
                 >
-                  ➕ Add New Member
+                  <Plus size={18} /> Add New Member
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/tree?userCode=${displayUser?.userCode}`)}
                   className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-600 transition shadow-md font-medium"
                 >
-                  🌳 View Tree
+                  <Network size={18} /> View Tree
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/commissions?userCode=${displayUser?.userCode}`)}
                   className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition shadow-md font-medium"
                 >
-                  📊 Commission History
+                  <HandCoins size={18} /> Commission History
                 </button>
                 <button
                   onClick={() => router.push(`/mlm/sales?userCode=${displayUser?.userCode}`)}
                   className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition shadow-md font-medium"
                 >
-                  💰 Record Sale
+                  <BadgePercent size={18} /> Record Sale
                 </button>
               </div>
             </div>
