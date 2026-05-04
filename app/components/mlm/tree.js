@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext, Fragment, useRef, useMemo } from "react";
+import { useState, useEffect, useContext, Fragment, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Tree from "react-d3-tree";
 import { ArrowBigDownIcon, ArrowBigRightIcon, ArrowLeft, Network, Search, File } from "lucide-react";
@@ -16,7 +16,7 @@ import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import RootContext from "../config/rootcontext";
 
 // ----------------------------------------------------------------------
-// Utility functions
+// Utility functions (unchanged)
 // ----------------------------------------------------------------------
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return "₹0";
@@ -67,16 +67,7 @@ function convertToD3Tree(node) {
     };
 }
 
-// Mobile‑aware CustomNode: shrinks card on small screens
 const CustomNode = ({ nodeDatum, onNodeClick }) => {
-    const [isMobile, setIsMobile] = useState(false);
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 640);
-        checkMobile();
-        window.addEventListener("resize", checkMobile);
-        return () => window.removeEventListener("resize", checkMobile);
-    }, []);
-
     const level = nodeDatum.attributes?.Level || "Pending";
     const levelColor = getLevelColor(level);
     const levelIcon = getLevelIcon(level);
@@ -90,37 +81,28 @@ const CustomNode = ({ nodeDatum, onNodeClick }) => {
         onNodeClick(nodeDatum);
     };
 
-    // Responsive dimensions
-    const cardWidth = isMobile ? 160 : 220;
-    const cardHeight = isMobile ? 90 : 120;
-    const offsetX = isMobile ? -80 : -110;
-    const offsetY = isMobile ? -50 : -65;
-    const fontSizeName = isMobile ? "10px" : "12px";
-    const fontSizeOther = isMobile ? "9px" : "11px";
-
     return (
         <g onClick={handleCardClick} style={{ cursor: "pointer" }}>
-            <foreignObject x={offsetX} y={offsetY} width={cardWidth} height={cardHeight}>
+            <foreignObject x="-110" y="-65" width="220" height="120">
                 <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: "100%", height: "100%" }}>
-                    <div className="bg-white rounded-2xl shadow-lg p-2 hover:shadow-xl transition-all duration-300 border-b-4"
+                    <div className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-b-4"
                         style={{ borderBottomColor: levelColor, cursor: "pointer", height: "100%", boxSizing: "border-box" }}>
-                        <div className="flex items-center justify-between h-full">
+                        <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                                 <div className="relative group inline-block w-full">
-                                    <p className="text-gray-900 font-semibold truncate max-w-full flex items-center gap-1"
-                                        style={{ fontSize: fontSizeName }}>
+                                    <p className="text-gray-900 text-xs font-semibold truncate max-w-full flex items-center gap-1">
                                         <span className="truncate">{userName}</span>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-                                            style={{ backgroundColor: `${levelColor}20`, color: levelColor, fontSize: fontSizeOther }}>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+                                            style={{ backgroundColor: `${levelColor}20`, color: levelColor }}>
                                             {levelIcon} {level}
                                         </span>
                                     </p>
                                     <span style={{ backgroundColor: `${levelColor}` }}
-                                        className="absolute top-4 left-1/2 -translate-x-1/2 text-gray-800 text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md pointer-events-none z-50">
+                                        className={`z-50 absolute top-4 left-1/2 -translate-x-1/2 text-gray-800 text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-md pointer-events-none`}>
                                         {`${userName} (${applicationId})`}
                                     </span>
                                 </div>
-                                <div className="mt-1 text-gray-600" style={{ fontSize: fontSizeOther }}>
+                                <div className="mt-2 text-gray-600 text-xs">
                                     <span>Direct: {directCount}</span>
                                 </div>
                             </div>
@@ -163,7 +145,7 @@ function computeNodeStats(node) {
 }
 
 // ----------------------------------------------------------------------
-// Main Component with Super Admin Support & Responsive Tree
+// Main Component with Super Admin Support
 // ----------------------------------------------------------------------
 export default function MLMTree() {
     const router = useRouter();
@@ -184,18 +166,11 @@ export default function MLMTree() {
     const [allUsers, setAllUsers] = useState([]);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [loadingViewing, setLoadingViewing] = useState(false);
-    const [query, setQuery] = useState("");          // for combobox search
+    const [query, setQuery] = useState("");
 
-    // Responsive tree sizing
-    const treeContainerRef = useRef(null);
-    const [treeDimensions, setTreeDimensions] = useState({ width: 0, height: 0 });
-    const [treeTranslate, setTreeTranslate] = useState({ x: 0, y: 100 });
-    const [treeZoom, setTreeZoom] = useState(0.8);
 
-    // Get stored role
-    const isSuperAdmin = loggedInUser?.role === "super_admin";
 
-    // Filter users for combobox
+    // Filter users based on query (search by name or applicationId)
     const filteredUsers = useMemo(() => {
         if (!allUsers.length) return [];
         if (query === "") return allUsers;
@@ -207,8 +182,11 @@ export default function MLMTree() {
         );
     }, [query, allUsers]);
 
+    // Get stored role
+    const isSuperAdmin = loggedInUser?.role === "super_admin";
+
     // ------------------------------------------------------------------
-    // Data fetching functions
+    // Data fetching functions (use the same API endpoints)
     // ------------------------------------------------------------------
     const fetchUpline = async (applicationId) => {
         if (!applicationId) return;
@@ -250,6 +228,7 @@ export default function MLMTree() {
             const expanded = {};
             allIds.forEach(id => { expanded[id] = true; });
             setExpandedNodes(expanded);
+            // Fetch upline for this user
             await fetchUpline(applicationId);
         } catch (err) {
             console.error(err);
@@ -269,9 +248,10 @@ export default function MLMTree() {
             const data = await res.json();
             if (data.success && data.users.length) {
                 setAllUsers(data.users);
+                // Select the first user by default
                 const firstUser = data.users[0];
                 setSelectedUserId(firstUser.applicationId);
-                fetchTree(firstUser.applicationId, true);
+                fetchTree(firstUser.applicationId, true); // load first user's tree
             } else {
                 setError("No users found");
             }
@@ -307,8 +287,10 @@ export default function MLMTree() {
         if (userData) {
             setLoggedInUser(userData);
             if (userData.role === 'super_admin') {
+                // For super_admin, load all users (no personal tree)
                 fetchAllUsers().then(() => setLoading(false));
             } else {
+                // Normal user: get applicationId and load their tree
                 const storedAppId = localStorage.getItem('mlm_application_id');
                 if (storedAppId) {
                     fetchTree(storedAppId);
@@ -334,45 +316,12 @@ export default function MLMTree() {
         }
     }, [rootContext, setRootContext, router]);
 
-    // When super_admin selects a different user, fetch their tree
+    // When super_admin selects a different user, fetch that user's tree
     useEffect(() => {
         if (isSuperAdmin && selectedUserId) {
             fetchTree(selectedUserId, true);
         }
     }, [selectedUserId, isSuperAdmin]);
-
-    // Responsive tree: measure container and adjust translate/zoom/nodeSize
-    useEffect(() => {
-        const updateTreeDimensions = () => {
-            if (treeContainerRef.current) {
-                const width = treeContainerRef.current.clientWidth;
-                const height = treeContainerRef.current.clientHeight;
-                setTreeDimensions({ width, height });
-            }
-        };
-        updateTreeDimensions();
-        window.addEventListener("resize", updateTreeDimensions);
-        return () => window.removeEventListener("resize", updateTreeDimensions);
-    }, []);
-
-    useEffect(() => {
-        if (treeDimensions.width > 0) {
-            // Center horizontally
-            const x = treeDimensions.width / 2;
-            const y = treeDimensions.height > 600 ? 120 : 80;
-            setTreeTranslate({ x, y });
-            // Zoom: smaller on mobile (width < 640)
-            const newZoom = treeDimensions.width < 640 ? 0.6 : treeDimensions.width < 1024 ? 0.7 : 0.8;
-            setTreeZoom(newZoom);
-        }
-    }, [treeDimensions]);
-
-    // Dynamic node size based on screen width
-    const nodeSize = treeDimensions.width < 640
-        ? { x: 160, y: 140 }   // mobile
-        : treeDimensions.width < 1024
-            ? { x: 200, y: 160 }   // tablet
-            : { x: 240, y: 180 };  // desktop
 
     // ------------------------------------------------------------------
     // Event handlers
@@ -381,9 +330,11 @@ export default function MLMTree() {
         e.preventDefault();
         if (!searchCode.trim()) return;
         if (isSuperAdmin) {
+            // For super_admin, search across all users
             const term = searchCode.trim();
             let foundUser = allUsers.find(u => u.applicationId === term || u.fullName.toLowerCase().includes(term.toLowerCase()));
             if (!foundUser && !term.startsWith("SB-")) {
+                // Try API search
                 try {
                     const userRes = await fetch(`/api/mlm/users?fullName=${encodeURIComponent(term)}`);
                     const userData = await userRes.json();
@@ -399,6 +350,7 @@ export default function MLMTree() {
                 setError("User not found");
             }
         } else {
+            // Normal user search (same as before)
             let appId = searchCode.trim();
             if (!appId.startsWith("SB-")) {
                 try {
@@ -424,6 +376,7 @@ export default function MLMTree() {
         const appId = nodeDatum.attributes?.ApplicationID;
         if (appId && appId !== "-") {
             if (isSuperAdmin) {
+                // Update selected user in dropdown
                 setSelectedUserId(appId);
             } else {
                 fetchTree(appId);
@@ -542,7 +495,7 @@ export default function MLMTree() {
     };
 
     // ------------------------------------------------------------------
-    // Loading states
+    // Loading state
     // ------------------------------------------------------------------
     if (loading && !isSuperAdmin) {
         return (
@@ -552,6 +505,7 @@ export default function MLMTree() {
         );
     }
 
+    // Super admin loading users list
     if (isSuperAdmin && loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-amber-50">
@@ -576,9 +530,7 @@ export default function MLMTree() {
         );
     }
 
-    // ------------------------------------------------------------------
-    // Main render
-    // ------------------------------------------------------------------
+    // Render main UI
     return (
         <div className="min-h-screen bg-gradient-to-b from-green-100 to-yellow-50 text-gray-900">
             <div className="w-full max-w-7xl mx-auto px-4 py-6">
@@ -595,8 +547,9 @@ export default function MLMTree() {
                     </p>
                     {/* Super Admin User Selector */}
                     {isSuperAdmin && allUsers.length > 0 && (
-                        <div className="w-full bg-white rounded-xl shadow-md p-3 flex flex-wrap items-center gap-4">
-                            <label className="font-medium text-gray-700 text-sm">Switch user:</label>
+                        <div className="mb-6 bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-4">
+                            <label className="font-medium text-gray-700">View commission for:</label>
+
                             <div className="relative w-full sm:w-96">
                                 <Combobox value={selectedUserId || ""} onChange={setSelectedUserId}>
                                     <div className="relative">
@@ -638,7 +591,10 @@ export default function MLMTree() {
                                                         >
                                                             {({ selected, active }) => (
                                                                 <>
-                                                                    <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                                                                    <span
+                                                                        className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                                                            }`}
+                                                                    >
                                                                         -- Clear selection --
                                                                     </span>
                                                                     {selected && (
@@ -654,14 +610,17 @@ export default function MLMTree() {
                                                             <ComboboxOption
                                                                 key={user.applicationId}
                                                                 className={({ active }) =>
-                                                                    `relative cursor-pointer select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"
+                                                                    `relative cursor-pointer select-none py-2 pl-10 pr-4 ${active ? "bg-yellow-100 text-yellow-900" : "text-gray-900"
                                                                     }`
                                                                 }
                                                                 value={user.applicationId}
                                                             >
                                                                 {({ selected }) => (
                                                                     <>
-                                                                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                                                                        <span
+                                                                            className={`block truncate ${selected ? "font-medium" : "font-normal"
+                                                                                }`}
+                                                                        >
                                                                             {user.fullName} ({user.applicationId})
                                                                             {user.mlmUserCode && ` • ${user.mlmUserCode}`}
                                                                         </span>
@@ -683,12 +642,12 @@ export default function MLMTree() {
                             </div>
                             {loadingViewing && (
                                 <div className="inline-block ml-2">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-600"></div>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
                                 </div>
                             )}
                         </div>
                     )}
-                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-between sm:justify-center">
+                    <div className="flex flex-col gap-1 sm:flex-row items-center justify-center">
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setViewMode("tree")}
@@ -703,7 +662,7 @@ export default function MLMTree() {
                                 <File size={16} className="text-white" /> List View
                             </button>
                         </div>
-                        <form onSubmit={handleSearch} className="flex gap-2 mt-5 sm:mt-0">
+                        <form onSubmit={handleSearch} className="flex gap-2">
                             <input
                                 type="text"
                                 value={searchCode}
@@ -739,11 +698,7 @@ export default function MLMTree() {
                 )}
 
                 {/* Tree or List View Container */}
-                <div
-                    ref={treeContainerRef}
-                    className="bg-gradient-to-b from-amber-50/30 to-white/50 rounded-2xl shadow-xl p-4 border border-amber-200"
-                    style={{ height: "75vh", width: "100%", overflow: "hidden" }}
-                >
+                <div className="bg-gradient-to-b from-amber-50/30 to-white/50 rounded-2xl shadow-xl p-4 border border-amber-200" style={{ height: "75vh", width: "100%", overflow: "auto" }}>
                     {viewMode === "tree" ? (
                         treeData ? (
                             <Tree
@@ -753,16 +708,15 @@ export default function MLMTree() {
                                 renderCustomNodeElement={(props) => (
                                     <CustomNode nodeDatum={props.nodeDatum} onNodeClick={handleNodeClick} />
                                 )}
-                                nodeSize={nodeSize}
-                                separation={{ siblings: 1.2, nonSiblings: 1.2 }}
+                                nodeSize={{ x: 240, y: 180 }}
+                                separation={{ siblings: 1.4, nonSiblings: 1.4 }}
                                 zoomable={true}
                                 panable={true}
-                                translate={treeTranslate}
+                                translate={{ x: 500, y: 100 }}
                                 pathClassFunc={() => "tree-path"}
                                 collapsible={true}
-                                initialDepth={treeDimensions.width < 640 ? 1 : 2}
-                                zoom={treeZoom}
-                                scaleExtent={{ min: 0.3, max: 1.5 }}
+                                initialDepth={2}
+                                zoom={0.8}
                             />
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-500">
@@ -770,7 +724,7 @@ export default function MLMTree() {
                             </div>
                         )
                     ) : (
-                        <div className="overflow-x-auto h-full">
+                        <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 bg-white rounded-xl">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -806,28 +760,33 @@ export default function MLMTree() {
             </div>
 
             <style jsx global>{`
-                .tree-path {
-                    stroke: #7b3f00 !important;
-                    stroke-width: 3px;
-                    stroke-dasharray: 0;
-                    transition: stroke 0.2s;
+               .tree-path {
+                   stroke: #7b3f00 !important;
+                   stroke-width: 3px;
+                   stroke-dasharray: 0;
+                   transition: stroke 0.2s;
+               }
+               .tree-path:hover {
+                   stroke: #a05a1a !important;
+               }
+               .rd3t-label__title {
+                   font-size: 11px;
+                   font-weight: bold;
+                   fill: #2d1b0e;
+               }
+               .rd3t-label__attributes {
+                   font-size: 9px;
+                   fill: #5a3a1a;
+               }
+               svg filter#shadow {
+                   filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.2));
+               }
+                @media (max-width: 768px) {
+                    .rd3t-tree-container {
+                        min-width: 900px;
+                    }
                 }
-                .tree-path:hover {
-                    stroke: #a05a1a !important;
-                }
-                .rd3t-label__title {
-                    font-size: 11px;
-                    font-weight: bold;
-                    fill: #2d1b0e;
-                }
-                .rd3t-label__attributes {
-                    font-size: 9px;
-                    fill: #5a3a1a;
-                }
-                svg filter#shadow {
-                    filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.2));
-                }
-            `}</style>
+           `}</style>
         </div>
     );
 }
