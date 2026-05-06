@@ -293,11 +293,24 @@ function maskSensitive(doc) {
     return r;
 }
 
+function formatApplicationId(appId) {
+    if (!appId || typeof appId !== 'string') return appId || '';
+    const match = appId.match(/SB\s*-\s*(\d+)/i);
+    if (!match) return appId; // No match → return unchanged
+
+    let digits = match[1]; // The numeric part as a string
+    if (digits.length > 6) {
+        digits = digits.slice(-6); // Keep only the last 6 characters
+    }
+
+    return `SB-${digits}`;
+}
+
 function buildDocument(value, userCode) {
     const level = value.level || "ME";
     return {
         _id: new ObjectId(),
-        applicationId: value.applicationId || "",
+        applicationId: formatApplicationId(value.applicationId || ""),
         userCode,
         mlmUserCode: userCode,
         level,
@@ -331,7 +344,7 @@ function buildDocument(value, userCode) {
         dateOfPayment: value.dateOfPayment ?? "",
         kit_delivered: value.kit_delivered ?? "",
         referrerSignature: value.referrerSignature ?? "",
-        referredById: value.referredById || "SB-000000",
+        referredById: formatApplicationId(value.referredById || "SB-000012"),
         referredByName: value.referredByName || "K Srinivas",
         status: value.status || "pending",
         appliedAt: Date.now(),
@@ -496,7 +509,7 @@ export async function POST(req) {
                 }
             }
             if (!dupReason) {
-                const appId = rec.value.applicationId;
+                const appId = formatApplicationId(rec.value.applicationId);
                 // Only check uniqueness if appId is not empty
                 if (appId && appId.trim() !== "" && existingInDB.applicationId.has(appId)) {
                     dupReason = `applicationId already exists: "${appId}"`;
@@ -594,7 +607,7 @@ export async function POST(req) {
                 success: true,
                 message: "Application submitted successfully",
                 _id: doc._id,
-                applicationId: doc.applicationId,
+                applicationId: formatApplicationId(doc.applicationId),
                 userCode: doc.userCode,
                 application: maskedDocs[0],
                 emailStatus: emailPromises.length === 0 ? "no_email_provided" : (emailFailures === 0 ? "sent" : "partial_failure"),
@@ -625,7 +638,7 @@ export async function POST(req) {
 }
 
 // ----------------------------------------------------------------------
-// GET, PUT, DELETE (unchanged, included as is)
+// GET, PUT, DELETE (unchanged except PUT formatting)
 // ----------------------------------------------------------------------
 export async function GET(req) {
     try {
@@ -749,6 +762,8 @@ export async function PUT(req) {
                         if (!finalAppId) {
                             console.error(`Application ${app._id} approved but missing applicationId – no auto-generation.`);
                         } else {
+                            // Ensure stored applicationId is normalised
+                            finalAppId = formatApplicationId(finalAppId);
                             updateFields.applicationId = finalAppId;
                         }
                     }
@@ -837,14 +852,16 @@ export async function PUT(req) {
 
             if (status === "approved") {
                 if (preferredAppId && preferredAppId.trim()) {
+                    const formattedPreferred = formatApplicationId(preferredAppId);
                     const existing = await col.findOne({
-                        applicationId: preferredAppId,
+                        applicationId: formattedPreferred,
                         _type: { $ne: "__counter" },
+                        _id: { $ne: new ObjectId(id) }, // allow same document
                     });
                     if (!existing) {
-                        finalAppId = preferredAppId;
+                        finalAppId = formattedPreferred;
                     } else {
-                        console.warn(`Preferred applicationId ${preferredAppId} already exists – keeping original ${finalAppId || "none"}`);
+                        console.warn(`Preferred applicationId ${formattedPreferred} already exists – keeping original ${finalAppId || "none"}`);
                     }
                 }
                 if (finalAppId) {
@@ -915,7 +932,10 @@ export async function PUT(req) {
         }
 
         const { id, ...updateFields } = value;
-        delete updateFields.applicationId;
+        // applicationId is allowed in update – format it if present
+        if (updateFields.applicationId !== undefined) {
+            updateFields.applicationId = formatApplicationId(updateFields.applicationId);
+        }
         delete updateFields.userCode;
         delete updateFields.mlmUserCode;
         delete updateFields._type;
