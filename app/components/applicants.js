@@ -792,7 +792,11 @@ export default function ApplicationManagement() {
         referredByName: "",
         status: 'pending',
         level: "ME",
-        dateOfApplication: ""
+        dateOfApplication: "",
+        modeOfPayment: "",      // UTR NO/ CASH
+        dateOfPayment: "",
+        kit_delivered: "",
+        remarks: ""             // new field for Remarks
     });
 
     const fetchApplications = async (page = 1) => {
@@ -985,6 +989,9 @@ export default function ApplicationManagement() {
                 setFormData({
                     applicationId: app.applicationId || '',
                     dateOfApplication: app.dateOfApplication || "",
+                    modeOfPayment: app.modeOfPayment || "",
+                    dateOfPayment: app.dateOfPayment || "",
+                    kit_delivered: app.kit_delivered || "",
                     fullName: app.fullName || '',
                     dob: app.dob ? app.dob.split('T')[0] : '',
                     fatherName: app.fatherName || '',
@@ -1013,6 +1020,7 @@ export default function ApplicationManagement() {
                     referrerSignature: app.referrerSignature || '',
                     applicantSignature: app.applicantSignature || '',
                     status: app.status || 'pending',
+                    remarks: app.remarks || '',
                 });
                 setCurrentView('edit');
                 setActiveTab('personal');
@@ -1026,11 +1034,6 @@ export default function ApplicationManagement() {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleDelete = (app) => {
-        setDeleteApp(app);
-        setShowDeleteModal(true);
     };
 
     const confirmDelete = async () => {
@@ -1057,12 +1060,6 @@ export default function ApplicationManagement() {
         } finally {
             setActionLoading(false);
         }
-    };
-
-    const handleStatusUpdate = (app) => {
-        setStatusUpdateApp(app);
-        setRemarks('');
-        setShowStatusModal(true);
     };
 
     const updateStatus = async (status) => {
@@ -1143,11 +1140,12 @@ export default function ApplicationManagement() {
 
     const resetForm = () => {
         setFormData({
-            applicationId: '', dateOfApplication: '', fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
+            applicationId: '', dateOfApplication: '', modeOfPayment: '', dateOfPayment: '', kit_delivered: '',
+            fullName: '', dob: '', fatherName: '', bloodGroup: '', address: '', contactNo: '', email: '', pinCode: '', panNumber: '', aadharNumber: '',
             emergencyContacts: [{ name: '', location: '', phone: '', relationship: '' }],
             previousCompany: '', previousDesignation: '', educationalQualification: '', legalCasesPending: '',
             nameAsPerBank: '', bankName: '', accountNo: '', ifscCode: '', branch: '', bankCity: '',
-            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: 'SB-000000', referredByName: "K srinivas", status: 'pending',
+            declarationNote: '', declaration: false, referrerSignature: '', applicantSignature: '', referredById: 'SB-000000', referredByName: "K srinivas", status: 'pending', remarks: ''
         });
         setCurrentApplication(null);
         setActiveTab('personal');
@@ -1156,6 +1154,9 @@ export default function ApplicationManagement() {
 
     const MAX_EMERGENCY_CONTACTS = 2;
 
+    // ======================
+    // UPDATED EXPORT FUNCTION (only required columns)
+    // ======================
     const handleExportExcel = async () => {
         if (applications.length === 0) {
             showNotification('error', 'No applications to export');
@@ -1164,49 +1165,22 @@ export default function ApplicationManagement() {
         setIsExporting(true);
         try {
             const exportData = applications.map(app => {
-                const base = {
-                    'Application ID': app.applicationId || '',
-                    'User Code': app.userCode || '',
-                    'Full Name': app.fullName || '',
-                    'UTR No / Cash': app.modeOfPayment || '',
-                    'Date Of Payment': app.dateOfPayment || '',
-                    'Kit Delivered': app.kit_delivered || '',
-                    'Date of Birth': app.dob ? new Date(app.dob).toLocaleDateString() : '',
-                    'Father Name': app.fatherName || '',
-                    'Blood Group': app.bloodGroup || '',
-                    'Address': app.address || '',
-                    'Contact No': app.contactNo || '',
-                    'Email': app.email || '',
-                    'Pin Code': app.pinCode || '',
-                    'PAN Number': app.panNumber || '',
-                    'Aadhar Number': app.aadharNumber || '',
-                    'Previous Company': app.previousCompany || '',
-                    'Previous Designation': app.previousDesignation || '',
-                    'Educational Qualification': app.educationalQualification || '',
-                    'Legal Cases Pending': app.legalCasesPending || '',
-                    'Name as per Bank': app.nameAsPerBank || '',
-                    'Bank Name': app.bankName || '',
-                    'Account No': app.accountNo || '',
-                    'IFSC Code': app.ifscCode || '',
-                    'Branch': app.branch || '',
-                    'Bank City': app.bankCity || '',
-                    'Declaration Note': app.declarationNote || '',
-                    'Declaration': app.declaration ? 'Yes' : 'No',
-                    'Referred By Id': app.referredById || '',
-                    'Referred By Name': app.referredByName || '',
-                    'Level': app.level || '',
-                    'Status': app.status || '',
-                    'Applied At': app.appliedAt ? new Date(app.appliedAt).toLocaleString() : '',
+                // Get first emergency contact phone if exists
+                const emergencyNumber = app.emergencyContacts?.[0]?.phone || '';
+                return {
+                    "Name": app.fullName || '',
+                    "Contact Number": app.contactNo || '',
+                    "Client ID": app.applicationId || '',
+                    "Referral Person Name": app.referredByName || '',
+                    "Referral ID Number": app.referredById || '',
+                    "Kits Delivered": app.kit_delivered || '',
+                    "Application Date": app.dateOfApplication || '',
+                    "Payment Received Date": app.dateOfPayment || '',
+                    "UTR NO/ CASH": app.modeOfPayment || '',
+                    "Remarks": app.remarks || '',
+                    "Emergency Number": emergencyNumber,
+                    "Address": app.address || ''
                 };
-                const contacts = app.emergencyContacts || [];
-                for (let i = 0; i < MAX_EMERGENCY_CONTACTS; i++) {
-                    const contact = contacts[i] || {};
-                    base[`Emergency Contact ${i + 1} Name`] = contact.name || '';
-                    base[`Emergency Contact ${i + 1} Phone`] = contact.phone || '';
-                    base[`Emergency Contact ${i + 1} Location`] = contact.location || '';
-                    base[`Emergency Contact ${i + 1} Relationship`] = contact.relationship || '';
-                }
-                return base;
             });
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
@@ -1221,6 +1195,9 @@ export default function ApplicationManagement() {
         }
     };
 
+    // ======================
+    // UPDATED IMPORT FUNCTIONS (only required columns)
+    // ======================
     const handleImportExcel = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -1356,131 +1333,91 @@ export default function ApplicationManagement() {
         return String(value).replace(/\s+/g, '');
     };
 
+    // ======================
+    // UPDATED MAPPING FUNCTION (only required columns)
+    // ======================
     const mapExcelRowToFormData = (row) => {
         const getStr = (key) => (row[key] ? String(row[key]).trim() : '');
-        let emergencyContacts = [];
-        const MAX_CONTACTS = 3;
-        for (let i = 1; i <= MAX_CONTACTS; i++) {
-            const name = getStr(`Emergency Contact ${i} Name`);
-            if (name && name !== '') {
-                emergencyContacts.push({
-                    name: name,
-                    phone: getStr(`Emergency Contact ${i} Phone`),
-                    location: getStr(`Emergency Contact ${i} Location`),
-                    relationship: getStr(`Emergency Contact ${i} Relationship`)
-                });
-            }
-        }
-        if (emergencyContacts.length === 0 && row['Emergency Contacts']) {
-            const contactsStr = getStr('Emergency Contacts');
-            if (contactsStr) {
-                const contacts = contactsStr.split(';').map(contact => {
-                    const match = contact.match(/(.+?)\s*\((.+?)\)\s*-\s*(.+?),\s*(.+)/);
-                    if (match) return {
-                        name: match[1].trim(),
-                        relationship: match[2].trim(),
-                        phone: match[3].trim(),
-                        location: match[4].trim()
-                    };
-                    return null;
-                }).filter(c => c && c.name);
-                if (contacts.length) emergencyContacts = contacts;
-            }
-        }
-        if (emergencyContacts.length === 0) {
-            emergencyContacts = [{ name: '', location: '', phone: '', relationship: '' }];
-        }
 
-        // Get raw IDs and clean them (remove all spaces)
-        const rawAppId = getStr('Application ID');
-        const rawReferredById = getStr('Referred By Id');
+        // Build emergency contacts from the single "Emergency Number" column
+        const emergencyNumber = getStr("Emergency Number");
+        let emergencyContacts = [];
+        if (emergencyNumber) {
+            emergencyContacts.push({
+                name: "",
+                location: "",
+                phone: emergencyNumber,
+                relationship: ""
+            });
+        }
+        // Ensure at least one empty contact for the UI
+        if (emergencyContacts.length === 0) {
+            emergencyContacts.push({ name: '', location: '', phone: '', relationship: '' });
+        }
 
         return {
-            applicationId: rawAppId ? cleanId(rawAppId) : '',
-            dateOfApplication: getStr('Date Of Application'),
-            modeOfPayment: getStr('UTR No / Cash'),
-            dateOfPayment: getStr('Date Of Payment'),
-            kit_delivered: getStr('Kit Delivered'),
-            fullName: getStr('Full Name'),
-            dob: parseDate(getStr('Date of Birth')),
-            fatherName: getStr("Father's/Husband's Name"),
-            bloodGroup: getStr('Blood Group'),
-            address: getStr('Address'),
-            contactNo: getStr('Contact Number'),
-            email: getStr('Email ID'),
-            pinCode: getStr('Pin Code'),
-            panNumber: getStr('PAN Number'),
-            aadharNumber: getStr('Aadhar Number'),
-            emergencyContacts,
-            previousCompany: getStr('Previous Company'),
-            previousDesignation: getStr('Previous Designation'),
-            educationalQualification: getStr('Educational Qualification'),
-            legalCasesPending: getStr('Legal Cases Pending') === 'Yes' ? 'yes' : getStr('Legal Cases Pending') === 'No' ? 'no' : '',
-            nameAsPerBank: getStr('Name as per Bank'),
-            bankName: getStr('Bank Name'),
-            accountNo: getStr('Account Number'),
-            ifscCode: getStr('IFSC Code'),
-            branch: getStr('Branch'),
-            bankCity: getStr('Bank City'),
-            declarationNote: getStr('Declaration Note'),
-            declaration: getStr('Declaration Accepted') === 'Yes',
+            // Mapped from template columns
+            fullName: getStr("Name"),
+            contactNo: getStr("Contact Number"),
+            applicationId: cleanId(getStr("Client ID")),
+            referredByName: getStr("Referral Person Name"),
+            referredById: cleanId(getStr("Referral ID Number")),
+            kit_delivered: getStr("Kits Delivered"),
+            dateOfApplication: getStr("Application Date"),
+            dateOfPayment: getStr("Payment Received Date"),
+            modeOfPayment: getStr("UTR NO/ CASH"),
+            remarks: getStr("Remarks"),
+            address: getStr("Address"),
+            emergencyContacts: emergencyContacts,
+            // Default empty values for all other fields
+            dob: '',
+            fatherName: '',
+            bloodGroup: '',
+            email: '',
+            pinCode: '',
+            panNumber: '',
+            aadharNumber: '',
+            previousCompany: '',
+            previousDesignation: '',
+            educationalQualification: '',
+            legalCasesPending: '',
+            nameAsPerBank: '',
+            bankName: '',
+            accountNo: '',
+            ifscCode: '',
+            branch: '',
+            bankCity: '',
+            declarationNote: '',
+            declaration: false,
             referrerSignature: '',
             applicantSignature: '',
-            referredById: rawReferredById ? cleanId(rawReferredById) : 'SB-000012',
-            referredByName: getStr('Referred By Name') || 'K Srinivas',
-            status: getStr('Status') || 'pending',
+            status: 'pending',
+            level: "ME",
         };
     };
 
+    // ======================
+    // UPDATED TEMPLATE DOWNLOAD (only required columns)
+    // ======================
     const handleDownloadTemplate = () => {
         const templateData = [{
-            'Application ID': 'SB-000000',
-            'Date Of Application': "30-03-2026",
-            'Date Of Payment': "31-03-2026",
-            'Kit Delivered': 'Yes',
-            'UTR No / Cash': "Cash",
-            'Referred By Name': 'K Srinivas',
-            'Referred By Id': 'SB-000000',
-            'userCode': 'ME-001',
-            'mlmUserCode': 'ME-001',
-            'Full Name': 'Bheema',
-            'Date of Birth': '1995-01-12',
-            "Father's/Husband's Name": 'Megya',
-            'Blood Group': 'B+',
-            'Address': '123 Main Street, Hyderabad',
-            'Contact Number': '9876543210',
-            'Email ID': 'bheema@gmail.com',
-            'Pin Code': '123456',
-            'PAN Number': 'ABCDE1234F',
-            'Aadhar Number': '123456789012',
-            'Emergency Contact 1 Name': 'Vinod',
-            'Emergency Contact 1 Phone': '9876543211',
-            'Emergency Contact 1 Location': 'Hyderabad',
-            'Emergency Contact 1 Relationship': 'Brother',
-            'Emergency Contact 2 Name': 'Sita',
-            'Emergency Contact 2 Phone': '9876543212',
-            'Emergency Contact 2 Location': 'Secunderabad',
-            'Emergency Contact 2 Relationship': 'Friend',
-            'Educational Qualification': 'Graduate',
-            'Previous Company': 'BMax Projects Pvt Ltd',
-            'Previous Designation': 'Manager',
-            'Legal Cases Pending': 'No',
-            'Name as per Bank': 'Bheema',
-            'Bank Name': 'State Bank of India',
-            'Account Number': '123456789012',
-            'IFSC Code': 'SBIN0012345',
-            'Branch': 'Hyderabad Branch',
-            'Bank City': 'Hyderarab',
-            'Declaration Note': 'I confirm that all information is correct.',
-            'Declaration Accepted': 'Yes',
-            'Applicant Signature': '',
-            'Referrer Signature': '',
-            'Status': 'pending',
+            "Name": "Bheema",
+            "Contact Number": "9876543210",
+            "Client ID": "SB-012679",          // note: will be normalised by backend
+            "Referral Person Name": "K Srinivas",
+            "Referral ID Number": "SB-000000",
+            "Kits Delivered": "Yes",
+            "Application Date": "30-03-2026",
+            "Payment Received Date": "31-03-2026",
+            "UTR NO/ CASH": "Cash",
+            "Remarks": "Sample import",
+            "Emergency Number": "9876543211",
+            "Address": "123 Main Street, Hyderabad"
         }];
         const ws = XLSX.utils.json_to_sheet(templateData);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Application_Template');
-        XLSX.writeFile(wb, 'application_template.xlsx');
+        XLSX.utils.book_append_sheet(wb, ws, "Application_Template");
+        XLSX.writeFile(wb, "application_template.xlsx");
         showNotification('success', 'Template downloaded');
     };
 
@@ -1603,7 +1540,7 @@ export default function ApplicationManagement() {
     };
 
     // ======================
-    // Modals
+    // Modals (unchanged)
     // ======================
     const DetailsModal = ({ application, onClose }) => {
         return (
@@ -1793,7 +1730,6 @@ export default function ApplicationManagement() {
         );
     };
 
-
     const BulkStatusModal = () => {
         const textareaRef = useRef(null);
         const hasFocused = useRef(false); // prevent multiple focus attempts
@@ -1868,8 +1804,6 @@ export default function ApplicationManagement() {
             </div>
         );
     };
-
-
 
     const PreviewSection = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -2161,7 +2095,6 @@ export default function ApplicationManagement() {
             </div>
         );
     };
-
 
     const isAllSelected = filteredApplications.length > 0 &&
         selectedIds.length === filteredApplications.length;
@@ -2472,7 +2405,7 @@ export default function ApplicationManagement() {
     }
 
     // ======================
-    // Add/Edit Form View (unchanged)
+    // Add/Edit Form View (unchanged except added remarks field)
     // ======================
     return (
         <div className="min-h-screen bg-gray-50">
@@ -2536,6 +2469,7 @@ export default function ApplicationManagement() {
                                     <InputField label="Pin Code" name="pinCode" placeholder="Pincode" value={formData.pinCode} onChange={handleChange} validation="pincode" required={false} maxLength={6} />
                                     <InputField label="PAN Number" name="panNumber" placeholder="ABCDE1234F" value={formData.panNumber} onChange={handleChange} validation="pan" required={false} maxLength={10} />
                                     <InputField label="Aadhar Number" name="aadharNumber" placeholder="123456789012" value={formData.aadharNumber} onChange={handleChange} validation="aadhar" required={false} maxLength={12} />
+                                    <InputField label="Remarks" name="remarks" placeholder="Any remarks" value={formData.remarks} onChange={handleChange} required={false} />
                                 </div>
                             </div>
                         )}
