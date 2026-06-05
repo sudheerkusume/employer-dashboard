@@ -44,6 +44,7 @@ export default function AddEmployeeForm({ currentUserRole }) {
                 role: form.role,
                 password: form.password,
                 reportingId: form.manager?._id || null,
+                reportingManager: form.manager?.name || null,
                 mobile: form.mobile,
                 dateOfJoining: form.dateOfJoining,
                 dateOfBirth: form.dateOfBirth,

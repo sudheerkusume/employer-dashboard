@@ -487,6 +487,9 @@ export default function EmployeeProfile({ employeesData }) {
                                 <p className="text-[13px] text-gray-500">
                                     Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}
                                 </p>
+                                <p className="text-[13px] text-gray-500">
+                                    Reporting Manager: {profile.reportingManager}
+                                </p>
                             </div>
                         )}
                     </div>

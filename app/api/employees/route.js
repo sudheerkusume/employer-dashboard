@@ -25,6 +25,7 @@ const employeeSchema = Joi.object({
     role: Joi.string().valid("employee", "manager", "admin").required(),
     password: Joi.string().required(),
     reportingId: Joi.string().trim().length(24).required(),
+    reportingManager: Joi.string(),
     attendance: Joi.object().default({}),
     experience: Joi.array().default([]),
     education: Joi.array().default([]),
@@ -199,7 +200,7 @@ export async function PUT(request) {
             // Text fields - only update if provided
             // const textFields = ["name", "panNumber", "password", "role", "summary"];
             const textFields = [
-                "name", "email", "mobile", "gender", "password", "summary",
+                "name", "email", "mobile", "gender", "password", "summary", "reportingManager",
                 "panNumber", "aadhaarNumber", "designation", "department",
                 "employeeCode", "ctc", "regime"
             ];
