@@ -222,10 +222,9 @@ export default function MonthView({
       // Check for holidays and Sundays for the selected month
       const isHoliday = evts.some(e => e.type === "holiday");
       const isSunday = weekday === 0;
-      const isTechOffDay = department === "tech" && weekday === 2; // Tuesday is off for tech (2 = Tuesday)
 
       // FOR TECH DEPARTMENT: Always show "Off" on Tuesdays regardless of attendance data
-      if (department === "tech" && isTechOffDay && isCurrentMonth && !beforeJoining) {
+      if (department === "tech" && isCurrentMonth && !beforeJoining) {
         att = {
           date: formattedDate,
           status: 'sunday', // Use sunday status for consistent coloring
@@ -247,10 +246,7 @@ export default function MonthView({
         else if (isSunday) {
           futureStatus = 'sunday';
         }
-        // Check for tech off day (Tuesday)
-        else if (isTechOffDay) {
-          futureStatus = 'sunday'; // Use same color as Sunday for tech off days
-        }
+
         // Check for holiday
         else if (isHoliday) {
           futureStatus = 'holiday';
@@ -325,8 +321,6 @@ export default function MonthView({
         bgColor = "#f0f0f0";
       } else if (isSunday) {
         bgColor = categoryColors.sunday || "#d5d7d9ff";
-      } else if (isTechOffDay) {
-        bgColor = categoryColors.sunday || "#d5d7d9ff"; // Same as Sunday for tech off days (Tuesday)
       } else if (isHoliday) {
         bgColor = categoryColors.holiday || "#CBC3E3";
       } else if (att?.status === "absent") {
@@ -360,7 +354,6 @@ export default function MonthView({
         isTodayDate &&
         isCurrentMonth &&
         !isSunday &&
-        !isTechOffDay &&
         !isHoliday
       ) {
         bgColor = categoryColors.today || "#48a84dff";
@@ -405,12 +398,12 @@ export default function MonthView({
           if (status === 'firstHalfApproved') displayText = 'First Half Leave';
           else if (status === 'secondHalfApproved') displayText = 'Second Half Leave';
           else if (status === 'leaveApproved') displayText = 'Full Day Leave';
-          else if (status === 'sunday' && isTechOffDay) displayText = 'Off';
+          else if (status === 'sunday') displayText = 'Off';
           else if (status === 'sunday') displayText = 'Sunday';
           else if (status === 'holiday') displayText = 'Holiday';
         }
         // For off days
-        else if (status === 'sunday' && isTechOffDay) {
+        else if (status === 'sunday') {
           displayText = 'Off';
         } else if (status === 'sunday') {
           displayText = 'Sunday';
@@ -458,7 +451,7 @@ export default function MonthView({
                   (att.status === 'presentLate' ? categoryColors.present : "#2563eb"),
               }}
             >
-              {getAttendanceDisplayText(att, department === "tech" && isTechOffDay)}
+              {getAttendanceDisplayText(att, department === "tech")}
             </div>
           )}
 

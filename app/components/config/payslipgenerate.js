@@ -159,12 +159,10 @@ export function generatePayslip(employee, targetMonth, targetYear) {
 
         const dayOfWeek = currentDateObj.getDay();
         const isSunday = dayOfWeek === 0;
-        const isSaturday = dayOfWeek === 6;
         const isHoliday = holidays.includes(dateStr);
-        const isTechOffDay = employee?.department?.toLowerCase() === "tech" && isSaturday;
 
         // Automatically count Sundays, holidays, and tech Saturdays as present (no LOP)
-        if (isSunday || isHoliday || isTechOffDay) {
+        if (isSunday || isHoliday) {
             totalPresentDays++;
             autoPresentDays++;
             continue;
@@ -282,9 +280,9 @@ export function generatePayslip(employee, targetMonth, targetYear) {
     // ✅ Return structured payslip with detailed attendance info
     return {
         company: {
-            name: "REAL BEEZ PROJECTS PVT LTD",
+            name: "B Max PROJECTS PVT LTD",
             address:
-                "2nd Floor, YS RAO Towers, Madhapur Rd, Sri Rama Colony, Jubilee Hills, Hyderabad, Telangana 500033",
+                "1st Floor, Techno Pearl, Plot No.6/3, HUDA Techno Enclave, HITEC City, Hyderabad, Telangana 500081",
         },
         employee: {
             name: employee.name,

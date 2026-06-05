@@ -471,11 +471,9 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
             const isSundayFlag = isSunday(date);
             const isHolidayDay = holidays.includes(dateStr);
-            const isTuesday = getDay(date) === 2;
-            const isTechOffDay = profile?.department === "tech" && isTuesday;
 
             // Only count as absent if it's a working day (not Sunday, holiday, or tech Tuesday off)
-            if (!isSundayFlag && !isHolidayDay && !isTechOffDay) {
+            if (!isSundayFlag && !isHolidayDay) {
                 // Check if this date has any attendance record
                 const hasAttendance = profile?.attendance?.[monthName]?.some(item => item.date === dateStr);
                 if (!hasAttendance && !absentDateSet.has(dateStr)) {
