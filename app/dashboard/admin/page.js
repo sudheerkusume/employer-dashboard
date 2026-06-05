@@ -16,7 +16,7 @@ import Error from "@/app/components/common/error";
 import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
 
-export default function AdminDashboard({ currentUserRole }) {
+export default function AdminDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -26,10 +26,29 @@ export default function AdminDashboard({ currentUserRole }) {
   const [pendingARs, setPendingARs] = useState([]);
   const router = useRouter();
   const { rootContext, setRootContext } = useContext(RootContext);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_details");
+    let userData = null;
+
+    if (storedUser) {
+      try {
+        userData = JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Invalid JSON in localStorage", e);
+        localStorage.removeItem("user_details");
+      }
+    }
+
+    const role = userData?.role?.toLowerCase?.() || "";
+    setCurrentUserRole(role)
+  }, [router]);
+
 
   const {
     data: employeesData,
