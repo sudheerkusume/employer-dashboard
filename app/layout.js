@@ -1,12 +1,12 @@
 'use client';
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import Toast from "./components/common/toast";
+import { usePathname, useRouter } from "next/navigation";
 import RootContext from "./components/config/rootcontext";
 import Head from "next/head";
-import Header from "./components/mlm/navbar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,68 +39,96 @@ export default function RootLayout({ children }) {
     },
   });
 
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [isChecking, setIsChecking] = useState(true); // <-- prevents flash
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
+    let userData = null;
+
     if (storedUser) {
       try {
-        const userData = JSON.parse(storedUser);
-        setRootContext((prev) => ({
-          ...prev,
-          authenticated: true,
-          loader: false,
-          user: userData,
-          mlmUser: userData,
-        }));
+        userData = JSON.parse(storedUser);
       } catch (e) {
-        console.error("Failed to parse user_details", e);
-        setRootContext((prev) => ({ ...prev, loader: false }));
+        console.error("Invalid JSON in localStorage", e);
+        localStorage.removeItem("user_details");
       }
+    }
+
+    const role = userData?.role?.toLowerCase?.() || "";
+
+    // 🚫 Role-based access control
+    const restrictedPaths = {
+      admin: ["/dashboard/employee", "/dashboard/manager"],
+      employee: ["/dashboard/admin", "/dashboard/manager"],
+      manager: ["/dashboard/admin", "/dashboard/employee"],
+    };
+
+    const currentPath = pathname.toLowerCase();
+    const isRestricted = restrictedPaths[role]?.some((restrictedPath) =>
+      currentPath.includes(restrictedPath)
+    );
+
+    setAccessDenied(!!isRestricted);
+
+    if (userData && role) {
+      // User is logged in
+      setRootContext((prev) => ({
+        ...prev,
+        authenticated: true,
+        loader: false,
+        user: userData,
+      }));
     } else {
+      // No valid user → redirect to login (unless already on login page)
       setRootContext((prev) => ({ ...prev, loader: false }));
-    }
-  }, []);
-
-  // Super admin check
-  const user = rootContext.user;
-  const isSuperAdmin =
-    user?.isSuperAdmin ||
-    user?.role === "super_admin" ||
-    user?.userCode === "SB000000";
-
-  useEffect(() => {
-    if (!rootContext.loader && pathname?.startsWith("/applicants")) {
-      if (!isSuperAdmin) {
-        router.replace("/");
+      if (!pathname.startsWith("/login")) {
+        router.push("/login");
+        setIsChecking(false);
+        return;
       }
     }
-  }, [rootContext.loader, pathname, isSuperAdmin, router]);
 
-  if (rootContext.loader) {
+    setIsChecking(false);
+  }, [pathname, router]);
+
+  // Show a full‑page loader while checking authentication
+  if (isChecking) {
     return (
       <html lang="en">
-        <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
+        <Head>
+          <title>Real Beez</title>
+          <meta name="description" content="Realbeez Holding Pvt Ltd" />
+        </Head>
+        <body className={`${inter.className} antialiased bg-[#D79A2F] w-full h-screen`}>
           <div className="flex items-center justify-center min-h-screen">
-            <div className="text-white text-xl">Loading...</div>
+            <div className="text-center text-white text-xl">Loading...</div>
           </div>
         </body>
       </html>
     );
   }
 
-  const showHeader = rootContext?.user?.isLoggedIn || rootContext?.mlmUser?.isLoggedIn;
-
   return (
     <html lang="en">
       <Head>
-        <title>Sales Beez</title>
-        <meta name="description" content="Realbeez Projects Pvt Ltd" />
+        <title>Real Beez</title>
+        <meta name="description" content="Realbeez Holding Pvt Ltd" />
       </Head>
-      <body className={`${inter.className} antialiased bg-white`}>
+      <body className={`${inter.className} antialiased bg-[#D79A2F]`}>
         <RootContext.Provider value={{ rootContext, setRootContext }}>
-          {showHeader && <Header />}
-          <main>
-            {children}
-          </main>
+          {accessDenied ? (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 text-gray-800">
+              <div className="text-center p-6 bg-white rounded-lg shadow-lg">
+                <h1 className="text-3xl font-bold mb-3">Access Denied</h1>
+                <p className="text-gray-600">
+                  You don’t have permission to view this page.
+                </p>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
           {rootContext?.toast?.show && <Toast />}
         </RootContext.Provider>
       </body>

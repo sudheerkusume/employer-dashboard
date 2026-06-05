@@ -151,7 +151,7 @@ export default function ManagerDashboard() {
   };
 
   return (
-    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen">
+    <div className="space-y-6 px-4 md:px-8 py-6 bg-gray-100 min-h-screen w-full">
       {serviceCall && <Loading />}
       <div className="flex justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Manager Dashboard</h1>

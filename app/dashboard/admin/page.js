@@ -113,7 +113,7 @@ export default function AdminDashboard({ currentUserRole }) {
   }) || [];
 
   return (
-    <div className="space-y-6 p-6 w-full bg-white">
+    <div className="space-y-6 p-6 w-full bg-white h-screen w-full">
       {isLoading && <Loading />}
 
       <div className="absolute top-4 right-4">

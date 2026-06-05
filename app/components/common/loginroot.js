@@ -14,7 +14,7 @@ const staticEmployees = [
         name: "Super Admin",
         email: "superadmin@realbeez.com",
         mobile: "9999999999",
-        password: "Super@123",
+        password: "Superadmin@123",
         role: "super_admin"
     }
 ];
@@ -106,7 +106,7 @@ export default function LoginRoot() {
         // Role-based redirection
         switch (user.role) {
             case "super_admin":
-                router.push("/dashboard/super-admin");
+                router.push("/dashboard/admin");
                 break;
             case "admin":
                 router.push("/dashboard/admin");

@@ -370,7 +370,7 @@ export default function EmployeeProfile({ employeesData }) {
     };
 
     return (
-        <div className="mt-20 bg-white min-h-screen">
+        <div className="mt-20 bg-white min-h-screen w-full">
             {serviceCall && <Loading />}
 
             {/* Logout */}
