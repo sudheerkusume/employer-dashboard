@@ -22,7 +22,7 @@ const staticEmployees = [
 export default function LoginRoot() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
-    const { data, error } = useSWRFetch(`/api/employees`)
+    const { data = [], error } = useSWRFetch(`/api/employees`)
     const [formData, setFormData] = useState({
         mobile: "",
         email: "",
