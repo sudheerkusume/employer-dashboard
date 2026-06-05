@@ -6,8 +6,8 @@ import RootContext from "../config/rootcontext";
 import { EyeIcon } from "@heroicons/react/20/solid";
 import { EyeSlashIcon } from "@heroicons/react/24/solid";
 import { useRouter } from "next/navigation";
+import { useSWRFetch } from "../config/useswrfetch";
 import ForgetPassword from "./forgetpassword";
-
 const staticEmployees = [
     {
         _id: "super_admin_001",
@@ -22,12 +22,14 @@ const staticEmployees = [
 export default function LoginRoot() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
+    const { data, error } = useSWRFetch(`/api/employees`)
     const [formData, setFormData] = useState({
         mobile: "",
         email: "",
         password: "",
         remember: false,
     });
+    const usersData = [...staticEmployees, ...data]
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [screen, setScreen] = useState("login");
@@ -36,12 +38,7 @@ export default function LoginRoot() {
         e.preventDefault();
         setIsLoading(true);
 
-        // Simulate async delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Find user by email (or mobile - you can extend)
-        const user = staticEmployees.find((u) => u.email === formData.email);
-
+        const user = usersData.find((u) => u.email === formData.email);
         if (!user) {
             setRootContext((prevContext) => ({
                 ...prevContext,
@@ -74,7 +71,7 @@ export default function LoginRoot() {
             return;
         }
 
-        // Successful login
+        // ✅ Successful login
         const username = user.name || user.email?.split("@")[0];
         const resp = {
             ...rootContext,
@@ -96,111 +93,96 @@ export default function LoginRoot() {
                 dismiss: true,
                 type: "success",
                 title: "Login Successful",
-                message: `Welcome back, ${username}!`,
+                message: "Welcome back!",
             },
         });
-
-        // Store user in localStorage
-        localStorage.setItem("user_details", JSON.stringify(resp.user));
-
-        // Role-based redirection
-        switch (user.role) {
-            case "super_admin":
-                router.push("/dashboard/admin");
-                break;
-            case "admin":
-                router.push("/dashboard/admin");
-                break;
-            case "employee":
-                router.push("/dashboard/employee");
-                break;
-            default:
-                router.push("/dashboard/manager");
+        if (user.role === "employee") {
+            router.push("/dashboard/employee")
+        } else if (user.role === "admin") {
+            router.push("/dashboard/admin")
+        } else if (user.role === "super_admin") {
+            router.push("/dashboard/admin")
+        } else {
+            router.push("/dashboard/manager")
         }
-
+        localStorage.setItem("user_details", JSON.stringify(resp.user));
         setIsLoading(false);
     };
 
+
     return (
         <div>
-            {screen === "login" ? (
-                <div className="flex h-screen w-full items-center justify-center bg-[#D79A2F] p-4">
-                    <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
-                        <Link href="/" className="flex justify-center mb-4">
-                            <Image src="/realbeez.png" alt="Logo" width={200} height={200} />
-                        </Link>
-                        <form
-                            onSubmit={onSave}
-                            className="w-full bg-white text-gray-700 md:mt-0 sm:max-w-md xl:p-0"
-                        >
-                            <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
-                                <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl">
-                                    Sign in to your account
-                                </h1>
-                                <div className="space-y-4 md:space-y-6">
+            {screen === "login" ? <div className="flex h-screen w-full items-center justify-center bg-[#D79A2F] p-4">
+                <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
+                    <Link href="/" className="flex justify-center mb-4">
+                        {/* Replace with your logo */}
+                        <Image
+                            src="/realbeez.png"
+                            alt="Logo"
+                            width={200}
+                            height={200}
+                        />
+                    </Link>
+                    <form onSubmit={onSave} className="w-full bg-white text-gray-700 md:mt-0 sm:max-w-md xl:p-0 ">
+                        <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
+                            <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl">
+                                Sign in to your account
+                            </h1>
+                            <div className="space-y-4 md:space-y-6">
+                                <input
+                                    title={"Email or Mobile"}
+                                    type={"text"}
+                                    placeholder={"Email or phone number"}
+                                    className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    errormsg={"Enter Valid Email"}
+                                    required={true}
+                                />
+
+                                <div className="relative">
                                     <input
-                                        title="Email or Mobile"
-                                        type="text"
-                                        placeholder="Email or phone number"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Password"
                                         className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                        value={formData.email}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, email: e.target.value })
-                                        }
-                                        required={true}
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        required
                                     />
-
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="Password"
-                                            className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                            value={formData.password}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, password: e.target.value })
-                                            }
-                                            required
-                                        />
-                                        <span
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500"
-                                        >
-                                            {showPassword ? (
-                                                <EyeIcon className="w-4 h-4 text-gray-400" />
-                                            ) : (
-                                                <EyeSlashIcon className="w-4 h-4 text-gray-400" />
-                                            )}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => setScreen("otp")}
-                                            className="text-sm font-semibold text-yellow-500 hover:underline"
-                                        >
-                                            Forgot Password?
-                                        </button>
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        className={`w-full p-3 rounded-lg hover:rounded-full font-bold text-white transition-colors duration-300 ${isLoading
-                                            ? "bg-yellow-400 cursor-not-allowed"
-                                            : "bg-yellow-600 cursor-pointer hover:bg-yellow-700"
-                                            }`}
-                                        disabled={isLoading}
+                                    <span
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500"
                                     >
-                                        {isLoading ? "Loading..." : "Log In"}
+                                        {showPassword ? (
+                                            <EyeIcon className="w-4 h-4 text-gray-400" />
+                                        ) : (
+                                            <EyeSlashIcon className="w-4 h-4 text-gray-400" />
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => setScreen("otp")}
+                                        className="text-sm font-semibold text-yellow-500 hover:underline"
+                                    >
+                                        Forgot Password?
                                     </button>
                                 </div>
+                                <button
+                                    type="submit"
+                                    className={`w-full p-3 rounded-lg hover:rounded-full font-bold text-white transition-colors duration-300
+                  ${isLoading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-yellow-600 cursor-pointer hover:bg-yellow-700'}
+                `}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? 'Loading...' : 'Log In'}
+                                </button>
                             </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
-            ) : (
-                <ForgetPassword setScreen={setScreen} />
-            )}
+            </div> : <ForgetPassword setScreen={setScreen} />}
         </div>
     );
 }
