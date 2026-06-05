@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
   const router = useRouter();
-  const [role, setRole] = useState < string | null > (null);
+  const [role, setRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // track loading state
 
   useEffect(() => {
