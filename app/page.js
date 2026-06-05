@@ -5,16 +5,30 @@ import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
   const router = useRouter();
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState < string | null > (null);
+  const [isLoading, setIsLoading] = useState(true); // track loading state
 
   useEffect(() => {
-    // Get role from localStorage
-    const user_details =
-      typeof window !== "undefined" &&
-      JSON.parse(localStorage.getItem("user_details"));
-    const storedRole = user_details?.role;
-    if (storedRole) setRole(storedRole);
+    // Safely get user_details from localStorage
+    const stored = localStorage.getItem("user_details");
+    let userDetails = null;
+    try {
+      userDetails = stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      console.error("Invalid JSON in localStorage", e);
+    }
+
+    const storedRole = userDetails?.role || null;
+    setRole(storedRole);
+    setIsLoading(false); // done checking
   }, []);
+
+  // Once loading is done, if no role, redirect to login
+  useEffect(() => {
+    if (!isLoading && !role) {
+      router.push('/login'); // or any public route
+    }
+  }, [isLoading, role, router]);
 
   const handleGoToDashboard = () => {
     if (!role) return;
@@ -28,13 +42,20 @@ export default function HomePage() {
       case 'admin':
         router.push('/dashboard/admin');
         break;
+      case 'super_admin':
+        router.push('/dashboard/admin');
+        break;
       default:
-        router.push('/dashboard'); // fallback
+        router.push('/dashboard');
     }
   };
 
-  if (!role) return <div className='min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-red-300'>Loading...</div>;
+  // Show loading only while checking localStorage
+  if (isLoading) {
+    return <div className="min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-gray-500">Loading...</div>;
+  }
 
+  // If role exists (user is logged in), show welcome + dashboard button
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
       <h1 className="text-3xl font-bold mb-4 text-gray-800">

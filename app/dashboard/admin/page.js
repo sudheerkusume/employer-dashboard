@@ -13,12 +13,14 @@ export default function AdminDashboard({ currentUserRole }) {
   const [isClient, setIsClient] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const router = useRouter();
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const { data, error, isLoading } = useSWRFetch("/api/employees");
+  const { data, error, isLoading, mutate } = useSWRFetch("/api/employees");
   const { rootContext, setRootContext } = useContext(RootContext);
+
   const holidays = [
     '2025-01-01',
     '2025-01-26',
@@ -68,10 +70,48 @@ export default function AdminDashboard({ currentUserRole }) {
     let resp = rootContext;
     resp.authenticated = false;
     setRootContext({ ...resp });
-    router.push("/")
+    router.push("/");
   };
 
-  if (error) { return <Error /> }
+  // Delete employee (only super admin can do this)
+  const handleDeleteEmployee = async (employeeId) => {
+    if (!confirm("Are you sure you want to delete this employee? This action cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`/api/employees/${employeeId}`, { method: "DELETE" });
+      if (response.ok) {
+        // Refresh employee list
+        mutate();
+        setRootContext(prev => ({
+          ...prev,
+          toast: { show: true, dismiss: true, type: "success", title: "Deleted", message: "Employee removed successfully." }
+        }));
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (err) {
+      setRootContext(prev => ({
+        ...prev,
+        toast: { show: true, dismiss: true, type: "error", title: "Error", message: "Could not delete employee." }
+      }));
+    }
+  };
+
+  // Edit employee – you can open a modal or redirect
+  const handleEditEmployee = (employee) => {
+    // Example: open AddEmployeeForm in edit mode – you may need to extend AddEmployeeForm to accept an `editData` prop
+    // For simplicity, we'll just show an alert.
+    alert(`Edit functionality for ${employee.name} – implement as needed.`);
+  };
+
+  if (error) return <Error />;
+
+  // Filter employees: hide admins from non-super-admin users
+  const visibleEmployees = data?.filter(emp => {
+    if (currentUserRole === "super_admin") return true;   // Super admin sees everyone
+    return emp.role !== "admin";                         // Regular admin hides other admins
+  }) || [];
+
   return (
     <div className="space-y-6 p-6 w-full bg-white">
       {isLoading && <Loading />}
@@ -84,9 +124,12 @@ export default function AdminDashboard({ currentUserRole }) {
           Logout
         </button>
       </div>
-      <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
 
-      {/* Add Employee */}
+      <h1 className="text-3xl font-bold text-gray-800">
+        {currentUserRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
+      </h1>
+
+      {/* Add Employee – always visible for admin and super admin */}
       <button
         onClick={() => setShowAddForm(true)}
         className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded shadow"
@@ -99,9 +142,7 @@ export default function AdminDashboard({ currentUserRole }) {
         <label className="font-medium text-gray-800">Select Month:</label>
         <input
           type="month"
-          value={`${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}`}
+          value={`${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, "0")}`}
           onChange={(e) => setSelectedMonth(new Date(e.target.value))}
           className="p-2 border border-gray-300 text-gray-800 rounded-md focus:ring-gray-500 focus:border-gray-500"
         />
@@ -122,48 +163,59 @@ export default function AdminDashboard({ currentUserRole }) {
               <th className="py-2 px-3 border text-center">
                 Total Present Days ({selectedMonth.toLocaleString("default", { month: "long", year: "numeric" })})
               </th>
+              {currentUserRole === "super_admin" && (
+                <th className="py-2 px-3 border text-center">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {data
-              ?.filter(emp => emp.role !== "admin") // Remove admin
-              .map((emp, idx) => {
-                const todayStr = new Date().toISOString().split("T")[0];
-                const monthData =
-                  emp.attendance?.[
-                  selectedMonth.toLocaleString("default", { month: "long" })
-                  ] || [];
-                const todayRecord = monthData.find((d) => d.date === todayStr);
-                const { totalWorkingDays, totalPresent } = calculateAttendance(
-                  emp.attendance,
-                  selectedMonth
-                );
+            {visibleEmployees.map((emp, idx) => {
+              const todayStr = new Date().toISOString().split("T")[0];
+              const monthData = emp.attendance?.[selectedMonth.toLocaleString("default", { month: "long" })] || [];
+              const todayRecord = monthData.find((d) => d.date === todayStr);
+              const { totalWorkingDays, totalPresent } = calculateAttendance(emp.attendance, selectedMonth);
 
-                // Color code based on role
-                // Row background
-                const rowClass =
-                  emp.role === "manager"
-                    ? "bg-yellow-100 hover:bg-yellow-200"
-                    : "bg-blue-100 hover:bg-blue-200";
+              // Row background based on role
+              let rowClass = "";
+              let roleTextClass = "";
+              if (emp.role === "manager") {
+                rowClass = "bg-yellow-100 hover:bg-yellow-200";
+                roleTextClass = "text-yellow-800 font-semibold";
+              } else if (emp.role === "admin") {
+                rowClass = "bg-purple-100 hover:bg-purple-200";
+                roleTextClass = "text-purple-800 font-semibold";
+              } else {
+                rowClass = "bg-blue-100 hover:bg-blue-200";
+                roleTextClass = "text-blue-800 font-semibold";
+              }
 
-                // Role text
-                const roleTextClass =
-                  emp.role === "manager"
-                    ? "text-yellow-800 font-semibold"
-                    : "text-blue-800 font-semibold";
-
-
-                return (
-                  <tr key={idx} className={`${rowClass} border-b`}>
-                    <td className="py-2 px-3 border font-medium">{emp.name}</td>
-                    <td className={`py-2 px-3 border text-center ${roleTextClass}`}>{emp.role}</td>
-                    <td className="py-2 px-3 border text-center">{todayRecord?.checkIn || "-"}</td>
-                    <td className="py-2 px-3 border text-center">{todayRecord?.checkOut || "-"}</td>
-                    <td className="py-2 px-3 border text-center font-semibold">{totalWorkingDays}</td>
-                    <td className="py-2 px-3 border text-center font-semibold text-green-700">{totalPresent}</td>
-                  </tr>
-                );
-              })}
+              return (
+                <tr key={idx} className={`${rowClass} border-b`}>
+                  <td className="py-2 px-3 border font-medium">{emp.name}</td>
+                  <td className={`py-2 px-3 border text-center ${roleTextClass}`}>{emp.role}</td>
+                  <td className="py-2 px-3 border text-center">{todayRecord?.checkIn || "-"}</td>
+                  <td className="py-2 px-3 border text-center">{todayRecord?.checkOut || "-"}</td>
+                  <td className="py-2 px-3 border text-center font-semibold">{totalWorkingDays}</td>
+                  <td className="py-2 px-3 border text-center font-semibold text-green-700">{totalPresent}</td>
+                  {currentUserRole === "super_admin" && (
+                    <td className="py-2 px-3 border text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleEditEmployee(emp)}
+                        className="text-blue-600 hover:text-blue-800 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEmployee(emp._id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
