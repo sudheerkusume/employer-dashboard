@@ -548,6 +548,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         !leaveRange.start ||
         !leaveRange.end ||
         !leaveRange.leaveType ||
+        hasInvalidDays(leaveRange.start, leaveRange.end) ||
         serviceCall;
 
     const applyLeave = async () => {
@@ -914,6 +915,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
+                    const isTuesday = getDay(day) === 2;
+                    const isTechOffDay = profile?.department === "tech" && isTuesday;
                     const isSunday = isSundayHoliday(day);
                     const isHolidayDay = isHoliday(day);
 
@@ -922,7 +925,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     if (status === "presentLate") status = "present";
 
                     // Tuesday off only after joining and in current month
-                    if (!isBeforeJoining && isCurrentMonth) {
+                    if (!isBeforeJoining && isCurrentMonth && isTechOffDay) {
                         status = "sunday";
                     }
 
@@ -945,7 +948,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isLeaveApproved = att?.status === "leaveApproved";
 
                     // Determine if it's a working day (not Sunday, holiday, or tech Tuesday off)
-                    const isWorkingDay = !isSunday && !isHolidayDay;
+                    const isWorkingDay = !isSunday && !isHolidayDay && !isTechOffDay;
 
                     // Determine text color
                     let dayTextColor = "text-gray-900"; // Default
@@ -967,7 +970,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     // Light gray background for ALL Tuesdays in current month for tech department
                     // This includes past, present, and future Tuesdays
-                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining ? "bg-[#d5d7d9ff]" : "";
+                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining && isTechOffDay ? "bg-[#d5d7d9ff]" : "";
 
                     return (
                         <div
@@ -1000,7 +1003,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                             ? "Checked In"
                                             : status === "approved"
                                                 ? "Leave Approved"
-                                                : "Today"
+                                                : isTechOffDay
+                                                    ? "Off Day (Tuesday)"
+                                                    : "Today"
                                         : status === "sunday"
                                             ? profile.department === "tech" && getDay(day) === 2
                                                 ? "Off Day (Tuesday)"
