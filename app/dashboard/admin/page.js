@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext, useEffect, useState } from "react";
 import AddEmployeeForm from "@/app/components/common/addemployee";
-import { useSWRFetch, Mutated } from "@/app/components/config/useswrfetch";
+import { useSWRFetch } from "@/app/components/config/useswrfetch";
 import {
   parse,
   differenceInMinutes,
@@ -15,6 +15,7 @@ import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
+import { Switch } from "@headlessui/react";
 
 export default function AdminDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -24,9 +25,11 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [pendingARs, setPendingARs] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("active"); // "active", "inactive", "all"
   const router = useRouter();
   const { rootContext, setRootContext } = useContext(RootContext);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [togglingEmployeeId, setTogglingEmployeeId] = useState(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -35,7 +38,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
     let userData = null;
-
     if (storedUser) {
       try {
         userData = JSON.parse(storedUser);
@@ -44,18 +46,18 @@ export default function AdminDashboard() {
         localStorage.removeItem("user_details");
       }
     }
-
     const role = userData?.role?.toLowerCase?.() || "";
-    setCurrentUserRole(role)
+    setCurrentUserRole(role);
   }, [router]);
 
-
+  // Include inactive employees only if filter allows, but for pending actions we only need active ones
+  const includeInactiveParam = statusFilter === "all" || statusFilter === "inactive" ? "&includeInactive=true" : "";
   const {
     data: employeesData,
     error: employeesError,
     isLoading: employeesLoading,
     mutate: mutateEmployees,
-  } = useSWRFetch("/api/employees");
+  } = useSWRFetch(`/api/employees${includeInactiveParam ? `?${includeInactiveParam.slice(1)}` : ""}`);
 
   const fetchPendingLeaves = async () => {
     try {
@@ -178,22 +180,49 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteEmployee = async (employeeId) => {
-    if (!confirm("Delete employee? This action cannot be undone.")) return;
+  // Toggle active/inactive status (soft delete / reactivate)
+  const handleToggleStatus = async (employee, newStatus) => {
+    const action = newStatus ? "activate" : "deactivate";
+    if (!confirm(`Are you sure you want to ${action} ${employee.name}?`)) return;
+
+    setTogglingEmployeeId(employee._id); // disable toggle for this row
     try {
-      const res = await fetch(`/api/employees?id=${employeeId}`, { method: "DELETE" });
+      const res = await fetch("/api/employees", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: employee._id,
+          isActive: newStatus,
+        }),
+      });
       if (res.ok) {
         mutateEmployees();
         setRootContext((prev) => ({
           ...prev,
-          toast: { show: true, dismiss: true, type: "success", title: "Deleted", message: "Employee removed" },
+          toast: {
+            show: true,
+            dismiss: true,
+            type: "success",
+            title: "Status Updated",
+            message: `${employee.name} is now ${newStatus ? "active" : "inactive"}.`,
+          },
         }));
-      } else throw new Error();
+      } else {
+        throw new Error();
+      }
     } catch (err) {
       setRootContext((prev) => ({
         ...prev,
-        toast: { show: true, dismiss: true, type: "error", title: "Error", message: "Could not delete employee" },
+        toast: {
+          show: true,
+          dismiss: true,
+          type: "error",
+          title: "Error",
+          message: `Failed to ${action} employee.`,
+        },
       }));
+    } finally {
+      setTogglingEmployeeId(null); // re-enable toggle
     }
   };
 
@@ -203,7 +232,7 @@ export default function AdminDashboard() {
   };
 
   const handleFormSuccess = () => {
-    mutateEmployees();   // refresh employee list
+    mutateEmployees();
     setShowAddForm(false);
     setEditEmployeeData(null);
   };
@@ -240,10 +269,17 @@ export default function AdminDashboard() {
   if (employeesError) return <Error />;
   if (employeesLoading) return <Loading />;
 
-  const visibleEmployees =
-    currentUserRole === "super_admin"
-      ? employeesData || []
-      : (employeesData || []).filter((emp) => emp.role !== "admin");
+  // Filter by role and status filter
+  let visibleEmployees = employeesData || [];
+  if (currentUserRole !== "super_admin") {
+    visibleEmployees = visibleEmployees.filter((emp) => emp.role !== "admin");
+  }
+  // Additional status-based filter (if using separate endpoint, this is redundant, but safe)
+  if (statusFilter === "active") {
+    visibleEmployees = visibleEmployees.filter((emp) => emp.isActive !== false);
+  } else if (statusFilter === "inactive") {
+    visibleEmployees = visibleEmployees.filter((emp) => emp.isActive === false);
+  }
 
   return (
     <div className="space-y-6 p-6 w-full bg-white min-h-screen">
@@ -258,15 +294,28 @@ export default function AdminDashboard() {
         {currentUserRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
       </h1>
 
-      <button
-        onClick={() => {
-          setEditEmployeeData(null);
-          setShowAddForm(true);
-        }}
-        className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded shadow"
-      >
-        Add Employee
-      </button>
+      <div className="flex gap-4 items-center flex-wrap">
+        <button
+          onClick={() => {
+            setEditEmployeeData(null);
+            setShowAddForm(true);
+          }}
+          className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded shadow"
+        >
+          Add Employee
+        </button>
+
+        {/* Status Filter Dropdown */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="p-2 border border-gray-300 rounded-md text-gray-700"
+        >
+          <option value="active">Active Employees</option>
+          <option value="inactive">Inactive Employees</option>
+          <option value="all">All Employees (Active + Inactive)</option>
+        </select>
+      </div>
 
       {/* Pending Leaves (Manager absent) */}
       {filteredLeaves.length > 0 && (
@@ -335,7 +384,10 @@ export default function AdminDashboard() {
               <th className="py-2 px-3 border text-center">Today Check-Out</th>
               <th className="py-2 px-3 border text-center">Working Days</th>
               <th className="py-2 px-3 border text-center">Present Days</th>
-              {(currentUserRole === "super_admin" || currentUserRole === "admin") && <th className="py-2 px-3 border text-center">Actions</th>}
+              <th className="py-2 px-3 border text-center">Status</th>
+              {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
+                <th className="py-2 px-3 border text-center">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -358,10 +410,32 @@ export default function AdminDashboard() {
                   <td className="py-2 px-3 border text-center">{todayRecord?.checkOut || "-"}</td>
                   <td className="py-2 px-3 border text-center">{totalWorkingDays}</td>
                   <td className="py-2 px-3 border text-center text-green-700 font-semibold">{totalPresent}</td>
+                  <td className="py-2 px-3 border text-center">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${emp.isActive !== false ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                      }`}>
+                      {emp.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </td>
                   {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
                     <td className="py-2 px-3 border text-center whitespace-nowrap">
-                      <button onClick={() => handleEditEmployee(emp)} className="text-blue-600 hover:text-blue-800 mr-3">Edit</button>
-                      <button onClick={() => handleDeleteEmployee(emp._id)} className="text-red-600 hover:text-red-800">Delete</button>
+                      <button
+                        onClick={() => handleEditEmployee(emp)}
+                        className="text-blue-600 hover:text-blue-800 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <Switch
+                        checked={emp.isActive !== false}
+                        onChange={() => handleToggleStatus(emp, emp.isActive === false)}
+                        disabled={togglingEmployeeId === emp._id}
+                        className={`${emp.isActive !== false ? "bg-green-600" : "bg-gray-400"
+                          } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2`}
+                      >
+                        <span
+                          className={`${emp.isActive !== false ? "translate-x-6" : "translate-x-1"
+                            } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                        />
+                      </Switch>
                     </td>
                   )}
                 </tr>
