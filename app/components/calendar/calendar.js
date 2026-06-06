@@ -39,7 +39,7 @@ const isBefore9AM = () => {
 // Helper: Check if it's Tuesday (off day)
 const isOffDay = (date) => {
     const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
-    return day === 2; // Tuesday (2) is off day
+    return day === 6; // Tuesday (2) is off day
 };
 
 // Helper: Check if it's Sunday (holiday)
@@ -437,7 +437,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             if (!isAfterJoining || !isCurrentMonth) return; // ❌ Do not mark anything before joining or outside current month
 
             const isSunday = isSundayHoliday(day);
-            const isTuesday = getDay(day) === 2;
+            const isTuesday = getDay(day) === 6;
             const isHolidayDay = isHoliday(day);
             const isTuesdayOff = profile?.department === "tech" && isTuesday;
 
@@ -600,7 +600,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             }
 
             // Additional restriction for tech department - no leave on Tuesday
-            if (profile?.department === "tech" && day === 2) { // Tuesday (2)
+            if (profile?.department === "tech" && day === 6) { // Tuesday (2)
                 return true;
             }
 
@@ -733,7 +733,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             }
 
             // Additional restriction for tech department
-            if (profile?.department === "tech" && day === 2) {
+            if (profile?.department === "tech" && day === 6) {
                 return true;
             }
 
@@ -915,7 +915,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
-                    const isTuesday = getDay(day) === 2;
+                    const isTuesday = getDay(day) === 6;
                     const isTechOffDay = profile?.department === "tech" && isTuesday;
                     const isSunday = isSundayHoliday(day);
                     const isHolidayDay = isHoliday(day);
@@ -1007,7 +1007,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                     ? "Off Day (Tuesday)"
                                                     : "Today"
                                         : status === "sunday"
-                                            ? profile.department === "tech" && getDay(day) === 2
+                                            ? profile.department === "tech" && getDay(day) === 6
                                                 ? "Off Day (Tuesday)"
                                                 : "Sunday"
                                             : status === "holiday"

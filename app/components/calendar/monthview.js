@@ -222,7 +222,7 @@ export default function MonthView({
       // Check for holidays and Sundays for the selected month
       const isHoliday = evts.some(e => e.type === "holiday");
       const isSunday = weekday === 0;
-      const isTechOffDay = department === "tech" && weekday === 2; // Tuesday is off for tech (2 = Tuesday)
+      const isTechOffDay = department === "tech" && weekday === 6; // Tuesday is off for tech (2 = Tuesday)
 
       // FOR TECH DEPARTMENT: Always show "Off" on Tuesdays regardless of attendance data
       if (department === "tech" && isTechOffDay && isCurrentMonth && !beforeJoining) {
@@ -295,7 +295,7 @@ export default function MonthView({
       if (isCurrentMonth && !beforeJoining && !isFutureDate && !att) {
         let autoStatus = '';
         if (department === 'tech') {
-          if (weekday === 0 || weekday === 2) autoStatus = 'sunday'; // Sunday and Tuesday off for tech
+          if (weekday === 0 || weekday === 6) autoStatus = 'sunday'; // Sunday and Tuesday off for tech
         } else {
           if (weekday === 0) autoStatus = 'sunday'; // Only Sunday off for others
         }
