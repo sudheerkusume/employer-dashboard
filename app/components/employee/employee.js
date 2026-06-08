@@ -370,27 +370,35 @@ export default function EmployeeProfile({ employeesData }) {
     };
 
     return (
-        <div className="mt-20 bg-white min-h-screen w-full">
+        <div className="w-full relative animate-in fade-in zoom-in duration-500">
             {serviceCall && <Loading />}
 
-            {/* Logout */}
-            <div className="absolute top-4 right-4">
-                <button
-                    onClick={logOut}
-                    className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                    Logout
-                </button>
-            </div>
+            {/* Profile Hero Card */}
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6 relative">
+                {/* Subtle Background Pattern/Gradient */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-90"></div>
+                
+                {/* Edit Pencil (Top Right) */}
+                {!editingHeader && rootContext?.user?.role !== "recruiter" && (
+                    <button
+                        onClick={() => {
+                            setEditingHeader(true);
+                            setTempProfile(profile);
+                            setShowPassword(false);
+                        }}
+                        className="absolute top-4 right-4 z-20 bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full text-white transition-colors border border-white/30 shadow-sm"
+                        title="Edit Profile"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                    </button>
+                )}
 
-            {/* Profile Header */}
-            <div className="w-full sm:max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
-                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
-                    {/* Profile Image */}
-                    <div>
+                <div className="px-6 sm:px-10 pb-8 pt-16 relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-6">
+                    {/* Profile Image with subtle ring */}
+                    <div className="relative group shrink-0">
                         <label
                             htmlFor="profileImageInput"
-                            className={`${editingHeader ? "cursor-pointer" : "cursor-not-allowed"} group relative block mx-auto`}
+                            className={`${editingHeader ? "cursor-pointer" : "cursor-not-allowed"} block rounded-full bg-white p-1.5 shadow-md`}
                         >
                             <input
                                 id="profileImageInput"
@@ -398,23 +406,25 @@ export default function EmployeeProfile({ employeesData }) {
                                 type="file"
                                 accept="image/*"
                                 disabled={!editingHeader}
-                                className={`absolute inset-0 w-full h-full opacity-0 ${editingHeader ? "cursor-pointer" : "cursor-not-allowed"}`}
+                                className="absolute inset-0 w-full h-full opacity-0"
                                 onChange={editingHeader ? handleImageChange : undefined}
+                                style={{ display: editingHeader ? 'block' : 'none' }}
                             />
-                            <div className="relative w-32 h-32 bg-gray-100 rounded-md overflow-hidden flex items-center justify-center">
+                            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden bg-gray-100 relative shadow-inner">
                                 <img
                                     src={
                                         previewImage ||
                                         tempProfile.profileImage ||
                                         profile.profileImage ||
-                                        "https://placehold.co/150x150"
+                                        `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'User')}&background=F3F4F6&color=374151&size=200`
                                     }
                                     alt="Avatar"
-                                    className="w-full h-full object-contain"
+                                    className="w-full h-full object-cover"
                                 />
                                 {editingHeader && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Change
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                        <PencilIcon className="w-6 h-6 mb-1" />
+                                        <span className="text-xs font-semibold">Change</span>
                                     </div>
                                 )}
                             </div>
@@ -422,17 +432,18 @@ export default function EmployeeProfile({ employeesData }) {
                     </div>
 
                     {/* Profile Details */}
-                    <div className="w-full flex flex-col">
+                    <div className="flex-1 text-center sm:text-left w-full">
                         {editingHeader ? (
-                            <div className="flex flex-col gap-1 text-gray-700">
+                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-lg shadow-gray-200/50 flex flex-col gap-3 max-w-lg">
+                                <h3 className="text-sm font-bold text-gray-800 border-b pb-2 mb-1">Edit Profile Details</h3>
                                 <input
-                                    className="w-full px-2 py-1 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     value={tempProfile.name || ""}
                                     placeholder="Enter Full Name"
                                     onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
                                 />
                                 <input
-                                    className="w-full px-2 py-1 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     value={tempProfile.panNumber || ""}
                                     placeholder="Enter PAN Number"
                                     onChange={(e) => setTempProfile({ ...tempProfile, panNumber: e.target.value })}
@@ -440,109 +451,126 @@ export default function EmployeeProfile({ employeesData }) {
                                 <div className="relative">
                                     <input
                                         type={showPassword ? "text" : "password"}
-                                        placeholder="Password"
-                                        className="w-full px-2 py-1 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
+                                        placeholder="Update Password (Optional)"
+                                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all pr-10"
                                         value={tempProfile.password || ""}
                                         onChange={(e) =>
                                             setTempProfile({ ...tempProfile, password: e.target.value })
                                         }
                                     />
-                                    <span
+                                    <button
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500"
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                     >
-                                        {showPassword ? (
-                                            <EyeIcon className="w-4 h-4 text-gray-400" />
-                                        ) : (
-                                            <EyeSlashIcon className="w-4 h-4 text-gray-400" />
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex gap-2 mt-2">
-                                    <button
-                                        className="px-2 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                                        onClick={handleSaveHeader}
-                                    >
-                                        Save
+                                        {showPassword ? <EyeIcon className="w-4 h-4" /> : <EyeSlashIcon className="w-4 h-4" />}
                                     </button>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-2 pt-3 border-t">
                                     <button
-                                        className="px-2 py-1 text-xs border border-gray-400 rounded hover:bg-gray-100"
+                                        className="px-4 py-1.5 text-xs font-semibold border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
                                         onClick={handleCancelEdit}
                                     >
                                         Cancel
                                     </button>
+                                    <button
+                                        className="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+                                        onClick={handleSaveHeader}
+                                    >
+                                        Save Changes
+                                    </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-1">
-                                <h2 className="text-lg font-bold text-gray-900">{profile.name}</h2>
-                                <p className="text-[13px] text-gray-500">Pan Number: {profile.panNumber}</p>
-                                <p className="text-[13px] text-gray-500">Email: {profile.email}</p>
-                                <p className="text-[13px] text-gray-500">
-                                    Employee Code: {profile?.employeeCode}
-                                </p>
-                                <p className="text-[13px] text-gray-500">
-                                    Designation: {profile?.designation}
-                                </p>
-                                <p className="text-[13px] text-gray-500">
-                                    Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}
-                                </p>
-                                <p className="text-[13px] text-gray-500">
-                                    Reporting Manager: {profile.reportingManager}
-                                </p>
+                            <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end w-full gap-4">
+                                <div>
+                                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight leading-none mb-2">
+                                        {profile.name || "Employee"}
+                                    </h1>
+                                    <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-1">
+                                        <span className="bg-blue-50 text-blue-700 font-semibold px-2.5 py-0.5 rounded-md text-xs border border-blue-100">
+                                            {profile.designation || "Employee"}
+                                        </span>
+                                        <span className="text-gray-400 text-sm">•</span>
+                                        <span className="text-gray-500 text-sm font-medium">{profile.email}</span>
+                                        {profile.employeeCode && (
+                                            <>
+                                                <span className="text-gray-400 text-sm">•</span>
+                                                <span className="text-gray-500 text-sm font-mono bg-gray-100 px-2 rounded">{profile.employeeCode}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* subtle Manager Badge */}
+                                {profile.reportingManager && (
+                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center gap-3 shadow-sm shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm border border-indigo-200">
+                                            {profile.reportingManager.charAt(0)}
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Reporting To</p>
+                                            <p className="text-sm font-semibold text-gray-900 leading-none">{profile.reportingManager}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
-
-                    {!editingHeader && rootContext?.user?.role !== "recruiter" && (
-                        <button
-                            onClick={() => {
-                                setEditingHeader(true);
-                                setTempProfile(profile);
-                                setShowPassword(false);
-                            }}
-                            className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
-                        >
-                            <PencilIcon className="w-5 h-5" />
-                        </button>
-                    )}
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="bg-white border-b border-gray-200 w-full sm:max-w-5xl mx-auto p-3 sm:px-4 sm:py-6 rounded-b-md shadow-sm">
+            {/* Premium Animated Tabs */}
+            <div className="mb-6">
                 {rootContext?.user?.role === "recruiter" ? (
-                    <AboutMe profile={profile} />
+                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6"><AboutMe profile={profile} /></div>
                 ) : (
                     <>
+                        {/* Desktop Tabs */}
                         <div className="hidden sm:block">
-                            <ButtonTab tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
-                            <div className="py-3">
+                            <div className="flex gap-2 p-1.5 bg-gray-200/50 rounded-xl mb-6 w-fit border border-gray-200/60 shadow-sm">
+                                {tabs.map((tab, index) => (
+                                    <button
+                                        key={tab.name}
+                                        onClick={() => setActiveTab(index)}
+                                        className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-300 z-10 ${
+                                            activeTab === index ? "text-blue-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+                                        }`}
+                                    >
+                                        {activeTab === index && (
+                                            <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-gray-200/60 -z-10 animate-in zoom-in-95 duration-200"></div>
+                                        )}
+                                        {tab.name}
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
                                 <ActiveComponent profile={profile} />
                             </div>
                         </div>
 
                         {/* Mobile Accordion */}
-                        <div className="sm:hidden">
+                        <div className="sm:hidden space-y-3">
                             {tabs.map((tab, index) => {
                                 const Component = tab.component;
                                 const isOpen = accordionOpen === index;
                                 return (
-                                    <div key={tab.name} className="border-b border-gray-200">
+                                    <div key={tab.name} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                                         <button
                                             onClick={() => setAccordionOpen(isOpen ? null : index)}
-                                            className="w-full flex justify-between items-center py-2 px-2 bg-gray-50 text-left"
+                                            className="w-full flex justify-between items-center p-4 bg-white hover:bg-gray-50 transition-colors"
                                         >
-                                            <span className="font-medium text-gray-700 text-sm">
+                                            <span className={`font-semibold text-sm ${isOpen ? "text-blue-600" : "text-gray-800"}`}>
                                                 {tab.name}
                                             </span>
-                                            <ChevronDownIcon
-                                                className={`w-4 h-4 transform transition-transform ${isOpen ? "rotate-180" : ""
-                                                    }`}
-                                            />
+                                            <div className={`p-1 rounded-full transition-colors ${isOpen ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
+                                                <ChevronDownIcon
+                                                    className={`w-4 h-4 transform transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                                                />
+                                            </div>
                                         </button>
                                         {isOpen && (
-                                            <div className="p-2">
+                                            <div className="p-4 border-t border-gray-100 bg-gray-50/30 animate-in slide-in-from-top-2 fade-in duration-200">
                                                 <Component profile={profile} />
                                             </div>
                                         )}

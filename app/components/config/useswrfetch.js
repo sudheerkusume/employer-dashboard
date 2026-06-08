@@ -26,11 +26,12 @@ const fetcher = async (url) => {
     }
 };
 export function useSWRFetch(url) {
-    const { data, error, isLoading } = useSWR(url && url, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+    const { data, error, isLoading, mutate } = useSWR(url && url, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
     return {
         data: data,
         error: error,
-        isLoading: isLoading
+        isLoading: isLoading,
+        mutate: mutate
     }
 }
 

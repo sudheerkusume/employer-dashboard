@@ -51,24 +51,7 @@ export async function POST(request) {
             end: new Date(endDate),
         }).map(d => format(d, "yyyy-MM-dd"));
 
-        // --- 🚫 Block ALL Mondays (1) and Saturdays (6) ---
-        const invalidDays = eachDayOfInterval({
-            start: new Date(startDate),
-            end: new Date(endDate),
-        }).filter(date => {
-            const day = getDay(date); // Sunday = 0, Monday = 1, ..., Saturday = 6
-            return day === 1 || day === 6;
-        });
-
-        if (invalidDays.length > 0) {
-            const formatted = invalidDays.map(d => format(d, "EEE dd MMM yyyy")).join(", ");
-            return new Response(
-                JSON.stringify({
-                    error: `Leave cannot be applied on Mondays or Saturdays. Invalid dates: ${formatted}`,
-                }),
-                { status: 400 }
-            );
-        }
+        // --- Restriction removed as requested ---
 
         // --- Check if any leave already exists for these dates ---
         const existingDates = [];

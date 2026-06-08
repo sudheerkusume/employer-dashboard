@@ -12,6 +12,7 @@ import Attendance from '../employee/attendance';
 import HRPolicy from '../employee/hrpolicy';
 import Payslip from '../employee/payslip';
 import Loading from '../common/loading';
+import { formatDateTime } from '../config/sitesettings';
 
 const tabs = [
     { name: 'About Me', component: AboutMe },
@@ -364,18 +365,17 @@ function ManagerProfile({ employeesData }) {
     };
 
     return (
-        <div className="mt-20 bg-white min-h-screen">
+        <div className="w-full">
             {serviceCall && <Loading />}
 
             {/* Header Section */}
-            <div className="fixed inset-0 bg-white z-[-1]" />
-            <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm">
-                <div className="p-6 flex flex-col sm:flex-row items-center gap-4 relative z-10">
+            <div className="max-w-5xl border border-gray-200 bg-white rounded-t-xl mx-auto relative shadow-sm mt-8">
+                <div className="p-6 flex flex-col sm:flex-row items-center sm:items-center gap-6 relative z-10">
                     {/* Profile Image with Enhanced Cropping */}
-                    <div className="absolute -top-12 left-6 sm:left-6">
+                    <div className="flex-shrink-0">
                         <label
                             htmlFor="managerProfileImageInput"
-                            className={`${editingHeader ? "cursor-pointer" : "cursor-not-allowed"} group relative`}
+                            className={`${editingHeader ? "cursor-pointer" : "cursor-not-allowed"} group relative block`}
                         >
                             <input
                                 id="managerProfileImageInput"
@@ -387,20 +387,20 @@ function ManagerProfile({ employeesData }) {
                                 onChange={editingHeader ? handleImageChange : undefined}
                             />
                             <img
-                                src={previewImage || tempProfile.profileImage || profile.profileImage || 'https://placehold.co/80x80/F0F0F0/000000?text=Profile'}
+                                src={previewImage || tempProfile.profileImage || profile.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'Manager')}&background=F3F4F6&color=374151&size=128`}
                                 alt="Avatar"
-                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-white object-cover shadow-lg"
+                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-4 border-gray-100 object-cover shadow-md"
                             />
                             {editingHeader && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs bg-opacity-25 rounded-xl text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-xl text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                                     Change
                                 </div>
                             )}
                         </label>
                     </div>
 
-                    <div className="flex-1 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 w-full ml-0 sm:ml-40">
-                        <div className="flex-1">
+                    <div className="flex-1 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 w-full">
+                        <div className="flex-1 text-center sm:text-left">
                             {editingHeader ? (
                                 <div className="flex flex-col gap-2 text-gray-700">
                                     <input
@@ -452,9 +452,14 @@ function ManagerProfile({ employeesData }) {
                                     </div>
                                 </div>
                             ) : (
-                                <div>
-                                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{profile.name}</h2>
-                                    <p className="text-xs sm:text-sm text-gray-500">{profile.email}</p>
+                                <div className="flex flex-col gap-1 text-left mt-2 sm:mt-0">
+                                    <h2 className="text-lg font-bold text-gray-900">{profile.name}</h2>
+                                    <p className="text-[13px] text-gray-500">Email: {profile.email}</p>
+                                    {profile.panNumber && <p className="text-[13px] text-gray-500">Pan Number: {profile.panNumber}</p>}
+                                    {profile.employeeCode && <p className="text-[13px] text-gray-500">Employee Code: {profile.employeeCode}</p>}
+                                    {profile.designation && <p className="text-[13px] text-gray-500">Designation: {profile.designation}</p>}
+                                    {profile.dateOfJoining && <p className="text-[13px] text-gray-500">Date of Joining: {formatDateTime(profile.dateOfJoining, "DD-MM-YYYY")}</p>}
+                                    {profile.reportingManager && <p className="text-[13px] text-gray-500">Reporting Manager: {profile.reportingManager}</p>}
                                 </div>
                             )}
                         </div>

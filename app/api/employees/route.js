@@ -350,7 +350,8 @@ export async function PUT(request) {
         const allowedFields = [
             "name", "email", "panNumber", "password", "role", "summary",
             "experience", "education", "attendance", "designation", "ctc",
-            "dateOfJoining", "dateOfBirth", "gender", "mobile", "department"
+            "dateOfJoining", "dateOfBirth", "gender", "mobile", "department", "leaves",
+            "reportingId", "reportingManager"
         ];
 
         allowedFields.forEach(field => {
@@ -426,6 +427,53 @@ export async function PUT(request) {
             { _id: new ObjectId(employeeId) },
             { $set: updateFields }
         );
+
+        // 🔹 Sync leave status changes to the actual employee's attendance
+        if (body.leaves && Array.isArray(body.leaves)) {
+            const existingLeaves = existingEmployee.leaves || [];
+            
+            for (let i = 0; i < body.leaves.length; i++) {
+                const updatedLeave = body.leaves[i];
+                const existingLeave = existingLeaves[i];
+                
+                // If status changed (e.g. pending -> approved/rejected)
+                if (existingLeave && existingLeave.status !== updatedLeave.status && updatedLeave.employeeId) {
+                    const targetEmployeeId = updatedLeave.employeeId;
+                    try {
+                        const targetEmployee = await employeesCollection.findOne({ _id: new ObjectId(targetEmployeeId) });
+                        
+                        if (targetEmployee && targetEmployee.attendance) {
+                            let attendanceUpdated = false;
+                            
+                            // Go through all months in attendance
+                            for (const month in targetEmployee.attendance) {
+                                const monthData = targetEmployee.attendance[month];
+                                
+                                // Go through all attendance records in that month
+                                for (let j = 0; j < monthData.length; j++) {
+                                    const record = monthData[j];
+                                    
+                                    // Match the leave based on leave dates
+                                    if (updatedLeave.leaveDates && Array.isArray(updatedLeave.leaveDates) && updatedLeave.leaveDates.includes(record.date)) {
+                                        record.status = updatedLeave.status;
+                                        attendanceUpdated = true;
+                                    }
+                                }
+                            }
+                            
+                            if (attendanceUpdated) {
+                                await employeesCollection.updateOne(
+                                    { _id: new ObjectId(targetEmployeeId) },
+                                    { $set: { attendance: targetEmployee.attendance } }
+                                );
+                            }
+                        }
+                    } catch (syncErr) {
+                        console.log("Error syncing leave status to employee:", syncErr);
+                    }
+                }
+            }
+        }
 
         if (result.matchedCount === 0)
             return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
@@ -556,7 +604,16 @@ export async function DELETE(req) {
             return Response.json({ error: "Employee ID is required" }, { status: 400 });
         }
 
-        if (!type || !["experience", "education"].includes(type)) {
+        // 🔹 If no type is provided, delete the entire employee
+        if (!type) {
+            const deleteResult = await employeesCollection.deleteOne({ _id: new ObjectId(id) });
+            if (deleteResult.deletedCount === 0) {
+                return Response.json({ error: "Employee not found" }, { status: 404 });
+            }
+            return Response.json({ success: true, message: "Employee deleted successfully" });
+        }
+
+        if (!["experience", "education"].includes(type)) {
             return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
         }
 

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useContext } from 'react';
 import Calendar from '../calendar/calendar';
 import RootContext from '../config/rootcontext';
 import Loading from '../common/loading';
-import { Mutated } from '../config/useswrfetch';
+import { Mutated, useSWRFetch } from '../config/useswrfetch';
 import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay, addMonths, getDay, isLastDayOfMonth, isBefore, getDate } from 'date-fns';
 import { formatDateTime } from '../config/sitesettings';
 import CalendarModal from '../calendar/calendarmodal';
@@ -230,9 +230,12 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
     const mutated = Mutated(profile ? `/api/employees?id=${profile._id}` : null)
 
-    // --- New: AR state ---
     const [showARModal, setShowARModal] = useState(false);
     const [arSubmitting, setArSubmitting] = useState(false);
+
+    // Fetch global holidays
+    const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
+    const globalHolidays = globalHolidaysData || [];
 
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
@@ -289,7 +292,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         return isBefore(checkDate, doj);
     };
 
-    const calculateAttendanceByMonthIndex = (profile, monthIndex, year = 2025) => {
+    const calculateAttendanceByMonthIndex = (profile, monthIndex, year = myDate.getFullYear(), globalHolidays = []) => {
         const monthName = monthNames[monthIndex];
 
         // Get the actual month start and end dates
@@ -297,10 +300,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         const end = endOfMonth(start);
         const monthDates = eachDayOfInterval({ start, end });
 
-        const holidays = [
-            '2025-01-01', '2025-01-26', '2025-03-25', '2025-08-15',
-            '2025-10-02', '2025-10-18', '2025-10-20', '2025-12-25'
-        ];
+        const holidays = globalHolidays.map(h => format(new Date(h.date), 'yyyy-MM-dd'));
 
         // Calculate total calendar days in month
         const totalCalendarDays = monthDates.length;
@@ -528,7 +528,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         paidLeaves,
         absentDays,
         presentDays
-    } = calculateAttendanceByMonthIndex(profile, currentMonth, 2025);
+    } = calculateAttendanceByMonthIndex(profile, currentMonth, myDate.getFullYear(), globalHolidays);
 
     // Check if it's the last day of the current month
     const isMonthEnd = isLastDayOfMonth(new Date());
@@ -537,7 +537,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     const isMonthBeforeJoining = useMemo(() => {
         if (!profile?.dateOfJoining) return false;
         const doj = new Date(profile.dateOfJoining);
-        const currentMonthStart = startOfMonth(new Date(2025, currentMonth, 1));
+        const currentMonthStart = startOfMonth(new Date(myDate.getFullYear(), currentMonth, 1));
         const currentMonthEnd = endOfMonth(currentMonthStart);
         return isBefore(currentMonthEnd, doj);
     }, [profile?.dateOfJoining, currentMonth]);
@@ -545,12 +545,12 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     // Check if current month is the current actual month
     const isCurrentMonth = useMemo(() => {
         const today = new Date();
-        return currentMonth === today.getMonth() && today.getFullYear() === 2025;
+        return currentMonth === today.getMonth() && today.getFullYear() === myDate.getFullYear();
     }, [currentMonth]);
 
     // Get previous month data for display
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const previousYear = currentMonth === 0 ? 2024 : 2025;
+    const previousYear = currentMonth === 0 ? myDate.getFullYear() - 1 : myDate.getFullYear();
 
     const {
         absentDays: prevAbsentDays,
@@ -561,7 +561,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         sundaysCount: prevSundaysCount,
         tuesdaysCount: prevTuesdaysCount,
         totalWorkingDays: prevTotalWorkingDays
-    } = calculateAttendanceByMonthIndex(profile, previousMonth, previousYear);
+    } = calculateAttendanceByMonthIndex(profile, previousMonth, previousYear, globalHolidays);
 
     // Withdraw leave service
     const withdrawLeaveService = async (employeeId, startDate, endDate) => {
@@ -623,9 +623,9 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         const monthNamee = monthNames[currentMonth];
         const monthArr = profile.attendance[monthNamee] || [];
 
-        // Filter pending leaves with leaveType and check date of joining
+        // Filter leaves with leaveType and check date of joining
         const pendingLeaves = monthArr.filter(
-            (item) => item.status === "pending" && item.leaveType && !isBeforeDateOfJoining(item.date)
+            (item) => item.leaveType && !isBeforeDateOfJoining(item.date)
         );
 
         // Sort by date ascending
@@ -899,17 +899,22 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                         {YesterdayBlock}
 
                         {/* Pending Requests for current month */}
-                        <h4 className="mt-2 mb-2 font-medium w-full">Pending Requests</h4>
+                        <h4 className="mt-2 mb-2 font-medium w-full">Leave Requests</h4>
                         <div className="overflow-y-auto max-h-56 space-y-2 w-full">
-                            {/* Pending Leaves */}
+                            {/* All Leaves */}
                             {monthLeaves.length === 0 ? (
-                                <p className="text-gray-400 italic text-sm">No pending leaves.</p>
+                                <p className="text-gray-400 italic text-sm">No leave requests.</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {monthLeaves.map((leave, index) => (
                                         <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
-                                            <div className="text-sm">
-                                                <div className="font-medium text-gray-600 capitalize">{leave.leaveType}</div>
+                                            <div className="text-sm flex flex-col gap-1">
+                                                <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
+                                                    {leave.leaveType}
+                                                    {leave.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
+                                                    {leave.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
+                                                    {leave.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
                                             </div>
                                             {leave.status !== 'approved' && leave.status !== 'rejected' && (
@@ -1031,17 +1036,22 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                         {YesterdayBlock}
 
                         {/* Leaves & Pending ARs */}
-                        <h4 className="mt-2 mb-2 font-medium">Pending Requests</h4>
+                        <h4 className="mt-2 mb-2 font-medium">Leave Requests</h4>
                         <div className="overflow-y-auto max-h-56 space-y-2">
-                            {/* Pending Leaves */}
+                            {/* All Leaves */}
                             {monthLeaves.length === 0 ? (
-                                <p className="text-gray-400 italic text-sm">No pending leaves.</p>
+                                <p className="text-gray-400 italic text-sm">No leave requests.</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {monthLeaves.map((leave, index) => (
                                         <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
-                                            <div className="text-sm">
-                                                <div className="font-medium text-gray-600 capitalize">{leave.leaveType}</div>
+                                            <div className="text-sm flex flex-col gap-1">
+                                                <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
+                                                    {leave.leaveType}
+                                                    {leave.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
+                                                    {leave.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
+                                                    {leave.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
                                             </div>
                                             {leave.status !== 'approved' && leave.status !== 'rejected' && (

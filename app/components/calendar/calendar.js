@@ -10,7 +10,7 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
-import { Mutated } from '../config/useswrfetch';
+import { Mutated, useSWRFetch } from '../config/useswrfetch';
 import Loading from '../common/loading';
 import RootContext from '../config/rootcontext';
 import ComboBox from '../common/form/combobox';
@@ -47,20 +47,10 @@ const isSundayHoliday = (date) => {
     return getDay(date) === 0; // Sunday (0) is holiday
 };
 
-// Helper: Check if date is holiday (you can customize this with your holiday list)
-const isHoliday = (date) => {
-    const holidayList = [
-        '2025-01-01',
-        '2025-01-26',
-        '2025-03-25',
-        '2025-08-15',
-        '2025-10-02',
-        '2025-10-18',
-        '2025-10-20',
-        '2025-11-20',
-        '2025-12-25',
-    ];
-    return holidayList.includes(format(date, 'yyyy-MM-dd'));
+// Helper: Check if date is holiday
+const isHoliday = (date, globalHolidays = []) => {
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    return globalHolidays.some(h => format(new Date(h.date), 'yyyy-MM-dd') === formattedDate);
 };
 
 // Helper: Calculate working hours in decimal
@@ -343,7 +333,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const [selectedYear, setSelectedYear] = useState(getYear(today));
     const [selectedDate, setSelectedDate] = useState(null);
     const [popupData, setPopupData] = useState(null);
-    const { setRootContext } = useContext(RootContext)
+    const { setRootContext } = useContext(RootContext);
+    const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
+    const globalHolidays = globalHolidaysData || [];
     // Leave modal states
     const [leaveModalOpen, setLeaveModalOpen] = useState(false);
     const [isSelectingLeave, setIsSelectingLeave] = useState(false);
@@ -438,7 +430,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
             const isSunday = isSundayHoliday(day);
             const isTuesday = getDay(day) === 2;
-            const isHolidayDay = isHoliday(day);
+            const isHolidayDay = isHoliday(day, globalHolidays);
             const isTuesdayOff = profile?.department === "tech" && isTuesday;
 
             if (isPastDate && !map[dayStr]) {
@@ -490,7 +482,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     // Today's status checks
     const isTodaySunday = isSundayHoliday(today);
     const isTodayTuesdayOff = isOffDay(today) && profile?.department === "tech"; // Only tech gets Tuesday off
-    const isTodayHoliday = isHoliday(today);
+    const isTodayHoliday = isHoliday(today, globalHolidays);
 
     // Determine if today has leave applied
     const todayStr = format(today, 'yyyy-MM-dd');
@@ -584,59 +576,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             return;
         }
 
-        // Step 3: Prevent leave on restricted days
-        const daysInRange = eachDayOfInterval({
-            start: leaveRange.start,
-            end: leaveRange.end,
-        });
+        // Step 3: Prevent leave on restricted days (Removed as requested)
 
-        const invalidDays = daysInRange.filter(date => {
-            const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
-
-            // Common restrictions for all departments
-            if (day === 1 || day === 6) { // Monday (1) or Saturday (6)
-                return true;
-            }
-
-            // Additional restriction for tech department - no leave on Tuesday
-            if (profile?.department === "tech" && day === 2) { // Tuesday (2)
-                return true;
-            }
-
-            return false;
-        });
-
-        if (invalidDays.length > 0) {
-            // Create appropriate error message based on department
-            let errorMessage = '';
-            let restrictedDays = [];
-
-            if (profile?.department === "tech") {
-                restrictedDays = invalidDays.map(d => {
-                    const dayName = format(d, "EEE");
-                    return `${format(d, "MMM dd")} (${dayName})`;
-                }).join(", ");
-                errorMessage = `Leave cannot be applied on Monday, Tuesday or Saturday. Please remove: ${restrictedDays}`;
-            } else {
-                restrictedDays = invalidDays.map(d => {
-                    const dayName = format(d, "EEE");
-                    return `${format(d, "MMM dd")} (${dayName})`;
-                }).join(", ");
-                errorMessage = `Leave cannot be applied on Monday or Saturday. Please remove: ${restrictedDays}`;
-            }
-
-            setRootContext(prev => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: "error",
-                    title: "Invalid Leave Dates",
-                    message: errorMessage,
-                },
-            }));
-            return; // ❌ Stop execution
-        }
 
         // Step 4: Validate half-day leaves (first half/second half can only be single day)
         if ((leaveRange.leaveType === 'first half' || leaveRange.leaveType === 'second half') &&
@@ -714,32 +655,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         }
     };
 
-    // Add this helper function to check for invalid days
+    // Add this helper function to check for invalid days (Removed logic)
     const checkInvalidDays = (startDate, endDate) => {
-        if (!startDate || !endDate) return { hasInvalidDays: false, invalidDays: [] };
-
-        const daysInRange = eachDayOfInterval({
-            start: startDate,
-            end: endDate,
-        });
-
-        const invalidDays = daysInRange.filter(date => {
-            const day = getDay(date);
-
-            // Common restrictions for all departments
-            if (day === 1 || day === 6) {
-                return true;
-            }
-
-            // Additional restriction for tech department
-            if (profile?.department === "tech" && day === 2) {
-                return true;
-            }
-
-            return false;
-        });
-
-        return { hasInvalidDays: invalidDays.length > 0, invalidDays };
+        return { hasInvalidDays: false, invalidDays: [] };
     };
 
     // Update the date change handlers to show warnings in real-time

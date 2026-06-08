@@ -26,7 +26,7 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
     // Fetch all employees to get manager list (for reporting manager dropdown)
     const { data, error } = useSWRFetch(`/api/employees`);
     const managerData = data
-        ?.filter(item => item.role === "manager")
+        ?.filter(item => ["manager", "admin", "super_admin"].includes(item.role))
         ?.map(item => ({ _id: item._id, name: item.name }));
 
     // Populate form when editing

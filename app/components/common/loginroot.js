@@ -11,7 +11,7 @@ import ForgetPassword from "./forgetpassword";
 const staticEmployees = [
     {
         _id: "super_admin_001",
-        name: "Super Admin",
+        name: "Admin",
         email: "superadmin@realbeez.com",
         mobile: "9999999999",
         password: "Superadmin@123",

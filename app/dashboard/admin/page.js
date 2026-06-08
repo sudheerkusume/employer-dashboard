@@ -1,397 +1,325 @@
 "use client";
-import React, { useContext, useEffect, useState } from "react";
-import AddEmployeeForm from "@/app/components/common/addemployee";
-import { useSWRFetch, Mutated } from "@/app/components/config/useswrfetch";
+import React, { useEffect, useState, useContext } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 import {
-  parse,
-  differenceInMinutes,
-  eachDayOfInterval,
-  startOfMonth,
-  endOfMonth,
-  isSunday,
-  format,
-} from "date-fns";
-import Loading from "@/app/components/common/loading";
-import Error from "@/app/components/common/error";
-import RootContext from "@/app/components/config/rootcontext";
-import { useRouter } from "next/navigation";
+  Users, UserCheck, UserX, Clock, Bell,
+  Plus, CheckCircle, FileText, Download,
+  Activity, Calendar, User
+} from "lucide-react";
+import { Outfit } from "next/font/google";
 
-export default function AdminDashboard() {
-  const [showAddForm, setShowAddForm] = useState(false);
+const outfit = Outfit({ subsets: ["latin"] });
+import Loading from "@/app/components/common/loading";
+import { useSWRFetch } from "@/app/components/config/useswrfetch";
+import { format } from "date-fns";
+import RootContext from "@/app/components/config/rootcontext";
+
+export default function DashboardHome() {
   const [isClient, setIsClient] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [editEmployeeData, setEditEmployeeData] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [pendingARs, setPendingARs] = useState([]);
-  const router = useRouter();
-  const { rootContext, setRootContext } = useContext(RootContext);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [userName, setUserName] = useState("Admin");
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  useEffect(() => {
     const storedUser = localStorage.getItem("user_details");
     let userData = null;
-
     if (storedUser) {
       try {
         userData = JSON.parse(storedUser);
-      } catch (e) {
-        console.error("Invalid JSON in localStorage", e);
-        localStorage.removeItem("user_details");
-      }
+        if (userData.name) setUserName(userData.name);
+      } catch (e) { }
     }
+    setCurrentUserRole(userData?.role?.toLowerCase?.() || "");
 
-    const role = userData?.role?.toLowerCase?.() || "";
-    setCurrentUserRole(role)
-  }, [router]);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-
-  const {
-    data: employeesData,
-    error: employeesError,
-    isLoading: employeesLoading,
-    mutate: mutateEmployees,
-  } = useSWRFetch("/api/employees");
-
-  const fetchPendingLeaves = async () => {
-    try {
-      const res = await fetch("/api/leave/pending?all=true");
-      const data = await res.json();
-      if (res.ok) setPendingLeaves(data);
-    } catch (err) {
-      console.error("Failed to fetch pending leaves", err);
-    }
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
   };
 
-  const fetchPendingARs = async () => {
-    try {
-      const res = await fetch("/api/ar/pending?all=true");
-      const data = await res.json();
-      if (res.ok) setPendingARs(data);
-    } catch (err) {
-      console.error("Failed to fetch pending ARs", err);
-    }
-  };
+  const { data: employeesData, isLoading: employeesLoading } = useSWRFetch("/api/employees");
 
   useEffect(() => {
+    const fetchPendingLeaves = async () => {
+      try {
+        const res = await fetch("/api/leave/pending?all=true");
+        if (res.ok) setPendingLeaves(await res.json());
+      } catch (err) { }
+    };
+
+    const fetchPendingARs = async () => {
+      try {
+        const res = await fetch("/api/ar/pending?all=true");
+        if (res.ok) setPendingARs(await res.json());
+      } catch (err) { }
+    };
+
     if (currentUserRole === "super_admin" || currentUserRole === "admin") {
       fetchPendingLeaves();
       fetchPendingARs();
     }
   }, [currentUserRole]);
 
-  const isManagerAbsentToday = (managerId, employeesList) => {
-    const manager = employeesList?.find((emp) => emp.userId === managerId || emp._id === managerId);
-    if (!manager) return false;
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const monthName = format(new Date(), "MMMM");
-    const attendanceRecord = manager.attendance?.[monthName]?.find(
-      (record) => record.date === todayStr
-    );
-    if (!attendanceRecord) return true;
-    if (attendanceRecord.status === "absent") return true;
-    if (!attendanceRecord.checkIn && !attendanceRecord.checkOut) return true;
-    const managerLeaves = manager.leaves || [];
-    const isOnLeave = managerLeaves.some(
-      (leave) =>
+  if (!isClient || employeesLoading) return <Loading />;
+
+  // Calculate stats from real data
+  const totalEmployees = employeesData ? employeesData.length : 0;
+  let presentToday = 0;
+  let onLeaveToday = 0;
+  let lateCheckins = 0;
+  let recentCheckins = [];
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const monthName = format(new Date(), "MMMM");
+
+  if (employeesData) {
+    employeesData.forEach(emp => {
+      // Check Leaves
+      const isOnLeave = (emp.leaves || []).some(leave =>
         leave.status === "approved" &&
         new Date(leave.startDate) <= new Date() &&
         new Date(leave.endDate) >= new Date()
-    );
-    return isOnLeave;
-  };
+      );
 
-  const filteredLeaves = pendingLeaves.filter((leave) => {
-    const managerId = leave.reportingManagerId;
-    return isManagerAbsentToday(managerId, employeesData);
-  });
-
-  const filteredARs = pendingARs.filter((ar) => {
-    const managerId = ar.reportingManagerId;
-    return isManagerAbsentToday(managerId, employeesData);
-  });
-
-  const handleLeaveAction = async (leave, status) => {
-    if (!confirm(`Are you sure you want to ${status} this leave?`)) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch("/api/leave/approve", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adminId: rootContext.user?.userId,
-          employeeId: leave.employeeId,
-          startDate: leave.startDate,
-          endDate: leave.endDate,
-          status,
-        }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
-      setRootContext((prev) => ({
-        ...prev,
-        toast: { show: true, dismiss: true, type: "success", title: `Leave ${status}`, message: `Leave ${status} successfully` },
-      }));
-      fetchPendingLeaves();
-    } catch (err) {
-      setRootContext((prev) => ({
-        ...prev,
-        toast: { show: true, dismiss: true, type: "error", title: "Failed", message: err.message },
-      }));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleARAction = async (ar, action) => {
-    if (!confirm(`Are you sure you want to ${action} this regularization?`)) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch("/api/ar", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestId: ar._id,
-          action,
-          remarks: `${action} by Admin`,
-          adminId: rootContext.user?.userId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setRootContext((prev) => ({
-        ...prev,
-        toast: { show: true, dismiss: true, type: "success", title: `Regularization ${action}`, message: `Regularization ${action} successfully` },
-      }));
-      fetchPendingARs();
-    } catch (err) {
-      setRootContext((prev) => ({
-        ...prev,
-        toast: { show: true, dismiss: true, type: "error", title: "Error", message: err.message },
-      }));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeleteEmployee = async (employeeId) => {
-    if (!confirm("Delete employee? This action cannot be undone.")) return;
-    try {
-      const res = await fetch(`/api/employees?id=${employeeId}`, { method: "DELETE" });
-      if (res.ok) {
-        mutateEmployees();
-        setRootContext((prev) => ({
-          ...prev,
-          toast: { show: true, dismiss: true, type: "success", title: "Deleted", message: "Employee removed" },
-        }));
-      } else throw new Error();
-    } catch (err) {
-      setRootContext((prev) => ({
-        ...prev,
-        toast: { show: true, dismiss: true, type: "error", title: "Error", message: "Could not delete employee" },
-      }));
-    }
-  };
-
-  const handleEditEmployee = (employee) => {
-    setEditEmployeeData(employee);
-    setShowAddForm(true);
-  };
-
-  const handleFormSuccess = () => {
-    mutateEmployees();   // refresh employee list
-    setShowAddForm(false);
-    setEditEmployeeData(null);
-  };
-
-  const logOut = () => {
-    localStorage.clear();
-    setRootContext((prev) => ({ ...prev, authenticated: false }));
-    router.push("/");
-  };
-
-  const calculateAttendance = (attendance, monthDate) => {
-    const monthStart = startOfMonth(monthDate);
-    const monthEnd = endOfMonth(monthDate);
-    const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    const holidays = ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
-    const totalWorkingDays = monthDates.filter(
-      (d) => !isSunday(d) && !holidays.includes(format(d, "yyyy-MM-dd"))
-    ).length;
-    const monthName = monthDate.toLocaleString("default", { month: "long" });
-    let totalPresent = 0;
-    (attendance?.[monthName] || []).forEach((item) => {
-      if (item.checkIn && item.checkOut) {
-        const checkIn = parse(item.checkIn, "HH:mm", new Date());
-        const checkOut = parse(item.checkOut, "HH:mm", new Date());
-        const workedHours = differenceInMinutes(checkOut, checkIn) / 60;
-        if (workedHours >= 8.75) totalPresent += 1;
-        else if (workedHours >= 4.25) totalPresent += 0.5;
-      } else if (item.status === "present") totalPresent += 1;
-      else if (["firstHalfApproved", "secondHalfApproved", "halfDay"].includes(item.status)) totalPresent += 0.5;
+      if (isOnLeave) {
+        onLeaveToday++;
+      } else {
+        // Check Attendance
+        const monthData = emp.attendance?.[monthName] || [];
+        const todayRecord = monthData.find(d => d.date === todayStr);
+        if (todayRecord && (todayRecord.checkIn || todayRecord.status === "present")) {
+          presentToday++;
+          if (todayRecord.checkIn && todayRecord.checkIn > "09:30") {
+            lateCheckins++;
+          }
+          if (todayRecord.checkIn) {
+            recentCheckins.push({
+              user: emp.name,
+              action: `checked in at ${todayRecord.checkIn}`,
+              time: "Today",
+              type: "checkin"
+            });
+          }
+        }
+      }
     });
-    return { totalWorkingDays, totalPresent };
-  };
+  }
 
-  if (employeesError) return <Error />;
-  if (employeesLoading) return <Loading />;
+  const pendingRequests = pendingLeaves.length + pendingARs.length;
 
-  const visibleEmployees =
-    currentUserRole === "super_admin"
-      ? employeesData || []
-      : (employeesData || []).filter((emp) => emp.role !== "admin");
+  // Derive Activities
+  const recentLeaves = pendingLeaves.slice(0, 3).map(leave => ({
+    user: leave.employeeName,
+    action: `applied for leave (${format(new Date(leave.startDate), "MMM dd")})`,
+    time: "Pending",
+    type: "leave"
+  }));
+
+  const recentARs = pendingARs.slice(0, 2).map(ar => ({
+    user: ar.employeeName,
+    action: "requested regularization",
+    time: "Pending",
+    type: "ar"
+  }));
+
+  const recentActivities = [...recentCheckins.slice(0, 2), ...recentLeaves, ...recentARs];
+
+  // Calculate percentages
+  const presentPercent = totalEmployees ? Math.round((presentToday / totalEmployees) * 100) : 0;
+  const leavePercent = totalEmployees ? Math.round((onLeaveToday / totalEmployees) * 100) : 0;
+  const absentPercent = totalEmployees ? Math.max(0, 100 - presentPercent - leavePercent) : 0;
+
+  const statCards = [
+    { title: "Total Employees", value: totalEmployees.toString(), icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
+    { title: "Present Today", value: presentToday.toString(), icon: UserCheck, color: "bg-green-500", light: "bg-green-50", text: "text-green-600" },
+    { title: "On Leave", value: onLeaveToday.toString(), icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
+    { title: "Late Check-ins", value: lateCheckins.toString(), icon: Clock, color: "bg-yellow-500", light: "bg-yellow-50", text: "text-yellow-600" },
+    { title: "Pending Requests", value: pendingRequests.toString(), icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" },
+  ];
+
+  const attendanceStats = [
+    { label: "Present", percentage: presentPercent, color: "bg-green-500" },
+    { label: "Leave", percentage: leavePercent, color: "bg-orange-500" },
+    { label: "Absent", percentage: absentPercent, color: "bg-red-500" },
+  ];
 
   return (
-    <div className="space-y-6 p-6 w-full bg-white min-h-screen">
-      {actionLoading && <Loading />}
-      <div className="absolute top-4 right-4">
-        <button onClick={logOut} className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700">
-          Logout
-        </button>
-      </div>
-
-      <h1 className="text-3xl font-bold text-gray-800">
-        {currentUserRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
-      </h1>
-
-      <button
-        onClick={() => {
-          setEditEmployeeData(null);
-          setShowAddForm(true);
-        }}
-        className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded shadow"
-      >
-        Add Employee
-      </button>
-
-      {/* Pending Leaves (Manager absent) */}
-      {filteredLeaves.length > 0 && (
-        <div className="mt-8 p-4 border rounded-xl bg-red-50">
-          <h2 className="text-xl font-bold text-red-800 mb-4">⚠️ Pending Leaves – Manager is Absent</h2>
-          <div className="space-y-3">
-            {filteredLeaves.map((leave) => (
-              <div key={leave._id} className="p-3 bg-white rounded shadow flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">{leave.employeeName}</p>
-                  <p className="text-sm">
-                    {format(new Date(leave.startDate), "dd MMM")} → {format(new Date(leave.endDate), "dd MMM")}
-                  </p>
-                  <p className="text-sm text-gray-600">{leave.reason}</p>
-                </div>
-                <div className="space-x-2">
-                  <button onClick={() => handleLeaveAction(leave, "approved")} className="bg-green-600 text-white px-3 py-1 rounded">Approve</button>
-                  <button onClick={() => handleLeaveAction(leave, "rejected")} className="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
-                </div>
-              </div>
-            ))}
+    <div className="p-6 md:p-10 font-sans text-gray-900 bg-gray-50 min-h-full">
+      <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-200 pb-6">
+        {/* Left Side: Greeting */}
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className={`${outfit.className} text-2xl md:text-[28px] font-bold tracking-tight text-gray-900 flex items-center gap-2`}>
+              {getGreeting()}, {userName} <span className="text-xl">✨</span>
+            </h1>
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-gray-500 mt-1.5">
+              <Activity size={14} className="text-orange-500" />
+              Workforce management is on track.
+            </p>
           </div>
         </div>
-      )}
 
-      {/* Pending AR (Manager absent) */}
-      {filteredARs.length > 0 && (
-        <div className="mt-8 p-4 border rounded-xl bg-purple-50">
-          <h2 className="text-xl font-bold text-purple-800 mb-4">⚠️ Pending Regularizations – Manager is Absent</h2>
-          <div className="space-y-3">
-            {filteredARs.map((ar) => (
-              <div key={ar._id} className="p-3 bg-white rounded shadow flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">{ar.employeeName}</p>
-                  <p className="text-sm text-gray-600">Reason: {ar.reason}</p>
-                </div>
-                <div className="space-x-2">
-                  <button onClick={() => handleARAction(ar, "approve")} className="bg-green-600 text-white px-3 py-1 rounded">Approve</button>
-                  <button onClick={() => handleARAction(ar, "reject")} className="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
-                </div>
-              </div>
-            ))}
+        {/* Right Side: Date/Time & Profile */}
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm">
+            <Calendar size={16} className="text-orange-400" />
+            <span className="font-bold text-gray-700 text-sm">
+              {currentTime.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+            </span>
+            <span className="font-bold text-sm text-orange-500">
+              {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+            <div className="text-right hidden sm:block">
+              <p className="m-0 font-bold text-gray-900 text-sm">{userName}</p>
+              <p className="m-0 text-xs font-semibold text-gray-500 capitalize">Master Access</p>
+            </div>
+            <div className="p-2.5 rounded-full bg-white border border-gray-200 text-gray-600 shadow-sm">
+              <User size={20} />
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Month Selector */}
-      <div className="flex items-center gap-3 mt-4">
-        <label className="font-medium text-gray-800">Select Month:</label>
-        <input
-          type="month"
-          value={`${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, "0")}`}
-          onChange={(e) => setSelectedMonth(new Date(e.target.value))}
-          className="p-2 border border-gray-300 text-gray-800 rounded-md"
-        />
       </div>
 
-      {/* Employee Table */}
-      <div className="overflow-x-auto mt-4">
-        <table className="min-w-full border rounded-xl text-sm text-gray-700">
-          <thead className="bg-gray-100 font-semibold text-gray-800">
-            <tr>
-              <th className="py-2 px-3 border">Name</th>
-              <th className="py-2 px-3 border">Role</th>
-              <th className="py-2 px-3 border text-center">Today Check-In</th>
-              <th className="py-2 px-3 border text-center">Today Check-Out</th>
-              <th className="py-2 px-3 border text-center">Working Days</th>
-              <th className="py-2 px-3 border text-center">Present Days</th>
-              {(currentUserRole === "super_admin" || currentUserRole === "admin") && <th className="py-2 px-3 border text-center">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleEmployees.map((emp) => {
-              const todayStr = format(new Date(), "yyyy-MM-dd");
-              const monthName = selectedMonth.toLocaleString("default", { month: "long" });
-              const monthData = emp.attendance?.[monthName] || [];
-              const todayRecord = monthData.find((d) => d.date === todayStr);
-              const { totalWorkingDays, totalPresent } = calculateAttendance(emp.attendance, selectedMonth);
-
-              let rowClass = "bg-blue-100 hover:bg-blue-200";
-              if (emp.role === "manager") rowClass = "bg-yellow-100 hover:bg-yellow-200";
-              if (emp.role === "admin") rowClass = "bg-purple-100 hover:bg-purple-200";
-
-              return (
-                <tr key={emp._id} className={`${rowClass} border-b`}>
-                  <td className="py-2 px-3 border font-medium">{emp.name}</td>
-                  <td className="py-2 px-3 border text-center capitalize">{emp.role}</td>
-                  <td className="py-2 px-3 border text-center">{todayRecord?.checkIn || "-"}</td>
-                  <td className="py-2 px-3 border text-center">{todayRecord?.checkOut || "-"}</td>
-                  <td className="py-2 px-3 border text-center">{totalWorkingDays}</td>
-                  <td className="py-2 px-3 border text-center text-green-700 font-semibold">{totalPresent}</td>
-                  {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
-                    <td className="py-2 px-3 border text-center whitespace-nowrap">
-                      <button onClick={() => handleEditEmployee(emp)} className="text-blue-600 hover:text-blue-800 mr-3">Edit</button>
-                      <button onClick={() => handleDeleteEmployee(emp._id)} className="text-red-600 hover:text-red-800">Delete</button>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Top Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+        {statCards.map((stat, index) => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            key={stat.title}
+            className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className={`p-3 rounded-xl ${stat.light} ${stat.text}`}>
+                <stat.icon size={24} />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+              <p className="text-sm font-medium text-gray-500 mt-1">{stat.title}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Add/Edit Employee Modal */}
-      {isClient && showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-lg w-full sm:w-[55%] max-h-[90vh] overflow-y-auto p-4 relative">
-            <button
-              onClick={() => {
-                setShowAddForm(false);
-                setEditEmployeeData(null);
-              }}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 font-bold text-xl"
+      {/* Quick Actions */}
+      <div className="mb-10">
+        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <Activity className="text-orange-500" size={20} /> Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link href="/dashboard/admin/employees">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50 rounded-xl transition-all shadow-sm font-medium"
             >
-              &times;
-            </button>
-            <AddEmployeeForm
-              currentUserRole={currentUserRole}
-              editData={editEmployeeData}
-              onSuccess={handleFormSuccess}
-            />
-          </div>
+              <Plus size={18} /> Add Employee
+            </motion.button>
+          </Link>
+          <Link href="/dashboard/admin/leaves">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-green-600 hover:border-green-200 hover:bg-green-50 rounded-xl transition-all shadow-sm font-medium"
+            >
+              <CheckCircle size={18} /> Approve Leave
+            </motion.button>
+          </Link>
+          <Link href="/dashboard/admin/payroll">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 rounded-xl transition-all shadow-sm font-medium"
+            >
+              <FileText size={18} /> Generate Payroll
+            </motion.button>
+          </Link>
+          <Link href="/dashboard/admin/reports">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm font-medium"
+            >
+              <Download size={18} /> Download Report
+            </motion.button>
+          </Link>
         </div>
-      )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Attendance Overview */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm"
+        >
+          <h2 className="text-xl font-bold text-gray-900 mb-8">Attendance Overview</h2>
+          <div className="space-y-6">
+            {attendanceStats.map((stat) => (
+              <div key={stat.label}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-700">{stat.label}</span>
+                  <span className="font-bold text-gray-900">{stat.percentage}%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stat.percentage}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className={`h-2.5 rounded-full ${stat.color}`}
+                  ></motion.div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Recent Activities */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm"
+        >
+          <h2 className="text-xl font-bold text-gray-900 mb-8">Recent Activities</h2>
+          {recentActivities.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No recent activities found.</p>
+          ) : (
+            <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+              {recentActivities.map((activity, i) => (
+                <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-orange-100 text-orange-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                    {activity.type === 'leave' && <UserX size={16} />}
+                    {activity.type === 'checkin' && <UserCheck size={16} />}
+                    {activity.type === 'ar' && <Clock size={16} />}
+                  </div>
+                  <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-slate-100 bg-white shadow-sm">
+                    <div className="flex items-center justify-between space-x-2 mb-1">
+                      <div className="font-bold text-slate-900">{activity.user}</div>
+                      <time className="font-medium text-xs text-orange-500">{activity.time}</time>
+                    </div>
+                    <div className="text-slate-500 text-sm">{activity.action}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+
     </div>
   );
 }
