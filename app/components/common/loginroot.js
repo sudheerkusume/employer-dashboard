@@ -54,6 +54,21 @@ export default function LoginRoot() {
             return;
         }
 
+        if (user.isActive === false) {
+            setRootContext((prevContext) => ({
+                ...prevContext,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Account Disabled",
+                    message: "Your account is currently inactive. Please contact HR admin.",
+                },
+            }));
+            setIsLoading(false);
+            return;
+        }
+
         const isMatch = formData.password === user.password;
 
         if (!isMatch) {

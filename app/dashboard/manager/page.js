@@ -7,7 +7,8 @@ import ManagerProfile from "@/app/components/manager/manager";
 import RootContext from "@/app/components/config/rootcontext";
 import { formatDateTime } from "@/app/components/config/sitesettings";
 import { useRouter } from "next/navigation";
-
+import { Calendar, Sparkles } from "lucide-react";
+import { format, isAfter, isToday } from "date-fns";
 export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
   const { rootContext, setRootContext } = useContext(RootContext);
@@ -25,13 +26,19 @@ export default function ManagerDashboard() {
   const { data: employeesData, isLoading: employeesLoading } = useSWRFetch(
     "/api/employees"
   );
+  
+  const { data: holidaysData } = useSWRFetch("/api/holidays");
 
   if (error) return <Error />;
   if (isLoading || employeesLoading || !userId) return <Loading />;
 
   const teamMembers = employeesData?.filter(emp => emp.reportingId === userId) || [];
-  const pendingLeaves = managerData?.pendingLeaves || [];
-  const pendingARs = managerData?.pendingRegularizations || [];
+  const pendingLeaves = teamMembers.flatMap(emp => 
+    (emp.leaveRequests || []).filter(lr => lr.status === "pending")
+  );
+  const pendingARs = teamMembers.flatMap(emp => 
+    (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending")
+  );
 
   const logOut = () => {
     localStorage.clear();
@@ -42,6 +49,12 @@ export default function ManagerDashboard() {
   };
 
   // Helper for initials
+
+  const upcomingHolidays = (holidaysData || [])
+    .filter(h => isAfter(new Date(h.date), new Date()) || isToday(new Date(h.date)))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 3);
+
   const getInitials = (name) => {
     if (!name) return "EMP";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -126,6 +139,37 @@ export default function ManagerDashboard() {
             <span className="bg-blue-50 text-blue-600 border border-blue-200 text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap">
               L3 Manager
             </span>
+          </div>
+        </div>
+
+        {/* Upcoming Holidays Widget */}
+        <div className="pt-6 relative z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <Calendar size={18} className="text-orange-500" /> Upcoming Holidays
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {upcomingHolidays.length === 0 ? (
+              <div className="col-span-full bg-white rounded-xl p-5 border border-gray-100 shadow-sm text-center">
+                <p className="text-sm font-medium text-gray-500">No upcoming holidays scheduled.</p>
+              </div>
+            ) : (
+              upcomingHolidays.map((holiday, idx) => (
+                <div key={idx} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm flex items-start gap-4 hover:border-orange-200 transition-colors">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${holiday.type === 'Mandatory' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">{holiday.name}</h4>
+                    <p className="text-xs font-semibold text-gray-500 mt-0.5">{format(new Date(holiday.date), "MMM dd, yyyy")} • {format(new Date(holiday.date), "EEEE")}</p>
+                    <span className={`inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${holiday.type === 'Mandatory' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {holiday.type}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

@@ -331,7 +331,7 @@ export async function PUT(request) {
             "name", "email", "panNumber", "password", "role", "summary",
             "experience", "education", "attendance", "designation", "ctc",
             "dateOfJoining", "dateOfBirth", "gender", "mobile", "department", "leaves",
-            "reportingId", "reportingManager"
+            "reportingId", "reportingManager", "isActive"
         ];
 
         allowedFields.forEach(field => {
@@ -534,104 +534,90 @@ export async function DELETE(req) {
         const type = searchParams.get("type");
         const deleteType = searchParams.get("deleteType") || "entry";
 
-        // Case: Delete an experience or education entry (preserve employee)
-        if (type && ["experience", "education"].includes(type) && !isNaN(index)) {
-            if (!id) return Response.json({ error: "Employee ID required" }, { status: 400 });
+        // Case: Delete an experience or education entry or deactivate employee
+        if (!id) {
+            return Response.json({ error: "Employee ID is required" }, { status: 400 });
+        }
 
-            const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
-            if (!employee) return Response.json({ error: "Employee not found" }, { status: 404 });
-            if (!employee[type] || !Array.isArray(employee[type]))
-                return Response.json({ error: `${type} data not found` }, { status: 404 });
-            if (index >= employee[type].length)
-                return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
-            const type = searchParams.get("type"); // "experience" or "education"
-            const deleteType = searchParams.get("deleteType") || "entry"; // "entry" or "document"
-
-            console.log(`DELETE Request:`, { id, index, type, deleteType });
-
-            // Validate required parameters
-            if (!id) {
-                return Response.json({ error: "Employee ID is required" }, { status: 400 });
-            }
-
-            // 🔹 If no type is provided, delete the entire employee
-            if (!type) {
-                const deleteResult = await employeesCollection.deleteOne({ _id: new ObjectId(id) });
-                if (deleteResult.deletedCount === 0) {
-                    return Response.json({ error: "Employee not found" }, { status: 404 });
-                }
-                return Response.json({ success: true, message: "Employee deleted successfully" });
-            }
-
-            if (!["experience", "education"].includes(type)) {
-                return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
-            }
-
-            if (isNaN(index) || index < 0) {
-                return Response.json({ error: "Valid index is required" }, { status: 400 });
-            }
-
-            // Find employee
-            const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
-            if (!employee) {
-                return Response.json({ error: "Employee not found" }, { status: 404 });
-            }
-
-            // Validate the array exists
-            if (!employee[type] || !Array.isArray(employee[type])) {
-                return Response.json({ error: `${type} data not found` }, { status: 404 });
-            }
-
-            // Check if index is within bounds
-            if (index >= employee[type].length) {
-                return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
-            }
-
-            let updatedArray = [...employee[type]];
-            if (deleteType === "document") {
-                const itemToUpdate = updatedArray[index];
-                if (itemToUpdate.documentUrl) {
-                    try {
-                        const urlParts = itemToUpdate.documentUrl.split('/');
-                        const publicIdWithExtension = urlParts[urlParts.length - 1];
-                        const publicId = publicIdWithExtension.split('.')[0];
-                        const fullPublicId = `employees/${id}/${type}/${publicId}`;
-                        await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
-                    } catch (err) { console.warn("Cloudinary delete error:", err); }
-                }
-                updatedArray[index] = { ...itemToUpdate, documentUrl: "", document: null };
-            } else {
-                const itemToDelete = updatedArray[index];
-                if (itemToDelete.documentUrl) {
-                    try {
-                        const urlParts = itemToDelete.documentUrl.split('/');
-                        const publicIdWithExtension = urlParts[urlParts.length - 1];
-                        const publicId = publicIdWithExtension.split('.')[0];
-                        const fullPublicId = `employees/${id}/${type}/${publicId}`;
-                        await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
-                    } catch (err) { console.warn("Cloudinary delete error:", err); }
-                }
-                updatedArray.splice(index, 1);
-            }
-
+        // 🔹 If no type is provided, deactivate the employee (soft delete)
+        if (!type) {
             const updateResult = await employeesCollection.updateOne(
                 { _id: new ObjectId(id) },
-                {
-                    $set: {
-                        [type]: updatedArray,
-                        modified_on: new Date()
-                    }
-                }
+                { $set: { isActive: false, modified_on: new Date() } }
             );
+            if (updateResult.matchedCount === 0) {
+                return Response.json({ error: "Employee not found" }, { status: 404 });
+            }
+            return Response.json({ success: true, message: "Employee deactivated (soft delete) successfully" });
         }
 
-        if (updateResult.matchedCount === 0) {
-            return Response.json({ error: "Employee not found during update" }, { status: 404 });
+        if (!["experience", "education"].includes(type)) {
+            return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
         }
+
+        if (isNaN(index) || index < 0) {
+            return Response.json({ error: "Valid index is required" }, { status: 400 });
+        }
+
+        const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
+        if (!employee) {
+            return Response.json({ error: "Employee not found" }, { status: 404 });
+        }
+
+        if (!employee[type] || !Array.isArray(employee[type])) {
+            return Response.json({ error: `${type} data not found` }, { status: 404 });
+        }
+
+        if (index >= employee[type].length) {
+            return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
+        }
+
+        let updatedArray = [...employee[type]];
+
+        if (deleteType === "document") {
+            const itemToUpdate = updatedArray[index];
+            if (itemToUpdate.documentUrl) {
+                try {
+                    const urlParts = itemToUpdate.documentUrl.split('/');
+                    const publicIdWithExtension = urlParts[urlParts.length - 1];
+                    const publicId = publicIdWithExtension.split('.')[0];
+                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
+                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                } catch (err) { console.warn("Cloudinary delete error:", err); }
+            }
+            updatedArray[index] = { ...itemToUpdate, documentUrl: "", document: null };
+        } else {
+            const itemToDelete = updatedArray[index];
+            if (itemToDelete.documentUrl) {
+                try {
+                    const urlParts = itemToDelete.documentUrl.split('/');
+                    const publicIdWithExtension = urlParts[urlParts.length - 1];
+                    const publicId = publicIdWithExtension.split('.')[0];
+                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
+                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                } catch (err) { console.warn("Cloudinary delete error:", err); }
+            }
+            updatedArray.splice(index, 1);
+        }
+
+        await employeesCollection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    [type]: updatedArray,
+                    modified_on: new Date()
+                }
+            }
+        );
 
         return Response.json({
             success: true,
-            message: "Employee deactivated (soft delete) successfully"
+            message: deleteType === "document"
+                ? `${type} document deleted successfully`
+                : `${type} entry deleted successfully`,
+            [type]: updatedArray,
+            deletedIndex: index,
+            deleteType: deleteType
         });
 
     } catch (err) {

@@ -126,6 +126,16 @@ export async function POST(request) {
             }
         });
 
+        const leaveRequestObj = {
+            id: new ObjectId().toString(),
+            startDate: format(start, 'yyyy-MM-dd'),
+            endDate: format(end, 'yyyy-MM-dd'),
+            leaveType,
+            reason: reason || '',
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+
         // Update the employee document
         const result = await employeesCollection.updateOne(
             { _id: new ObjectId(employeeId) },
@@ -133,6 +143,9 @@ export async function POST(request) {
                 $set: {
                     attendance: currentAttendance,
                     modified_on: new Date()
+                },
+                $push: {
+                    leaveRequests: leaveRequestObj
                 }
             }
         );

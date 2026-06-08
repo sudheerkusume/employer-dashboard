@@ -8,6 +8,7 @@ import AboutMe from "./about";
 import Attendance from "./attendance";
 import HRPolicy from "./hrpolicy";
 import Payslip from "./payslip";
+import Holidays from "./holidays";
 import ButtonTab from "../common/buttontab";
 import RootContext from "../config/rootcontext";
 import { Mutated } from "../config/useswrfetch";
@@ -18,6 +19,7 @@ import { useRouter } from "next/navigation";
 const tabs = [
     { name: "About Me", component: AboutMe },
     { name: "Attendance", component: Attendance },
+    { name: "Holidays", component: Holidays },
     { name: "HR Policy", component: HRPolicy },
     { name: "Payslips", component: Payslip },
 ];

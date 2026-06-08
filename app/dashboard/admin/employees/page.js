@@ -17,8 +17,8 @@ import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  LogOut, UserPlus, Calendar, AlertCircle, 
-  CheckCircle2, XCircle, Edit, Trash2 
+  Users, UserPlus, Edit, Trash2, Search, Filter, Briefcase, Mail, Phone, MapPin, Building, Calendar, Download, UserMinus, UserCheck, LogOut, AlertCircle, 
+  CheckCircle2, XCircle 
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -59,34 +59,29 @@ export default function AdminDashboard() {
     error: employeesError,
     isLoading: employeesLoading,
     mutate: mutateEmployees,
-  } = useSWRFetch("/api/employees");
-
-  const fetchPendingLeaves = async () => {
-    try {
-      const res = await fetch("/api/leave/pending?all=true");
-      const data = await res.json();
-      if (res.ok) setPendingLeaves(data);
-    } catch (err) {
-      console.error("Failed to fetch pending leaves", err);
-    }
-  };
-
-  const fetchPendingARs = async () => {
-    try {
-      const res = await fetch("/api/ar/pending?all=true");
-      const data = await res.json();
-      if (res.ok) setPendingARs(data);
-    } catch (err) {
-      console.error("Failed to fetch pending ARs", err);
-    }
-  };
+  } = useSWRFetch("/api/employees?includeInactive=true");
 
   useEffect(() => {
-    if (currentUserRole === "super_admin" || currentUserRole === "admin") {
-      fetchPendingLeaves();
-      fetchPendingARs();
+    if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
+      const allPendingLeaves = employeesData.flatMap(emp => 
+        (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({
+          ...lr, 
+          employeeName: emp.name,
+          reportingManagerId: emp.reportingManagerId || emp.reportingManager
+        }))
+      );
+      setPendingLeaves(allPendingLeaves);
+
+      const allPendingARs = employeesData.flatMap(emp => 
+        (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({
+          ...ar, 
+          employeeName: emp.name,
+          reportingManagerId: emp.reportingManagerId || emp.reportingManager
+        }))
+      );
+      setPendingARs(allPendingARs);
     }
-  }, [currentUserRole]);
+  }, [employeesData, currentUserRole]);
 
   const isManagerAbsentToday = (managerId, employeesList) => {
     const manager = employeesList?.find((emp) => emp.userId === managerId || emp._id === managerId);
@@ -182,21 +177,28 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteEmployee = async (employeeId) => {
-    if (!confirm("Delete employee? This action cannot be undone.")) return;
+  const handleToggleActive = async (employee) => {
+    const newStatus = employee.isActive === false ? true : false;
+    const actionText = newStatus ? "activate" : "deactivate";
+    if (!confirm(`Are you sure you want to ${actionText} this employee?`)) return;
+    
     try {
-      const res = await fetch(`/api/employees?id=${employeeId}`, { method: "DELETE" });
+      const res = await fetch(`/api/employees`, { 
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: employee._id, isActive: newStatus })
+      });
       if (res.ok) {
         mutateEmployees();
         setRootContext((prev) => ({
           ...prev,
-          toast: { show: true, dismiss: true, type: "success", title: "Deleted", message: "Employee removed" },
+          toast: { show: true, dismiss: true, type: "success", title: "Success", message: `Employee ${newStatus ? 'activated' : 'deactivated'} successfully` },
         }));
       } else throw new Error();
     } catch (err) {
       setRootContext((prev) => ({
         ...prev,
-        toast: { show: true, dismiss: true, type: "error", title: "Error", message: "Could not delete employee" },
+        toast: { show: true, dismiss: true, type: "error", title: "Error", message: "Could not update employee status" },
       }));
     }
   };
@@ -422,8 +424,8 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                          Active
+                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-medium border ${emp.isActive !== false ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                          {emp.isActive !== false ? "Active" : "Inactive"}
                         </span>
                       </td>
                       {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
@@ -437,11 +439,11 @@ export default function AdminDashboard() {
                               <Edit size={16} />
                             </button>
                             <button 
-                              onClick={() => handleDeleteEmployee(emp._id)} 
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors tooltip-trigger"
-                              title="Delete Employee"
+                              onClick={() => handleToggleActive(emp)} 
+                              className={`p-1.5 rounded-lg transition-colors tooltip-trigger ${emp.isActive !== false ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+                              title={emp.isActive !== false ? "Deactivate Employee" : "Activate Employee"}
                             >
-                              <Trash2 size={16} />
+                              {emp.isActive !== false ? <UserMinus size={16} /> : <UserCheck size={16} />}
                             </button>
                           </div>
                         </td>

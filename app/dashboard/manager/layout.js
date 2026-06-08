@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import RootContext from "@/app/components/config/rootcontext";
-// import logo from '../../../accets/logo.png'
+// import logo from '/images/logo1.png'
 import {
   LayoutDashboard,
   Users,
@@ -36,7 +36,7 @@ export default function ManagerLayout({ children }) {
 
   // Fetch real-time data so badges update immediately after approvals
   const { data: managerData } = useSWRFetch(userId ? `/api/employees?id=${userId}` : null);
-  
+
   const pendingLeavesCount = managerData?.pendingLeaves?.length || 0;
   const pendingARsCount = managerData?.pendingRegularizations?.length || 0;
 

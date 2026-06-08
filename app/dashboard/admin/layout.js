@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import RootContext from "@/app/components/config/rootcontext";
+import logo from '@/app/dashboard/accets/logo.png'
 import {
   LayoutDashboard,
   Users,
@@ -95,7 +96,7 @@ export default function AdminLayout({ children }) {
             <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/30">
-                  R
+                  <img src={logo} alt="Logo" />
                 </div>
                 <h1 className="text-xl font-bold text-gray-900 tracking-tight">Real<span className="text-orange-500">beez</span></h1>
               </div>
