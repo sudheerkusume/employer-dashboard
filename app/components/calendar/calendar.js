@@ -39,7 +39,7 @@ const isBefore9AM = () => {
 // Helper: Check if it's Tuesday (off day)
 const isOffDay = (date) => {
     const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
-    return day === 2; // Tuesday (2) is off day
+    return day === 6; // Tuesday (2) is off day
 };
 
 // Helper: Check if it's Sunday (holiday)
@@ -429,8 +429,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             if (!isAfterJoining || !isCurrentMonth) return; // ❌ Do not mark anything before joining or outside current month
 
             const isSunday = isSundayHoliday(day);
-            const isTuesday = getDay(day) === 2;
-            const isHolidayDay = isHoliday(day, globalHolidays);
+            const isTuesday = getDay(day) === 6;
+            const isHolidayDay = isHoliday(day);
             const isTuesdayOff = profile?.department === "tech" && isTuesday;
 
             if (isPastDate && !map[dayStr]) {
@@ -540,6 +540,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         !leaveRange.start ||
         !leaveRange.end ||
         !leaveRange.leaveType ||
+        hasInvalidDays(leaveRange.start, leaveRange.end) ||
         serviceCall;
 
     const applyLeave = async () => {
@@ -576,8 +577,59 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             return;
         }
 
-        // Step 3: Prevent leave on restricted days (Removed as requested)
+        // Step 3: Prevent leave on restricted days
+        const daysInRange = eachDayOfInterval({
+            start: leaveRange.start,
+            end: leaveRange.end,
+        });
 
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
+
+            // Common restrictions for all departments
+            if (day === 1 || day === 6) { // Monday (1) or Saturday (6)
+                return true;
+            }
+
+            // Additional restriction for tech department - no leave on Tuesday
+            if (profile?.department === "tech" && day === 6) { // Tuesday (2)
+                return true;
+            }
+
+            return false;
+        });
+
+        if (invalidDays.length > 0) {
+            // Create appropriate error message based on department
+            let errorMessage = '';
+            let restrictedDays = [];
+
+            if (profile?.department === "tech") {
+                restrictedDays = invalidDays.map(d => {
+                    const dayName = format(d, "EEE");
+                    return `${format(d, "MMM dd")} (${dayName})`;
+                }).join(", ");
+                errorMessage = `Leave cannot be applied on Monday, Tuesday or Saturday. Please remove: ${restrictedDays}`;
+            } else {
+                restrictedDays = invalidDays.map(d => {
+                    const dayName = format(d, "EEE");
+                    return `${format(d, "MMM dd")} (${dayName})`;
+                }).join(", ");
+                errorMessage = `Leave cannot be applied on Monday or Saturday. Please remove: ${restrictedDays}`;
+            }
+
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Leave Dates",
+                    message: errorMessage,
+                },
+            }));
+            return; // ❌ Stop execution
+        }
 
         // Step 4: Validate half-day leaves (first half/second half can only be single day)
         if ((leaveRange.leaveType === 'first half' || leaveRange.leaveType === 'second half') &&
@@ -657,7 +709,30 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
     // Add this helper function to check for invalid days (Removed logic)
     const checkInvalidDays = (startDate, endDate) => {
-        return { hasInvalidDays: false, invalidDays: [] };
+        if (!startDate || !endDate) return { hasInvalidDays: false, invalidDays: [] };
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date);
+
+            // Common restrictions for all departments
+            if (day === 1 || day === 6) {
+                return true;
+            }
+
+            // Additional restriction for tech department
+            if (profile?.department === "tech" && day === 6) {
+                return true;
+            }
+
+            return false;
+        });
+
+        return { hasInvalidDays: invalidDays.length > 0, invalidDays };
     };
 
     // Update the date change handlers to show warnings in real-time
@@ -832,6 +907,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
+                    const isTuesday = getDay(day) === 6;
+                    const isTechOffDay = profile?.department === "tech" && isTuesday;
                     const isSunday = isSundayHoliday(day);
                     const isHolidayDay = isHoliday(day);
 
@@ -840,7 +917,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     if (status === "presentLate") status = "present";
 
                     // Tuesday off only after joining and in current month
-                    if (!isBeforeJoining && isCurrentMonth) {
+                    if (!isBeforeJoining && isCurrentMonth && isTechOffDay) {
                         status = "sunday";
                     }
 
@@ -863,7 +940,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isLeaveApproved = att?.status === "leaveApproved";
 
                     // Determine if it's a working day (not Sunday, holiday, or tech Tuesday off)
-                    const isWorkingDay = !isSunday && !isHolidayDay;
+                    const isWorkingDay = !isSunday && !isHolidayDay && !isTechOffDay;
 
                     // Determine text color
                     let dayTextColor = "text-gray-900"; // Default
@@ -885,7 +962,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     // Light gray background for ALL Tuesdays in current month for tech department
                     // This includes past, present, and future Tuesdays
-                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining ? "bg-[#d5d7d9ff]" : "";
+                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining && isTechOffDay ? "bg-[#d5d7d9ff]" : "";
 
                     return (
                         <div
@@ -918,9 +995,11 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                             ? "Checked In"
                                             : status === "approved"
                                                 ? "Leave Approved"
-                                                : "Today"
+                                                : isTechOffDay
+                                                    ? "Off Day (Tuesday)"
+                                                    : "Today"
                                         : status === "sunday"
-                                            ? profile.department === "tech" && getDay(day) === 2
+                                            ? profile.department === "tech" && getDay(day) === 6
                                                 ? "Off Day (Tuesday)"
                                                 : "Sunday"
                                             : status === "holiday"

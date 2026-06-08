@@ -315,7 +315,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             const formatted = format(date, 'yyyy-MM-dd');
             const isSundayFlag = isSunday(date);
             const isHoliday = holidays.includes(formatted);
-            const isTuesday = getDay(date) === 2;
+            const isTuesday = getDay(date) === 6;
 
             if (isSundayFlag) sundaysCount++;
             if (isHoliday) holidaysCount++;

@@ -59,6 +59,12 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
         const name = searchParams.get("name");
+        const includeInactive = searchParams.get("includeInactive") === "true";
+
+        let query = {};
+        if (!includeInactive) {
+            query.isActive = { $ne: false }; // only active employees
+        }
 
         // 🔹 Get by _id
         if (id) {
@@ -73,14 +79,13 @@ export async function GET(req) {
 
         // 🔹 Search by name (case-insensitive)
         if (name) {
-            const employees = await employeesCollection
-                .find({ name: { $regex: name, $options: "i" } })
-                .toArray();
+            query.name = { $regex: name, $options: "i" };
+            const employees = await employeesCollection.find(query).toArray();
             return Response.json(employees);
         }
 
-        // 🔹 Return all employees
-        const employees = await employeesCollection.find().toArray();
+        // 🔹 Return all employees (filtered by isActive)
+        const employees = await employeesCollection.find(query).toArray();
         return Response.json(employees);
     } catch (error) {
         console.log("GET /api/employees error:", error);
@@ -90,21 +95,20 @@ export async function GET(req) {
 
 // --- Generate next Employee Code based on department ---
 function generateNextCode(latestNum, department) {
-    let prefix = "REZ"; // Default
+    let prefix = "SEZ";
     switch ((department || "").toLowerCase()) {
         case "tech":
-            prefix = "REZT";
+            prefix = "SEZT";
             break;
         case "sales":
-            prefix = "REZS";
+            prefix = "SEZS";
             break;
         case "admin":
-            prefix = "REZA";
+            prefix = "SEZA";
             break;
         default:
-            prefix = "REZ";
+            prefix = "SEZ";
     }
-
     const nextNum = (latestNum || 0) + 1;
     return `${prefix}${String(nextNum).padStart(3, "0")}`;
 }
@@ -113,18 +117,14 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
-        // ✅ Validate body
         const { error, value } = employeeSchema.validate(body);
         if (error)
-            return new Response(JSON.stringify({ error: error.details[0].message }), {
-                status: 400,
-            });
+            return new Response(JSON.stringify({ error: error.details[0].message }), { status: 400 });
 
         const client = await clientPromise;
         const db = client.db(process.env.MONGODB_DBNAME);
         const employees = db.collection("employees");
 
-        // --- Find the latest cumulative numeric part across all departments ---
         const latestEmployee = await employees
             .find({ employeeCode: { $exists: true } })
             .sort({ createdAt: -1 })
@@ -137,10 +137,8 @@ export async function POST(request) {
             if (match) latestNum = parseInt(match[1], 10);
         }
 
-        // --- Generate department-based prefix + cumulative numeric code ---
         const newCode = generateNextCode(latestNum, value.department);
 
-        // --- Build new employee data ---
         const newEmployee = {
             ...value,
             employeeCode: newCode,
@@ -148,9 +146,9 @@ export async function POST(request) {
             modified_on: new Date(),
             attendance: {},
             accountDetails: {},
+            isActive: true,           // ✅ Active by default
         };
 
-        // --- Insert into DB ---
         const result = await employees.insertOne(newEmployee);
 
         return new Response(
@@ -164,9 +162,7 @@ export async function POST(request) {
         );
     } catch (err) {
         console.log("❌ Error adding employee:", err);
-        return new Response(JSON.stringify({ error: err.message }), {
-            status: 500,
-        });
+        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
 
@@ -189,20 +185,16 @@ export async function PUT(request) {
             if (!employeeId)
                 return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
 
-            // Get existing employee data first to preserve existing data
             const existingEmployee = await employeesCollection.findOne({ _id: new ObjectId(employeeId) });
             if (!existingEmployee)
                 return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
-            // Build update object - only update provided fields
             updateFields.modified_on = new Date();
 
-            // Text fields - only update if provided
-            // const textFields = ["name", "panNumber", "password", "role", "summary"];
             const textFields = [
                 "name", "email", "mobile", "gender", "password", "summary", "reportingManager",
                 "panNumber", "aadhaarNumber", "designation", "department",
-                "employeeCode", "ctc", "regime"
+                "employeeCode", "ctc", "regime", "isActive"
             ];
             textFields.forEach(key => {
                 const value = formData.get(key);
@@ -211,7 +203,7 @@ export async function PUT(request) {
                 }
             });
 
-            // 🔹 Handle Experience Data with Documents - MERGE with existing
+            // Experience & Education processing (same as before)
             const experienceData = parseJSON(formData.get("experience"));
             if (experienceData && Array.isArray(experienceData)) {
                 const experienceWithDocs = await processExperienceDocuments(
@@ -222,11 +214,9 @@ export async function PUT(request) {
                 );
                 updateFields.experience = experienceWithDocs;
             } else {
-                // Preserve existing experience if no new data provided
                 updateFields.experience = existingEmployee.experience;
             }
 
-            // 🔹 Handle Education Data with Documents - MERGE with existing
             const educationData = parseJSON(formData.get("education"));
             if (educationData && Array.isArray(educationData)) {
                 const educationWithDocs = await processEducationDocuments(
@@ -237,35 +227,29 @@ export async function PUT(request) {
                 );
                 updateFields.education = educationWithDocs;
             } else {
-                // Preserve existing education if no new data provided
                 updateFields.education = existingEmployee.education;
             }
 
-            // 🔹 Handle Account Details (sent as JSON string in formData)
+            // Account details
             const rawAccountDetails = formData.get("accountDetails");
             let parsedAccountDetails = {};
-
             if (rawAccountDetails) {
                 try {
                     parsedAccountDetails = JSON.parse(rawAccountDetails);
                 } catch (err) {
                     console.warn("Invalid accountDetails JSON:", rawAccountDetails);
-                    parsedAccountDetails = {};
                 }
             }
-
-            // Only update if valid object and contains data
             if (parsedAccountDetails && Object.keys(parsedAccountDetails).length > 0) {
                 updateFields.accountDetails = {
                     ...existingEmployee.accountDetails,
                     ...parsedAccountDetails
                 };
             } else {
-                // Preserve existing account details if nothing sent
                 updateFields.accountDetails = existingEmployee.accountDetails;
             }
 
-            // 🔹 Handle profile image upload
+            // Profile image upload
             const file = formData.get("image");
             if (file && file.size > 0) {
                 const buffer = Buffer.from(await file.arrayBuffer());
@@ -281,7 +265,7 @@ export async function PUT(request) {
                 updateFields.profileImage = existingEmployee.profileImage;
             }
 
-            // 🔹 Handle attendance data - merge with existing
+            // Attendance merge
             const attendanceData = parseJSON(formData.get("attendance"));
             if (attendanceData) {
                 updateFields.attendance = {
@@ -291,8 +275,6 @@ export async function PUT(request) {
             } else {
                 updateFields.attendance = existingEmployee.attendance;
             }
-
-            console.log("Updating fields:", Object.keys(updateFields));
 
             const result = await employeesCollection.updateOne(
                 { _id: new ObjectId(employeeId) },
@@ -309,10 +291,10 @@ export async function PUT(request) {
             }), { status: 200 });
         }
 
-        // ✅ JSON body case (normal update or password reset)
+        // ✅ JSON body case
         const body = await request.json();
 
-        // ✅ Password reset logic
+        // Password reset logic
         if (body.newPassword && (body.email || body.mobile)) {
             const { error, value } = resetPasswordSchema.validate(body);
             if (error)
@@ -334,19 +316,17 @@ export async function PUT(request) {
             return new Response(JSON.stringify({ success: true, message: "Password reset successful" }), { status: 200 });
         }
 
-        // ✅ Normal JSON update request
+        // Normal JSON update (including isActive toggle)
         employeeId = body.id || body.employeeId;
         if (!employeeId)
             return new Response(JSON.stringify({ error: "Employee ID required" }), { status: 400 });
 
-        // Get existing employee data first to preserve existing documents
         const existingEmployee = await employeesCollection.findOne({ _id: new ObjectId(employeeId) });
         if (!existingEmployee)
             return new Response(JSON.stringify({ error: "Employee not found" }), { status: 404 });
 
         updateFields.modified_on = new Date();
 
-        // Only update provided fields, preserve others
         const allowedFields = [
             "name", "email", "panNumber", "password", "role", "summary",
             "experience", "education", "attendance", "designation", "ctc",
@@ -358,26 +338,22 @@ export async function PUT(request) {
             if (body[field] !== undefined && body[field] !== null) {
                 updateFields[field] = body[field];
             } else {
-                // Preserve existing field if not provided
                 updateFields[field] = existingEmployee[field];
             }
         });
 
-        // 🔹 Handle Experience - preserve document URLs and merge with existing
+        // Experience & Education merging (preserve docs)
         if (body.experience && Array.isArray(body.experience)) {
             updateFields.experience = body.experience.map((newExp, index) => {
                 const existingExp = existingEmployee.experience?.[index];
-                // If we have existing experience at this index, merge with new data
                 if (existingExp) {
                     return {
-                        ...existingExp, // Start with existing data
-                        ...newExp, // Override with new data
-                        documentUrl: newExp.documentUrl || existingExp.documentUrl, // Preserve existing document URL if new one not provided
+                        ...existingExp,
+                        ...newExp,
+                        documentUrl: newExp.documentUrl || existingExp.documentUrl,
                         logo: newExp.logo || existingExp.logo || dummyLogos[index % dummyLogos.length],
-                        showDescription: newExp.showDescription !== undefined ? newExp.showDescription : existingExp.showDescription
                     };
                 } else {
-                    // New experience entry
                     return {
                         ...newExp,
                         logo: newExp.logo || dummyLogos[index % dummyLogos.length],
@@ -389,20 +365,17 @@ export async function PUT(request) {
             updateFields.experience = existingEmployee.experience;
         }
 
-        // 🔹 Handle Education - preserve document URLs and merge with existing
         if (body.education && Array.isArray(body.education)) {
             updateFields.education = body.education.map((newEdu, index) => {
                 const existingEdu = existingEmployee.education?.[index];
-                // If we have existing education at this index, merge with new data
                 if (existingEdu) {
                     return {
-                        ...existingEdu, // Start with existing data
-                        ...newEdu, // Override with new data
-                        documentUrl: newEdu.documentUrl || existingEdu.documentUrl, // Preserve existing document URL if new one not provided
+                        ...existingEdu,
+                        ...newEdu,
+                        documentUrl: newEdu.documentUrl || existingEdu.documentUrl,
                         years: newEdu.years || `${newEdu.startYear || ''} - ${newEdu.endYear || ''}` || existingEdu.years
                     };
                 } else {
-                    // New education entry
                     return {
                         ...newEdu,
                         years: newEdu.years || `${newEdu.startYear || ''} - ${newEdu.endYear || ''}`
@@ -413,7 +386,6 @@ export async function PUT(request) {
             updateFields.education = existingEmployee.education;
         }
 
-        // 🔹 Handle Account Details - merge with existing
         if (body.accountDetails) {
             updateFields.accountDetails = {
                 ...existingEmployee.accountDetails,
@@ -431,28 +403,28 @@ export async function PUT(request) {
         // 🔹 Sync leave status changes to the actual employee's attendance
         if (body.leaves && Array.isArray(body.leaves)) {
             const existingLeaves = existingEmployee.leaves || [];
-            
+
             for (let i = 0; i < body.leaves.length; i++) {
                 const updatedLeave = body.leaves[i];
                 const existingLeave = existingLeaves[i];
-                
+
                 // If status changed (e.g. pending -> approved/rejected)
                 if (existingLeave && existingLeave.status !== updatedLeave.status && updatedLeave.employeeId) {
                     const targetEmployeeId = updatedLeave.employeeId;
                     try {
                         const targetEmployee = await employeesCollection.findOne({ _id: new ObjectId(targetEmployeeId) });
-                        
+
                         if (targetEmployee && targetEmployee.attendance) {
                             let attendanceUpdated = false;
-                            
+
                             // Go through all months in attendance
                             for (const month in targetEmployee.attendance) {
                                 const monthData = targetEmployee.attendance[month];
-                                
+
                                 // Go through all attendance records in that month
                                 for (let j = 0; j < monthData.length; j++) {
                                     const record = monthData[j];
-                                    
+
                                     // Match the leave based on leave dates
                                     if (updatedLeave.leaveDates && Array.isArray(updatedLeave.leaveDates) && updatedLeave.leaveDates.includes(record.date)) {
                                         record.status = updatedLeave.status;
@@ -460,7 +432,7 @@ export async function PUT(request) {
                                     }
                                 }
                             }
-                            
+
                             if (attendanceUpdated) {
                                 await employeesCollection.updateOne(
                                     { _id: new ObjectId(targetEmployeeId) },
@@ -490,98 +462,63 @@ export async function PUT(request) {
     }
 }
 
-/* ----------------------------------------------------------
-   🧾 Document Processing Helper Functions
----------------------------------------------------------- */
-
-// Helper function to process experience documents
+// Document processing helpers (unchanged)
 async function processExperienceDocuments(formData, experienceData, employeeId, existingExperience) {
     const experienceWithDocs = [];
-
     for (let i = 0; i < Math.max(experienceData.length, existingExperience.length); i++) {
         const newExp = experienceData[i] || {};
         const existingExp = existingExperience[i] || {};
-
         let documentUrl = existingExp.documentUrl;
-
-        // Check if there's a new document file for this experience entry
         const docFile = formData.get(`experienceDoc_${i}`);
         if (docFile && docFile.size > 0) {
-            console.log(`Uploading experience document for index ${i}`);
-
             const buffer = Buffer.from(await docFile.arrayBuffer());
             const result = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
-                    {
-                        folder: `employees/${employeeId}/experience`,
-                        resource_type: 'raw',
-                        public_id: `exp_${i}_${Date.now()}`,
-                    },
+                    { folder: `employees/${employeeId}/experience`, resource_type: 'raw', public_id: `exp_${i}_${Date.now()}` },
                     (err, res) => (err ? reject(err) : resolve(res))
                 );
                 uploadStream.end(buffer);
             });
             documentUrl = result.secure_url;
-            console.log(`Experience document uploaded: ${documentUrl}`);
         }
-
-        // Merge existing data with new data, preserving important fields
         const mergedExperience = {
-            ...existingExp, // Start with existing data
-            ...newExp, // Override with new data
-            documentUrl: documentUrl, // Use new URL if uploaded, otherwise keep existing
+            ...existingExp,
+            ...newExp,
+            documentUrl,
             logo: newExp.logo || existingExp.logo || dummyLogos[i % dummyLogos.length],
             showDescription: newExp.showDescription !== undefined ? newExp.showDescription : (existingExp.showDescription || false)
         };
-
         experienceWithDocs.push(mergedExperience);
     }
-
     return experienceWithDocs;
 }
 
-// Helper function to process education documents
 async function processEducationDocuments(formData, educationData, employeeId, existingEducation) {
     const educationWithDocs = [];
-
     for (let i = 0; i < Math.max(educationData.length, existingEducation.length); i++) {
         const newEdu = educationData[i] || {};
         const existingEdu = existingEducation[i] || {};
-
         let documentUrl = existingEdu.documentUrl;
-
-        // Check if there's a new document file for this education entry
         const docFile = formData.get(`educationDoc_${i}`);
         if (docFile && docFile.size > 0) {
-            console.log(`Uploading education document for index ${i}`);
-
             const buffer = Buffer.from(await docFile.arrayBuffer());
             const result = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
-                    {
-                        folder: `employees/${employeeId}/education`,
-                        resource_type: 'raw',
-                        public_id: `edu_${i}_${Date.now()}`,
-                    },
+                    { folder: `employees/${employeeId}/education`, resource_type: 'raw', public_id: `edu_${i}_${Date.now()}` },
                     (err, res) => (err ? reject(err) : resolve(res))
                 );
                 uploadStream.end(buffer);
             });
             documentUrl = result.secure_url;
-            console.log(`Education document uploaded: ${documentUrl}`);
         }
-
-        // Merge existing data with new data, preserving important fields
         const mergedEducation = {
-            ...existingEdu, // Start with existing data
-            ...newEdu, // Override with new data
-            documentUrl: documentUrl, // Use new URL if uploaded, otherwise keep existing
+            ...existingEdu,
+            ...newEdu,
+            documentUrl,
             years: newEdu.years || `${newEdu.startYear || ''} - ${newEdu.endYear || ''}` || existingEdu.years
         };
-
         educationWithDocs.push(mergedEducation);
     }
-
     return educationWithDocs;
 }
 
@@ -594,114 +531,90 @@ export async function DELETE(req) {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
         const index = Number(searchParams.get("index"));
-        const type = searchParams.get("type"); // "experience" or "education"
-        const deleteType = searchParams.get("deleteType") || "entry"; // "entry" or "document"
+        const type = searchParams.get("type");
+        const deleteType = searchParams.get("deleteType") || "entry";
 
-        console.log(`DELETE Request:`, { id, index, type, deleteType });
+        // Case: Delete an experience or education entry (preserve employee)
+        if (type && ["experience", "education"].includes(type) && !isNaN(index)) {
+            if (!id) return Response.json({ error: "Employee ID required" }, { status: 400 });
 
-        // Validate required parameters
-        if (!id) {
-            return Response.json({ error: "Employee ID is required" }, { status: 400 });
-        }
+            const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
+            if (!employee) return Response.json({ error: "Employee not found" }, { status: 404 });
+            if (!employee[type] || !Array.isArray(employee[type]))
+                return Response.json({ error: `${type} data not found` }, { status: 404 });
+            if (index >= employee[type].length)
+                return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
+            const type = searchParams.get("type"); // "experience" or "education"
+            const deleteType = searchParams.get("deleteType") || "entry"; // "entry" or "document"
 
-        // 🔹 If no type is provided, delete the entire employee
-        if (!type) {
-            const deleteResult = await employeesCollection.deleteOne({ _id: new ObjectId(id) });
-            if (deleteResult.deletedCount === 0) {
+            console.log(`DELETE Request:`, { id, index, type, deleteType });
+
+            // Validate required parameters
+            if (!id) {
+                return Response.json({ error: "Employee ID is required" }, { status: 400 });
+            }
+
+            // 🔹 If no type is provided, delete the entire employee
+            if (!type) {
+                const deleteResult = await employeesCollection.deleteOne({ _id: new ObjectId(id) });
+                if (deleteResult.deletedCount === 0) {
+                    return Response.json({ error: "Employee not found" }, { status: 404 });
+                }
+                return Response.json({ success: true, message: "Employee deleted successfully" });
+            }
+
+            if (!["experience", "education"].includes(type)) {
+                return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
+            }
+
+            if (isNaN(index) || index < 0) {
+                return Response.json({ error: "Valid index is required" }, { status: 400 });
+            }
+
+            // Find employee
+            const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
+            if (!employee) {
                 return Response.json({ error: "Employee not found" }, { status: 404 });
             }
-            return Response.json({ success: true, message: "Employee deleted successfully" });
-        }
 
-        if (!["experience", "education"].includes(type)) {
-            return Response.json({ error: "Type must be 'experience' or 'education'" }, { status: 400 });
-        }
-
-        if (isNaN(index) || index < 0) {
-            return Response.json({ error: "Valid index is required" }, { status: 400 });
-        }
-
-        // Find employee
-        const employee = await employeesCollection.findOne({ _id: new ObjectId(id) });
-        if (!employee) {
-            return Response.json({ error: "Employee not found" }, { status: 404 });
-        }
-
-        // Validate the array exists
-        if (!employee[type] || !Array.isArray(employee[type])) {
-            return Response.json({ error: `${type} data not found` }, { status: 404 });
-        }
-
-        // Check if index is within bounds
-        if (index >= employee[type].length) {
-            return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
-        }
-
-        let updateResult;
-        let updatedArray;
-
-        if (deleteType === "document") {
-            // 🔹 Only remove the document URL, keep the entry
-            updatedArray = [...employee[type]];
-            const itemToUpdate = updatedArray[index];
-
-            // Remove document from Cloudinary if exists
-            if (itemToUpdate.documentUrl) {
-                try {
-                    // Extract public_id from Cloudinary URL
-                    const urlParts = itemToUpdate.documentUrl.split('/');
-                    const publicIdWithExtension = urlParts[urlParts.length - 1];
-                    const publicId = publicIdWithExtension.split('.')[0];
-                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
-
-                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
-                    console.log(`Cloudinary document deleted: ${fullPublicId}`);
-                } catch (cloudinaryError) {
-                    console.warn("Could not delete from Cloudinary, continuing:", cloudinaryError);
-                }
+            // Validate the array exists
+            if (!employee[type] || !Array.isArray(employee[type])) {
+                return Response.json({ error: `${type} data not found` }, { status: 404 });
             }
 
-            // Remove document reference
-            updatedArray[index] = {
-                ...itemToUpdate,
-                documentUrl: "",
-                document: null
-            };
-
-            updateResult = await employeesCollection.updateOne(
-                { _id: new ObjectId(id) },
-                {
-                    $set: {
-                        [type]: updatedArray,
-                        modified_on: new Date()
-                    }
-                }
-            );
-
-        } else {
-            // 🔹 Delete the entire entry
-            updatedArray = [...employee[type]];
-            const itemToDelete = updatedArray[index];
-
-            // Delete associated document from Cloudinary if exists
-            if (itemToDelete.documentUrl) {
-                try {
-                    const urlParts = itemToDelete.documentUrl.split('/');
-                    const publicIdWithExtension = urlParts[urlParts.length - 1];
-                    const publicId = publicIdWithExtension.split('.')[0];
-                    const fullPublicId = `employees/${id}/${type}/${publicId}`;
-
-                    await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
-                    console.log(`Cloudinary document deleted: ${fullPublicId}`);
-                } catch (cloudinaryError) {
-                    console.warn("Could not delete from Cloudinary, continuing:", cloudinaryError);
-                }
+            // Check if index is within bounds
+            if (index >= employee[type].length) {
+                return Response.json({ error: `Invalid ${type} index` }, { status: 400 });
             }
 
-            // Remove the entry
-            updatedArray.splice(index, 1);
+            let updatedArray = [...employee[type]];
+            if (deleteType === "document") {
+                const itemToUpdate = updatedArray[index];
+                if (itemToUpdate.documentUrl) {
+                    try {
+                        const urlParts = itemToUpdate.documentUrl.split('/');
+                        const publicIdWithExtension = urlParts[urlParts.length - 1];
+                        const publicId = publicIdWithExtension.split('.')[0];
+                        const fullPublicId = `employees/${id}/${type}/${publicId}`;
+                        await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                    } catch (err) { console.warn("Cloudinary delete error:", err); }
+                }
+                updatedArray[index] = { ...itemToUpdate, documentUrl: "", document: null };
+            } else {
+                const itemToDelete = updatedArray[index];
+                if (itemToDelete.documentUrl) {
+                    try {
+                        const urlParts = itemToDelete.documentUrl.split('/');
+                        const publicIdWithExtension = urlParts[urlParts.length - 1];
+                        const publicId = publicIdWithExtension.split('.')[0];
+                        const fullPublicId = `employees/${id}/${type}/${publicId}`;
+                        await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'raw' });
+                    } catch (err) { console.warn("Cloudinary delete error:", err); }
+                }
+                updatedArray.splice(index, 1);
+            }
 
-            updateResult = await employeesCollection.updateOne(
+            const updateResult = await employeesCollection.updateOne(
                 { _id: new ObjectId(id) },
                 {
                     $set: {
@@ -718,29 +631,13 @@ export async function DELETE(req) {
 
         return Response.json({
             success: true,
-            message: deleteType === "document"
-                ? `${type} document deleted successfully`
-                : `${type} entry deleted successfully`,
-            [type]: updatedArray,
-            deletedIndex: index,
-            deleteType: deleteType
+            message: "Employee deactivated (soft delete) successfully"
         });
 
     } catch (err) {
-        console.log("Error in DELETE /api/employees:", err);
-
-        // Handle specific MongoDB errors
-        if (err.message.includes("buffering timed out")) {
-            return Response.json({ error: "Database connection timeout" }, { status: 408 });
-        }
-
-        if (err.message.includes("Invalid ObjectId")) {
+        console.log("DELETE error:", err);
+        if (err.message.includes("Invalid ObjectId"))
             return Response.json({ error: "Invalid employee ID format" }, { status: 400 });
-        }
-
-        return Response.json(
-            { error: err.message || "Internal server error" },
-            { status: 500 }
-        );
+        return Response.json({ error: err.message || "Internal server error" }, { status: 500 });
     }
 }
