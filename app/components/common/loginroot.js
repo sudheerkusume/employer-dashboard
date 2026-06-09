@@ -15,21 +15,32 @@ const staticEmployees = [
         email: "superadmin@realbeez.com",
         mobile: "9999999999",
         password: "Superadmin@123",
-        role: "super_admin"
+        role: "super_admin",
+        isActive: true
     }
 ];
 
 export default function LoginRoot() {
     const { rootContext, setRootContext } = useContext(RootContext);
     const router = useRouter();
-    const { data = [], error } = useSWRFetch(`/api/employees`)
     const [formData, setFormData] = useState({
         mobile: "",
         email: "",
         password: "",
         remember: false,
     });
-    const usersData = [...staticEmployees, ...data]
+    const { data = [], error } = useSWRFetch(`/api/employees?email=${formData.email}`)
+    const modifiedData = data?.map(item => ({
+        _id: item._id,
+        name: item.name,
+        email: item.email,
+        mobile: item.mobile,
+        password: item.password,
+        role: item.role,
+        isActive: item.isActive
+    }))
+
+    const usersData = [...staticEmployees, ...modifiedData]
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [screen, setScreen] = useState("login");
@@ -98,6 +109,7 @@ export default function LoginRoot() {
                 email: user.email,
                 mobile: user.mobile,
                 role: user.role,
+                isActive: user.isActive,
             },
         };
 

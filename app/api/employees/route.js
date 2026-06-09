@@ -58,13 +58,10 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
+        const email = searchParams.get("email");
         const name = searchParams.get("name");
-        const includeInactive = searchParams.get("includeInactive") === "true";
 
         let query = {};
-        if (!includeInactive) {
-            query.isActive = { $ne: false }; // only active employees
-        }
 
         // 🔹 Get by _id
         if (id) {
@@ -83,7 +80,11 @@ export async function GET(req) {
             const employees = await employeesCollection.find(query).toArray();
             return Response.json(employees);
         }
-
+        if (email) {
+            query.email = email;
+            const employees = await employeesCollection.find(query).toArray();
+            return Response.json(employees);
+        }
         // 🔹 Return all employees (filtered by isActive)
         const employees = await employeesCollection.find(query).toArray();
         return Response.json(employees);
