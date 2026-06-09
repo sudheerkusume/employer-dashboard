@@ -8,6 +8,8 @@ import { EyeSlashIcon } from "@heroicons/react/24/solid";
 import { useRouter } from "next/navigation";
 import { useSWRFetch } from "../config/useswrfetch";
 import ForgetPassword from "./forgetpassword";
+import { motion } from "framer-motion";
+
 const staticEmployees = [
     {
         _id: "super_admin_001",
@@ -136,80 +138,144 @@ export default function LoginRoot() {
         setIsLoading(false);
     };
 
-
     return (
         <div>
-            {screen === "login" ? <div className="flex h-screen w-full items-center justify-center bg-[#D79A2F] p-4">
-                <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
-                    <Link href="/" className="flex justify-center mb-4">
-                        {/* Replace with your logo */}
-                        <Image
-                            src="/realbeez.png"
-                            alt="Logo"
-                            width={200}
-                            height={200}
-                        />
-                    </Link>
-                    <form onSubmit={onSave} className="w-full bg-white text-gray-700 md:mt-0 sm:max-w-md xl:p-0 ">
-                        <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
-                            <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl">
-                                Sign in to your account
-                            </h1>
-                            <div className="space-y-4 md:space-y-6">
-                                <input
-                                    title={"Email or Mobile"}
-                                    type={"text"}
-                                    placeholder={"Email or phone number"}
-                                    className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    errormsg={"Enter Valid Email"}
-                                    required={true}
-                                />
+            {screen === "login" ? (
+                <div className="flex h-screen w-full items-center justify-center bg-[#D79A2F] p-4 relative overflow-hidden">
+                    {/* Background animated circles for a more premium look */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 0.1, scale: 1 }}
+                        transition={{ duration: 2, repeat: Infinity, repeatType: "mirror" }}
+                        className="absolute w-[600px] h-[600px] bg-white rounded-full blur-3xl -top-[200px] -left-[200px] pointer-events-none"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 0.05, scale: 1.2 }}
+                        transition={{ duration: 3, repeat: Infinity, repeatType: "mirror", delay: 1 }}
+                        className="absolute w-[800px] h-[800px] bg-white rounded-full blur-3xl -bottom-[300px] -right-[300px] pointer-events-none"
+                    />
 
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        placeholder="Password"
-                                        className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-yellow-500"
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        required
-                                    />
-                                    <span
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500"
-                                    >
-                                        {showPassword ? (
-                                            <EyeIcon className="w-4 h-4 text-gray-400" />
-                                        ) : (
-                                            <EyeSlashIcon className="w-4 h-4 text-gray-400" />
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => setScreen("otp")}
-                                        className="text-sm font-semibold text-yellow-500 hover:underline"
-                                    >
-                                        Forgot Password?
-                                    </button>
-                                </div>
-                                <button
-                                    type="submit"
-                                    className={`w-full p-3 rounded-lg hover:rounded-full font-bold text-white transition-colors duration-300
-                  ${isLoading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-yellow-600 cursor-pointer hover:bg-yellow-700'}
-                `}
-                                    disabled={isLoading}
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className="w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.07)] p-6 z-10"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
+                            className="-mb-1"
+                        >
+                            <Link href="/" className="flex justify-center transition-transform hover:scale-105 duration-300">
+                                <Image
+                                    src="/salesbeez_logo1.png"
+                                    alt="Logo"
+                                    width={270}
+                                    height={270}
+                                    priority
+                                    className="object-contain"
+                                />
+                            </Link>
+                        </motion.div>
+                        <form onSubmit={onSave} className="w-full bg-white text-gray-700 md:mt-0 sm:max-w-md xl:p-0 relative z-20">
+                            <div className="px-6 pb-6 pt-0 space-y-4 md:space-y-6 sm:px-8 sm:pb-8">
+                                <motion.h1
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.3 }}
+                                    className="text-xl text-center font-bold leading-tight tracking-tight text-gray-900 md:text-2xl text-center"
                                 >
-                                    {isLoading ? 'Loading...' : 'Log In'}
-                                </button>
+                                    Sign In Securely
+                                </motion.h1>
+                                <div className="space-y-4 md:space-y-6">
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.4, delay: 0.4 }}
+                                    >
+                                        <input
+                                            title={"Email or Mobile"}
+                                            type={"text"}
+                                            placeholder={"Email or phone number"}
+                                            className="w-full p-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 transition-all duration-300"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            errormsg={"Enter Valid Email"}
+                                            required={true}
+                                        />
+                                    </motion.div>
+
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.4, delay: 0.5 }}
+                                        className="relative"
+                                    >
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Password"
+                                            className="w-full p-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 transition-all duration-300"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            required
+                                        />
+                                        <span
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600 transition-colors p-1"
+                                        >
+                                            {showPassword ? (
+                                                <EyeIcon className="w-5 h-5" />
+                                            ) : (
+                                                <EyeSlashIcon className="w-5 h-5" />
+                                            )}
+                                        </span>
+                                    </motion.div>
+
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.4, delay: 0.6 }}
+                                        className="flex justify-end"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setScreen("otp")}
+                                            className="text-sm font-semibold text-yellow-600 hover:text-yellow-700 hover:underline transition-colors"
+                                        >
+                                            Forgot Password?
+                                        </button>
+                                    </motion.div>
+
+                                    <motion.button
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.4, delay: 0.7 }}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        type="submit"
+                                        className={`w-full p-3 rounded-lg font-bold text-white shadow-md transition-colors duration-300
+                                          ${isLoading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-[#D79A2F] cursor-pointer hover:bg-yellow-600 hover:shadow-lg'}
+                                        `}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? 'Signing in...' : 'Log In'}
+                                    </motion.button>
+                                </div>
                             </div>
-                        </div>
-                    </form>
+                        </form>
+                    </motion.div>
                 </div>
-            </div> : <ForgetPassword setScreen={setScreen} />}
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <ForgetPassword setScreen={setScreen} />
+                </motion.div>
+            )}
         </div>
     );
 }
