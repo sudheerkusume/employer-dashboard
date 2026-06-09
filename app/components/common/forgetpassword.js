@@ -155,7 +155,7 @@ export default function ForgetPassword({ setScreen }) {
                 </button>
 
                 <Link href="/" className="flex justify-center mb-4">
-                    <Image src="/realbeez.png" alt="Logo" width={200} height={200} />
+                    <Image src="/salesbeez_logo1.png" alt="Logo" width={200} height={200} />
                 </Link>
 
                 <p className="mb-6 text-sm text-gray-600">
