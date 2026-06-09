@@ -185,7 +185,7 @@ export default function LoginRoot() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.4, delay: 0.3 }}
-                                    className="text-xl text-center font-bold leading-tight tracking-tight text-gray-900 md:text-2xl text-center"
+                                    className="flex justify-center text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl text-center"
                                 >
                                     Sign In Securely
                                 </motion.h1>

@@ -400,17 +400,23 @@ export default function EmployeeProfile({ employeesData }) {
                     <div className="relative group shrink-0">
                         <label
                             htmlFor="profileImageInput"
-                            className={`${editingHeader ? "cursor-pointer" : "cursor-not-allowed"} block rounded-full bg-white p-1.5 shadow-md`}
+                            onClick={() => {
+                                if (!editingHeader && rootContext?.user?.role !== "recruiter") {
+                                    setEditingHeader(true);
+                                    setTempProfile(profile);
+                                }
+                            }}
+                            className={`${rootContext?.user?.role !== "recruiter" ? "cursor-pointer" : "cursor-not-allowed"} block rounded-full bg-white p-1.5 shadow-md`}
                         >
                             <input
                                 id="profileImageInput"
                                 ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
-                                disabled={!editingHeader}
-                                className="absolute inset-0 w-full h-full opacity-0"
-                                onChange={editingHeader ? handleImageChange : undefined}
-                                style={{ display: editingHeader ? 'block' : 'none' }}
+                                disabled={rootContext?.user?.role === "recruiter"}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={handleImageChange}
+                                style={{ display: rootContext?.user?.role !== "recruiter" ? 'block' : 'none', zIndex: 10 }}
                             />
                             <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden bg-gray-100 relative shadow-inner">
                                 <img
@@ -421,12 +427,12 @@ export default function EmployeeProfile({ employeesData }) {
                                         `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'User')}&background=F3F4F6&color=374151&size=200`
                                     }
                                     alt="Avatar"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover relative z-0"
                                 />
-                                {editingHeader && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                {rootContext?.user?.role !== "recruiter" && (
+                                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer pointer-events-none">
                                         <PencilIcon className="w-6 h-6 mb-1" />
-                                        <span className="text-xs font-semibold">Change</span>
+                                        <span className="text-xs font-semibold text-center leading-tight px-2">Change<br/>Picture</span>
                                     </div>
                                 )}
                             </div>
@@ -439,13 +445,13 @@ export default function EmployeeProfile({ employeesData }) {
                             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-lg shadow-gray-200/50 flex flex-col gap-3 max-w-lg">
                                 <h3 className="text-sm font-bold text-gray-800 border-b pb-2 mb-1">Edit Profile Details</h3>
                                 <input
-                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     value={tempProfile.name || ""}
                                     placeholder="Enter Full Name"
                                     onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
                                 />
                                 <input
-                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     value={tempProfile.panNumber || ""}
                                     placeholder="Enter PAN Number"
                                     onChange={(e) => setTempProfile({ ...tempProfile, panNumber: e.target.value })}
@@ -454,7 +460,7 @@ export default function EmployeeProfile({ employeesData }) {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Update Password (Optional)"
-                                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all pr-10"
+                                        className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all pr-10"
                                         value={tempProfile.password || ""}
                                         onChange={(e) =>
                                             setTempProfile({ ...tempProfile, password: e.target.value })
