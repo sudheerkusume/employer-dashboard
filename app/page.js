@@ -20,7 +20,7 @@ export default function HomePage() {
 
     const storedRole = userDetails?.role || null;
     setRole(storedRole);
-    setIsLoading(false); // done checking
+    setIsLoading(false);
   }, []);
 
   // Once loading is done, if no role, redirect to login
