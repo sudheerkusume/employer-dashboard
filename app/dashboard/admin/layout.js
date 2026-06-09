@@ -95,10 +95,10 @@ export default function AdminLayout({ children }) {
             {/* Sidebar Header */}
             <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/30">
-                  <img src={logo} alt="Logo" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/30 overflow-hidden">
+                  <img src={logo.src} alt="Logo" className="w-full h-full object-cover" />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 tracking-tight">Real<span className="text-orange-500">beez</span></h1>
+                <h1 className="text-xl font-bold text-gray-900 tracking-tight">Sales<span className="text-orange-500">Beez</span></h1>
               </div>
               {isMobile && (
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">

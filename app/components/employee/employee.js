@@ -529,12 +529,12 @@ export default function EmployeeProfile({ employeesData }) {
                     <>
                         {/* Desktop Tabs */}
                         <div className="hidden sm:block">
-                            <div className="flex gap-2 p-1.5 bg-gray-200/50 rounded-xl mb-6 w-fit border border-gray-200/60 shadow-sm">
+                            <div className="flex gap-2 p-1.5 bg-gray-200/50 rounded-xl mb-6 w-full border border-gray-200/60 shadow-sm">
                                 {tabs.map((tab, index) => (
                                     <button
                                         key={tab.name}
                                         onClick={() => setActiveTab(index)}
-                                        className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-300 z-10 ${
+                                        className={`relative flex-1 px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-300 z-10 ${
                                             activeTab === index ? "text-blue-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
                                         }`}
                                     >
