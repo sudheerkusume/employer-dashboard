@@ -15,6 +15,7 @@ export const contextObject = {
         password: "",
         token: "",
         userId: "",
+        isActive: true,
     },
     active: 'all',
     toast: {
