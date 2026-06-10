@@ -7,7 +7,7 @@ export async function PUT(request) {
         const body = await request.json();
         const { managerId, employeeId, startDate, endDate, status } = body;
 
-        if (!employeeId || !startDate || !endDate || !status) {
+        if (!managerId || !employeeId || !startDate || !endDate || !status) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -15,25 +15,66 @@ export async function PUT(request) {
         const db = client.db(process.env.MONGODB_DBNAME);
         const employeesCollection = db.collection('employees');
 
-        // Update the specific leave request status
-        const result = await employeesCollection.updateOne(
+        // 1. Fetch Manager
+        const manager = await employeesCollection.findOne({ _id: new ObjectId(managerId) });
+        if (!manager) {
+            return NextResponse.json({ error: 'Manager not found' }, { status: 404 });
+        }
+
+        // 2. Find the pending leave request
+        const pendingRequest = manager.pendingLeaves?.find(
+            (req) => req.employeeId === employeeId && req.startDate === startDate && req.endDate === endDate
+        );
+
+        if (!pendingRequest) {
+            return NextResponse.json({ error: 'Leave request not found in pending queue' }, { status: 404 });
+        }
+
+        // 3. Update the employee's attendance records
+        // The leave dates are stored in the pending request
+        const leaveDates = pendingRequest.leaveDates || [];
+        for (const date of leaveDates) {
+            const monthName = new Date(date).toLocaleString("default", { month: "long" });
+            
+            if (status === "approved") {
+                await employeesCollection.updateOne(
+                    { _id: new ObjectId(employeeId), [`attendance.${monthName}.date`]: date },
+                    { $set: { [`attendance.${monthName}.$.status`]: "approved" } }
+                );
+            } else if (status === "rejected") {
+                // If rejected, we typically remove the attendance block completely or mark it rejected.
+                // We'll mark it rejected so the employee knows it was declined.
+                await employeesCollection.updateOne(
+                    { _id: new ObjectId(employeeId), [`attendance.${monthName}.date`]: date },
+                    { $set: { [`attendance.${monthName}.$.status`]: "rejected" } }
+                );
+            }
+        }
+
+        // 4. Remove from manager.pendingLeaves
+        await employeesCollection.updateOne(
+            { _id: new ObjectId(managerId) },
             {
-                _id: new ObjectId(employeeId),
-                "leaveRequests.startDate": startDate,
-                "leaveRequests.endDate": endDate
-            },
-            {
-                $set: {
-                    "leaveRequests.$.status": status,
-                    "leaveRequests.$.approvedBy": managerId,
-                    "leaveRequests.$.updatedAt": new Date().toISOString()
+                $pull: {
+                    pendingLeaves: { _id: pendingRequest._id }
                 }
             }
         );
 
-        if (result.matchedCount === 0) {
-            return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
-        }
+        // 5. Add to manager's approved/rejected history
+        const reviewedRecord = {
+            ...pendingRequest,
+            status,
+            reviewedBy: manager.name,
+            reviewedOn: new Date().toISOString()
+        };
+
+        const fieldName = status === "approved" ? "approvedLeaves" : "rejectedLeaves";
+        
+        await employeesCollection.updateOne(
+            { _id: new ObjectId(managerId) },
+            { $push: { [fieldName]: reviewedRecord } }
+        );
 
         return NextResponse.json({ success: true, message: `Leave ${status} successfully` });
 
