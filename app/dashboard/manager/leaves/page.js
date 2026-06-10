@@ -33,20 +33,11 @@ export default function ManagerLeaves() {
   if (error) return <Error />;
   if (isLoading || employeesLoading || !userId) return <Loading />;
 
-  // Get Team Members
-  const teamMembers = employeesData?.filter(emp => emp.reportingId === userId) || [];
-  
-  // Construct all team leaves
-  const allTeamLeaves = teamMembers.flatMap(emp => 
-    (emp.leaveRequests || []).map(lr => ({
-      ...lr,
-      employeeName: emp.name,
-      employeeId: emp._id
-    }))
-  ).sort((a, b) => new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate));
-
-  const pendingLeaves = allTeamLeaves.filter(l => l.status === "pending");
-  const historyLeaves = allTeamLeaves.filter(l => l.status === "approved" || l.status === "rejected");
+  const pendingLeaves = managerData?.pendingLeaves || [];
+  const historyLeaves = [
+    ...(managerData?.approvedLeaves || []),
+    ...(managerData?.rejectedLeaves || [])
+  ].sort((a, b) => new Date(b.appliedOn || b.startDate || b.createdAt) - new Date(a.appliedOn || a.startDate || a.createdAt));
 
   // ✅ Handle Leave Approve / Reject
   const handleLeaveAction = async (leave, status) => {

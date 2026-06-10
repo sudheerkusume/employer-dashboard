@@ -135,26 +135,70 @@ export default function ManagerAnalytics() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  {/* Breakdown Sick */}
-                  <div>
-                    <div className="flex justify-between items-end mb-2">
-                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Sick Leave</p>
-                      <p className="text-[10px] font-mono text-gray-400">40%</p>
-                    </div>
-                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: '40%' }} transition={{ duration: 1, delay: 0.4 }} className="h-full bg-amber-400 rounded-full"></motion.div>
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                   {/* Breakdown Casual */}
                   <div>
                     <div className="flex justify-between items-end mb-2">
-                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Casual Leave</p>
-                      <p className="text-[10px] font-mono text-gray-400">60%</p>
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Casual</p>
+                      <p className="text-[10px] font-mono text-gray-400">35%</p>
                     </div>
                     <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: '60%' }} transition={{ duration: 1, delay: 0.5 }} className="h-full bg-emerald-400 rounded-full"></motion.div>
+                      <motion.div initial={{ width: 0 }} animate={{ width: '35%' }} transition={{ duration: 1, delay: 0.4 }} className="h-full bg-emerald-400 rounded-full"></motion.div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown Sick */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Sick</p>
+                      <p className="text-[10px] font-mono text-gray-400">25%</p>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '25%' }} transition={{ duration: 1, delay: 0.5 }} className="h-full bg-amber-400 rounded-full"></motion.div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown Earned */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Earned</p>
+                      <p className="text-[10px] font-mono text-gray-400">20%</p>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '20%' }} transition={{ duration: 1, delay: 0.6 }} className="h-full bg-blue-400 rounded-full"></motion.div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown Emergency */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Emergency</p>
+                      <p className="text-[10px] font-mono text-gray-400">10%</p>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '10%' }} transition={{ duration: 1, delay: 0.7 }} className="h-full bg-red-400 rounded-full"></motion.div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown First Half */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">1st Half</p>
+                      <p className="text-[10px] font-mono text-gray-400">5%</p>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '5%' }} transition={{ duration: 1, delay: 0.8 }} className="h-full bg-purple-400 rounded-full"></motion.div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown Second Half */}
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">2nd Half</p>
+                      <p className="text-[10px] font-mono text-gray-400">5%</p>
+                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: '5%' }} transition={{ duration: 1, delay: 0.9 }} className="h-full bg-pink-400 rounded-full"></motion.div>
                     </div>
                   </div>
                 </div>

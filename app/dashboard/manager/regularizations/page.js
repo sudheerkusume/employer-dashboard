@@ -33,20 +33,11 @@ export default function ManagerRegularizations() {
   if (error) return <Error />;
   if (isLoading || employeesLoading || !userId) return <Loading />;
 
-  // Get Team Members
-  const teamMembers = employeesData?.filter(emp => emp.reportingId === userId) || [];
-  
-  // Construct all team regularizations
-  const allTeamARs = teamMembers.flatMap(emp => 
-    (emp.attendanceRegularizationRequests || []).map(ar => ({
-      ...ar,
-      employeeName: emp.name,
-      employeeId: emp._id
-    }))
-  ).sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-
-  const pendingARs = allTeamARs.filter(ar => ar.status === "pending");
-  const historyARs = allTeamARs.filter(ar => ar.status === "approved" || ar.status === "rejected");
+  const pendingARs = managerData?.pendingRegularizations || [];
+  const historyARs = [
+    ...(managerData?.approvedRegularizations || []),
+    ...(managerData?.rejectedRegularizations || [])
+  ].sort((a, b) => new Date(b.appliedOn || b.date) - new Date(a.appliedOn || a.date));
 
   // ✅ Handle Attendance Regularization Approve / Reject
   const handleARAction = async (ar, action) => {
@@ -154,41 +145,60 @@ export default function ManagerRegularizations() {
                     <p className="text-sm font-medium">No pending regularizations</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pendingARs.map((ar, idx) => (
-                      <div key={idx} className="bg-[#F8FAFC] border border-gray-200 rounded-xl p-5 flex flex-col group hover:border-gray-300 transition-colors">
-                        <div className="flex justify-between items-start mb-3">
-                          <p className="font-bold text-gray-900">{ar.employeeName}</p>
-                          <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-widest border border-purple-200 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                            {ar.status}
-                          </span>
-                        </div>
-                        <p className="text-xs font-mono text-gray-500 mb-3 bg-white p-2 rounded border border-gray-100">
-                          <span className="font-semibold text-gray-700">
-                            {ar.date ? formatDateTime(ar.date, "MMM DD, YYYY") : "Missing punch"}
-                          </span> 
-                        </p>
-                        <p className="text-sm text-gray-600 italic mb-5 bg-white p-3 rounded border border-gray-100 flex-1">"{ar.reason}"</p>
-                        
-                        <div className="flex gap-2 mt-auto">
-                          <button
-                            disabled={actionLoading}
-                            onClick={() => handleARAction(ar, "approve")}
-                            className="flex-1 bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700 hover:border-emerald-200 text-xs font-bold py-2 rounded-lg transition-colors"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            disabled={actionLoading}
-                            onClick={() => handleARAction(ar, "reject")}
-                            className="flex-1 bg-white border border-gray-200 hover:bg-red-50 text-gray-600 hover:text-red-700 hover:border-red-200 text-xs font-bold py-2 rounded-lg transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Employee</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Date</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Requested Time</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Reason</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {pendingARs.map((ar, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="py-4 px-4 text-sm font-semibold text-gray-800">
+                              <div className="flex items-center gap-2">
+                                {ar.employeeName}
+                                <span className="bg-purple-100 text-purple-700 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest border border-purple-200 flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                  {ar.status === "pendingRegularization" ? "PENDING" : ar.status}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-xs font-mono text-gray-600">
+                              {ar.date ? formatDateTime(ar.date, "MMM DD, YYYY") : "Missing punch"}
+                            </td>
+                            <td className="py-4 px-4 text-xs font-mono text-blue-600 font-semibold">
+                              {ar.checkIn || '--:--'} - {ar.checkOut || '--:--'}
+                            </td>
+                            <td className="py-4 px-4 text-xs text-gray-500 italic max-w-sm truncate" title={ar.reason}>
+                              "{ar.reason}"
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  disabled={actionLoading}
+                                  onClick={() => handleARAction(ar, "approve")}
+                                  className="bg-white border border-gray-200 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700 hover:border-emerald-200 text-xs font-bold py-1.5 px-3 rounded-md transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  disabled={actionLoading}
+                                  onClick={() => handleARAction(ar, "reject")}
+                                  className="bg-white border border-gray-200 hover:bg-red-50 text-gray-600 hover:text-red-700 hover:border-red-200 text-xs font-bold py-1.5 px-3 rounded-md transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>
@@ -207,6 +217,7 @@ export default function ManagerRegularizations() {
                         <tr className="border-b border-gray-200">
                           <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Employee</th>
                           <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Date</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Requested Time</th>
                           <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Reason</th>
                           <th className="py-3 px-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Status</th>
                         </tr>
@@ -217,6 +228,9 @@ export default function ManagerRegularizations() {
                             <td className="py-4 px-4 text-sm font-semibold text-gray-800">{ar.employeeName}</td>
                             <td className="py-4 px-4 text-xs font-mono text-gray-600">
                               {ar.date ? formatDateTime(ar.date, "MMM DD, YYYY") : "Missing punch"}
+                            </td>
+                            <td className="py-4 px-4 text-xs font-mono text-blue-600 font-semibold">
+                              {ar.checkIn || '--:--'} - {ar.checkOut || '--:--'}
                             </td>
                             <td className="py-4 px-4 text-xs text-gray-500 italic max-w-sm truncate" title={ar.reason}>
                               "{ar.reason}"
