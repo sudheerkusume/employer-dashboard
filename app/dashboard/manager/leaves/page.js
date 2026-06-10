@@ -29,6 +29,7 @@ export default function ManagerLeaves() {
   );
 
   const mutate = Mutated(userId ? `/api/employees?id=${userId}` : null);
+  const mutateEmployees = Mutated("/api/employees");
 
   if (error) return <Error />;
   if (isLoading || employeesLoading || !userId) return <Loading />;
@@ -73,7 +74,7 @@ export default function ManagerLeaves() {
 
       // Mutate both endpoints to keep everything fresh
       mutate();
-      Mutated("/api/employees")();
+      mutateEmployees();
     } catch (err) {
       setRootContext((prev) => ({
         ...prev,

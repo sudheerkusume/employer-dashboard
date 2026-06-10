@@ -5,6 +5,10 @@ import Image from "next/image";
 import RootContext from "../config/rootcontext";
 import { EyeIcon } from "@heroicons/react/20/solid";
 import { EyeSlashIcon } from "@heroicons/react/24/solid";
+import { Outfit, Caveat } from "next/font/google";
+
+const outfit = Outfit({ subsets: ["latin"] });
+const caveat = Caveat({ subsets: ["latin"] });
 import { useRouter } from "next/navigation";
 import { useSWRFetch } from "../config/useswrfetch";
 import ForgetPassword from "./forgetpassword";
@@ -168,7 +172,7 @@ export default function LoginRoot() {
                             transition={{ duration: 0.5, delay: 0.2 }}
                             className="-mb-1"
                         >
-                            <Link href="/" className="flex justify-center transition-transform hover:scale-105 duration-300">
+                            <Link href="/" className="flex justify-center transition-transform hover:scale-105 duration-300 pb-5">
                                 <Image
                                     src="/salesbeez_logo1.png"
                                     alt="Logo"
@@ -181,14 +185,14 @@ export default function LoginRoot() {
                         </motion.div>
                         <form onSubmit={onSave} className="w-full bg-white text-gray-700 md:mt-0 sm:max-w-md xl:p-0 relative z-20">
                             <div className="px-6 pb-6 pt-0 space-y-4 md:space-y-6 sm:px-8 sm:pb-8">
-                                <motion.h1
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
+                                <motion.h6
+                                    initial={{ opacity: 0, y: -5 }}
+                                    animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4, delay: 0.3 }}
-                                    className="flex justify-center text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl text-center"
+                                    className={`${outfit.className} text-xl md:text-[20px] font-bold tracking-tight text-gray-900 text-center mb-6`}
                                 >
-                                    Sign In Securely
-                                </motion.h1>
+                                    <span className={`${caveat.className} text-orange-400 font-medium text-2xl md:text-[24px] ml-1`}>Sign In Securely</span>
+                                </motion.h6>
                                 <div className="space-y-4 md:space-y-6">
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}

@@ -145,6 +145,39 @@ export default function DashboardHome() {
     { label: "Absent", percentage: absentPercent, color: "bg-red-500" },
   ];
 
+  const handleDownloadReport = () => {
+    if (!employeesData || employeesData.length === 0) {
+      alert("No data available to download");
+      return;
+    }
+
+    const headers = ["Name", "Email", "Mobile", "Role", "Designation", "Department"];
+    
+    const csvContent = [
+      headers.join(","),
+      ...employeesData.map(emp => 
+        [
+          `"${emp.name || ''}"`,
+          `"${emp.email || ''}"`,
+          `"${emp.mobile || ''}"`,
+          `"${emp.role || ''}"`,
+          `"${emp.designation || ''}"`,
+          `"${emp.department || ''}"`
+        ].join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Employee_Report_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-6 md:p-10 font-sans text-gray-900 bg-gray-50 min-h-full">
       <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-200 pb-6">
@@ -241,15 +274,14 @@ export default function DashboardHome() {
               <FileText size={18} /> Generate Payroll
             </motion.button>
           </Link>
-          <Link href="/dashboard/admin/reports">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm font-medium"
-            >
-              <Download size={18} /> Download Report
-            </motion.button>
-          </Link>
+          <motion.button
+            onClick={handleDownloadReport}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm font-medium"
+          >
+            <Download size={18} /> Download Report
+          </motion.button>
         </div>
       </div>
 

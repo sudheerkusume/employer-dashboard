@@ -565,7 +565,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
     // Withdraw leave service
     const withdrawLeaveService = async (employeeId, startDate, endDate) => {
-        const res = await fetch(`/api/ar?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, { method: 'DELETE' });
+        const res = await fetch(`/api/leave/delete?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, { method: 'DELETE' });
         return res;
     };
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/app/components/lib/db';
 import { ObjectId } from 'mongodb';
+import { format, eachDayOfInterval } from 'date-fns';
 
 export async function DELETE(req) {
     try {
@@ -24,43 +25,48 @@ export async function DELETE(req) {
         const employee = await employees.findOne({ _id: new ObjectId(employeeId) });
         if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-        // 2️⃣ Get leave dates to remove
-        const leaveDates = employee.attendance && employee.attendance.October
-            ? employee.attendance.October.filter(att => att.date >= leaveStartDate && att.date <= leaveEndDate)
-                .map(att => att.date)
-            : [];
+        // Calculate dates
+        const start = new Date(leaveStartDate);
+        const end = new Date(leaveEndDate);
+        const dates = eachDayOfInterval({ start, end });
+        const dateStrings = dates.map(d => format(d, 'yyyy-MM-dd'));
 
-        if (leaveDates.length === 0) {
-            return NextResponse.json({ error: 'No matching attendance records found' }, { status: 404 });
-        }
-
-        // 3️⃣ Remove leave-marked attendance from employee
+        // 2️⃣ Remove leave-marked attendance from employee dynamically by month
         const updatedAttendance = { ...employee.attendance };
-        if (updatedAttendance.October) {
-            updatedAttendance.October = updatedAttendance.October.filter(
-                att => !leaveDates.includes(att.date) || att.status === 'present' || att.status === 'Checked In'
-            );
+        for (const d of dates) {
+            const monthName = format(d, 'MMMM');
+            const dateStr = format(d, 'yyyy-MM-dd');
+            if (updatedAttendance[monthName]) {
+                 updatedAttendance[monthName] = updatedAttendance[monthName].filter(
+                     att => att.date !== dateStr || (att.status === 'present' || att.status === 'Checked In')
+                 );
+            }
         }
+
+        // Also remove the leave request from the leaveRequests array
+        const updatedLeaveRequests = (employee.leaveRequests || []).filter(
+            lr => !(lr.startDate === leaveStartDate && lr.endDate === leaveEndDate)
+        );
 
         await employees.updateOne(
             { _id: new ObjectId(employeeId) },
-            { $set: { attendance: updatedAttendance, modified_on: new Date() } }
+            { $set: { attendance: updatedAttendance, leaveRequests: updatedLeaveRequests, modified_on: new Date() } }
         );
 
-        // 4️⃣ Remove leave from manager
+        // 3️⃣ Remove leave from manager
         if (employee.reportingId) {
             const managerId = new ObjectId(employee.reportingId);
             const manager = await employees.findOne({ _id: managerId });
             if (manager) {
-                const updatedLeaves = manager.leaves.filter(
+                const updatedLeaves = (manager.leaves || []).filter(
                     leave =>
                         !(leave.employeeId === employeeId &&
-                            leave.leaveDates.some(date => leaveDates.includes(date)))
+                            leave.leaveDates.some(date => dateStrings.includes(date)))
                 );
-                const updatedPendingLeaves = manager.pendingLeaves.filter(
+                const updatedPendingLeaves = (manager.pendingLeaves || []).filter(
                     leave =>
                         !(leave.employeeId === employeeId &&
-                            leave.leaveDates.some(date => leaveDates.includes(date)))
+                            leave.leaveDates.some(date => dateStrings.includes(date)))
                 );
 
                 await employees.updateOne(

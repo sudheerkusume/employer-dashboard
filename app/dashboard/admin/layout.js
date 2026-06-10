@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import RootContext from "@/app/components/config/rootcontext";
+import { useSWRFetch } from "@/app/components/config/useswrfetch";
 import logo from '@/app/dashboard/accets/logo.png'
 import {
   LayoutDashboard,
@@ -28,7 +29,16 @@ export default function AdminLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+
   useEffect(() => {
+    const storedUser = localStorage.getItem("user_details");
+    let userData = null;
+    if (storedUser) {
+      try { userData = JSON.parse(storedUser); } catch (e) { }
+    }
+    setCurrentUserRole(userData?.role?.toLowerCase?.() || "");
+
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 1024);
       if (window.innerWidth < 1024) {
@@ -43,6 +53,19 @@ export default function AdminLayout({ children }) {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  const { data: employeesData } = useSWRFetch("/api/employees");
+
+  const pendingLeavesCount = React.useMemo(() => {
+    if (!employeesData) return 0;
+    let count = 0;
+    employeesData.forEach(emp => {
+      if (currentUserRole !== "super_admin" && emp.role === "admin") return;
+      const leaves = emp.leaves || [];
+      count += leaves.filter(leave => leave.status === "pending").length;
+    });
+    return count;
+  }, [employeesData, currentUserRole]);
+
   const handleLogout = () => {
     localStorage.clear();
     setRootContext((prev) => ({ ...prev, authenticated: false }));
@@ -53,7 +76,7 @@ export default function AdminLayout({ children }) {
     { name: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
     { name: "Employees", href: "/dashboard/admin/employees", icon: Users },
     { name: "Attendance", href: "/dashboard/admin/attendance", icon: CalendarCheck },
-    { name: "Leave Requests", href: "/dashboard/admin/leaves", icon: Clock },
+    { name: "Leave Requests", href: "/dashboard/admin/leaves", icon: Clock, badge: pendingLeavesCount },
     { name: "Payroll", href: "/dashboard/admin/payroll", icon: FileText },
     { name: "Departments", href: "/dashboard/admin/departments", icon: Briefcase },
     { name: "Holidays", href: "/dashboard/admin/holidays", icon: CalendarDays },
@@ -118,7 +141,7 @@ export default function AdminLayout({ children }) {
                     <div
                       onClick={() => isMobile && setIsSidebarOpen(false)}
                       className={`
-                        flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+                        flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group relative
                         ${isActive
                           ? "bg-orange-50 text-orange-600 font-semibold"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium"}
@@ -130,8 +153,15 @@ export default function AdminLayout({ children }) {
                           className="absolute left-0 w-1 h-8 bg-orange-500 rounded-r-full"
                         />
                       )}
-                      <Icon size={20} className={isActive ? "text-orange-600" : "text-gray-400 group-hover:text-gray-600"} />
-                      <span>{item.name}</span>
+                      <div className="flex items-center gap-3">
+                        <Icon size={20} className={isActive ? "text-orange-600" : "text-gray-400 group-hover:text-gray-600"} />
+                        <span>{item.name}</span>
+                      </div>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-orange-100 text-orange-700'}`}>
+                          {item.badge}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 );
