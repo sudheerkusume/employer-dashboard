@@ -219,6 +219,115 @@ function ARForm({ defaultDate, onClose, onSubmit, submitting }) {
     );
 }
 
+// --- WFH Form ---
+function WFHForm({ defaultDate, onClose, onSubmit, submitting }) {
+    const today = new Date();
+    const [dateFrom, setDateFrom] = useState(defaultDate || format(today, 'yyyy-MM-dd'));
+    const [dateTo, setDateTo] = useState(defaultDate || format(today, 'yyyy-MM-dd'));
+    const [reason, setReason] = useState('');
+    const [error, setError] = useState('');
+
+    const handleDateFromChange = (e) => {
+        const newDateFrom = e.target.value;
+        setDateFrom(newDateFrom);
+        if (dateTo && newDateFrom > dateTo) {
+            setDateTo(newDateFrom);
+        }
+    };
+
+    const handleDateToChange = (e) => {
+        const newDateTo = e.target.value;
+        setDateTo(newDateTo);
+        if (dateFrom && newDateTo < dateFrom) {
+            setError('To date cannot be before From date.');
+        } else {
+            setError('');
+        }
+    };
+
+    const handleSubmit = () => {
+        if (dateTo < dateFrom) {
+            setError('To date cannot be before From date.');
+            return;
+        }
+        if (!reason.trim()) {
+            setError('Please provide a reason for WFH.');
+            return;
+        }
+        onSubmit({ dateFrom, dateTo, reason });
+    };
+
+    return (
+        <div className="relative bg-white text-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 transition-all duration-300 border border-gray-200">
+            <h3 className="text-2xl font-semibold mb-4 text-indigo-600 flex items-center gap-2">
+                🏠 Apply Work From Home
+            </h3>
+
+            {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800">{error}</p>
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">From Date *</label>
+                    <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={handleDateFromChange}
+                        className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm text-gray-900 mb-1">To Date *</label>
+                    <input
+                        type="date"
+                        value={dateTo}
+                        onChange={handleDateToChange}
+                        min={dateFrom}
+                        className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="mb-4">
+                <label className="block text-sm text-gray-900 mb-1">Reason *</label>
+                <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={3}
+                    placeholder="Provide a valid reason for working from home..."
+                    className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                />
+            </div>
+
+            <div className="flex justify-end gap-3">
+                <button
+                    onClick={onClose}
+                    disabled={submitting}
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                    Cancel
+                </button>
+                <button
+                    disabled={submitting}
+                    onClick={handleSubmit}
+                    className={`px-4 py-2 rounded-lg text-white font-semibold transition ${submitting
+                        ? 'bg-indigo-300 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}
+                >
+                    {submitting ? 'Submitting...' : 'Submit Request'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 
 export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn }) {
     const myDate = new Date();
@@ -232,6 +341,9 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
     const [showARModal, setShowARModal] = useState(false);
     const [arSubmitting, setArSubmitting] = useState(false);
+
+    const [showWFHModal, setShowWFHModal] = useState(false);
+    const [wfhSubmitting, setWfhSubmitting] = useState(false);
 
     // Fetch global holidays
     const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
@@ -727,6 +839,67 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         }
     };
 
+    // --- Submit WFH Request ---
+    const submitWFH = async ({ dateFrom, dateTo, reason }) => {
+        if (!profile?._id) return;
+
+        try {
+            setWfhSubmitting(true);
+            setServiceCall(true);
+
+            // Check if any date is before date of joining
+            if (isBeforeDateOfJoining(dateFrom) || isBeforeDateOfJoining(dateTo)) {
+                throw new Error('Cannot apply WFH for dates before your date of joining.');
+            }
+
+            const payload = {
+                employeeId: profile._id,
+                startDate: dateFrom,
+                endDate: dateTo,
+                reason,
+            };
+
+            const res = await fetch('/api/wfh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to apply WFH.');
+
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'success',
+                    title: 'Success',
+                    message: 'WFH Request submitted successfully.'
+                },
+            }));
+
+            mutated();
+            setShowWFHModal(false);
+
+        } catch (err) {
+            console.log('WFH submit error:', err);
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'error',
+                    title: 'Error',
+                    message: err.message || 'Failed to submit WFH request.'
+                },
+            }));
+        } finally {
+            setServiceCall(false);
+            setWfhSubmitting(false);
+        }
+    };
+
     // Withdraw AR
     const withdrawAR = async (employeeId, startDate, endDate, arDates = []) => {
         if (!employeeId || !startDate || !endDate) return;
@@ -756,6 +929,50 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             mutated();
         } catch (err) {
             console.log('Withdraw AR error:', err);
+            setRootContext((prev) => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'error',
+                    title: 'Error',
+                    message: err.message,
+                },
+            }));
+        } finally {
+            setServiceCall(false);
+        }
+    };
+
+    // Withdraw WFH
+    const withdrawWFH = async (employeeId, requestId) => {
+        if (!employeeId || !requestId) return;
+
+        try {
+            setServiceCall(true);
+
+            const res = await fetch(
+                `/api/wfh/delete?employeeId=${employeeId}&requestId=${requestId}`,
+                { method: 'DELETE' }
+            );
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to withdraw WFH request.');
+
+            setRootContext((prev) => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: 'success',
+                    title: 'Withdrawn',
+                    message: 'WFH request withdrawn successfully.',
+                },
+            }));
+
+            mutated();
+        } catch (err) {
+            console.log('Withdraw WFH error:', err);
             setRootContext((prev) => ({
                 ...prev,
                 toast: {
@@ -866,12 +1083,20 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                         {isCurrentMonth ? `${monthNames[currentMonth]} (In Progress)` : `${monthNames[currentMonth]} Summary`}
                     </h3>
                     {!isMonthBeforeJoining && isCurrentMonth && (
-                        <button
-                            onClick={() => setShowARModal(true)}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                        >
-                            Apply AR
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowWFHModal(true)}
+                                className="px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition shadow-sm"
+                            >
+                                Apply WFH
+                            </button>
+                            <button
+                                onClick={() => setShowARModal(true)}
+                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
+                            >
+                                Apply AR
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -969,6 +1194,47 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                                                     >
                                                         Withdraw
                                                     </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* WFH Requests for current month */}
+                            {(() => {
+                                const wfhReqs = (profile?.wfhRequests || []).filter(req => {
+                                    const reqStartMonth = new Date(req.startDate).getMonth();
+                                    return reqStartMonth === currentMonth;
+                                });
+
+                                if (wfhReqs.length === 0) return null;
+
+                                return (
+                                    <div className="w-full mt-4">
+                                        <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
+                                        <ul className="space-y-2">
+                                            {wfhReqs.map((req, idx) => (
+                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
+                                                    <div className="text-sm flex flex-col gap-1">
+                                                        <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
+                                                            Work From Home
+                                                            {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
+                                                            {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
+                                                            {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
+                                                        </div>
+                                                    </div>
+                                                    {req.status === 'pending' && (
+                                                        <button
+                                                            onClick={() => withdrawWFH(profile._id, req.id)}
+                                                            className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
+                                                        >
+                                                            Withdraw
+                                                        </button>
+                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
@@ -1112,6 +1378,47 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                                     </div>
                                 );
                             })()}
+
+                        {/* WFH Requests for selected month */}
+                        {(() => {
+                            const wfhReqs = (profile?.wfhRequests || []).filter(req => {
+                                const reqStartMonth = new Date(req.startDate).getMonth();
+                                return reqStartMonth === currentMonth;
+                            });
+
+                            if (wfhReqs.length === 0) return null;
+
+                            return (
+                                <div className="w-full mt-4">
+                                    <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
+                                    <ul className="space-y-2">
+                                        {wfhReqs.map((req, idx) => (
+                                            <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
+                                                <div className="text-sm flex flex-col gap-1">
+                                                    <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
+                                                        Work From Home
+                                                        {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
+                                                        {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
+                                                        {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
+                                                    </div>
+                                                </div>
+                                                {req.status === 'pending' && (
+                                                    <button
+                                                        onClick={() => withdrawWFH(profile._id, req.id)}
+                                                        className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
+                                                    >
+                                                        Withdraw
+                                                    </button>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            );
+                        })()}
                         </div>
                     </>
                 )}
@@ -1127,6 +1434,18 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                         onClose={() => setShowARModal(false)}
                         onSubmit={submitAR}
                         submitting={arSubmitting}
+                    />
+                </div>
+            )}
+
+            {/* WFH Modal */}
+            {showWFHModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <WFHForm
+                        defaultDate={new Date().toISOString().slice(0, 10)}
+                        onClose={() => setShowWFHModal(false)}
+                        onSubmit={submitWFH}
+                        submitting={wfhSubmitting}
                     />
                 </div>
             )}

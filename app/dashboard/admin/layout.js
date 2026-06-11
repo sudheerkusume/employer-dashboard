@@ -66,6 +66,17 @@ export default function AdminLayout({ children }) {
     return count;
   }, [employeesData, currentUserRole]);
 
+  const pendingWFHCount = React.useMemo(() => {
+    if (!employeesData) return 0;
+    let count = 0;
+    employeesData.forEach(emp => {
+      if (currentUserRole !== "super_admin" && emp.role === "admin") return;
+      const wfhRequests = emp.wfhRequests || [];
+      count += wfhRequests.filter(req => req.status === "pending").length;
+    });
+    return count;
+  }, [employeesData, currentUserRole]);
+
   const handleLogout = () => {
     localStorage.clear();
     setRootContext((prev) => ({ ...prev, authenticated: false }));
@@ -77,6 +88,7 @@ export default function AdminLayout({ children }) {
     { name: "Employees", href: "/dashboard/admin/employees", icon: Users },
     { name: "Attendance", href: "/dashboard/admin/attendance", icon: CalendarCheck },
     { name: "Leave Requests", href: "/dashboard/admin/leaves", icon: Clock, badge: pendingLeavesCount },
+    { name: "WFH Requests", href: "/dashboard/admin/wfh", icon: Clock, badge: pendingWFHCount },
     { name: "Payroll", href: "/dashboard/admin/payroll", icon: FileText },
     { name: "Departments", href: "/dashboard/admin/departments", icon: Briefcase },
     { name: "Holidays", href: "/dashboard/admin/holidays", icon: CalendarDays },
