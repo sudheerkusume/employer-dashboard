@@ -18,6 +18,7 @@ import { CalendarDaysIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/2
 
 const categoryColors = {
     present: "#A8DCAB",
+    wfh: "#818cf8",
     firstHalf: "#A8DCAB",
     secondHalf: "#A8DCAB",
     halfDay: "#A8DCAB",
@@ -131,6 +132,11 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
         }
     }
 
+    // Handle WFH explicitly
+    if (leaveStatus === 'Present (WFH)') {
+        return 'wfh';
+    }
+
     // Handle present status (including presentLate)
     if ((workingHours >= 8.45 || leaveStatus === 'present') || leaveStatus === 'presentLate') {
         return 'present';
@@ -183,6 +189,8 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
         switch (status) {
             case 'present':
                 return { left: categoryColors.present, right: categoryColors.present };
+            case 'wfh':
+                return { left: categoryColors.wfh, right: categoryColors.wfh };
             case 'firstHalfp':
                 return { left: categoryColors.firstHalf, right: categoryColors.absent };
             case 'secondhalfp':
@@ -1041,6 +1049,10 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     <div className="flex items-center gap-2">
                         <SplitCircle status="absent" size={16} isLegend={true} />
                         <span>Absent</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="wfh" size={16} isLegend={true} />
+                        <span>WFH</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <SplitCircle status="leaveApproved" size={16} isLegend={true} />

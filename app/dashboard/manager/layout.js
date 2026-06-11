@@ -36,9 +36,21 @@ export default function ManagerLayout({ children }) {
 
   // Fetch real-time data so badges update immediately after approvals
   const { data: managerData } = useSWRFetch(userId ? `/api/employees?id=${userId}` : null);
+  const { data: allEmployeesData } = useSWRFetch("/api/employees");
 
   const pendingLeavesCount = managerData?.pendingLeaves?.length || 0;
   const pendingARsCount = managerData?.pendingRegularizations?.length || 0;
+
+  const pendingWFHCount = React.useMemo(() => {
+    if (!allEmployeesData) return 0;
+    let count = 0;
+    allEmployeesData.forEach(emp => {
+      if (emp.role === "admin" || emp.role === "super_admin") return;
+      const wfhRequests = emp.wfhRequests || [];
+      count += wfhRequests.filter(req => req.status === "pending").length;
+    });
+    return count;
+  }, [allEmployeesData]);
 
   // Helper for initials
   const getInitials = (name) => {
@@ -80,6 +92,7 @@ export default function ManagerLayout({ children }) {
       title: "APPROVALS",
       items: [
         { name: "Leave Requests", href: "/dashboard/manager/leaves", icon: Clock, badge: pendingLeavesCount },
+        { name: "WFH Requests", href: "/dashboard/manager/wfh", icon: Clock, badge: pendingWFHCount },
         { name: "Regularizations", href: "/dashboard/manager/regularizations", icon: Clock, badge: pendingARsCount, badgeColor: "bg-purple-100 text-purple-700" },
       ]
     },

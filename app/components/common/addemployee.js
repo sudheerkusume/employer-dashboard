@@ -21,6 +21,8 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
         ctc: ""
     });
     const [loading, setLoading] = useState(false);
+    const [showCustomDept, setShowCustomDept] = useState(false);
+    const [showCustomManager, setShowCustomManager] = useState(false);
     const { setRootContext } = useContext(RootContext);
 
     // Fetch all employees to get manager list (for reporting manager dropdown)
@@ -60,13 +62,17 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
         setLoading(true);
 
         try {
+            const isManagerString = typeof form.manager === 'string';
+            const payloadManagerId = isManagerString ? null : form.manager?._id || null;
+            const payloadManagerName = isManagerString ? form.manager : form.manager?.name || null;
+
             const payload = {
                 name: form.name,
                 email: form.email,
                 role: form.role,
                 password: form.password,
-                reportingId: form.manager?._id || null,
-                reportingManager: form.manager?.name || null,
+                reportingId: payloadManagerId,
+                reportingManager: payloadManagerName,
                 mobile: form.mobile,
                 dateOfJoining: form.dateOfJoining,
                 dateOfBirth: form.dateOfBirth,
@@ -203,23 +209,81 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                 />
 
                 {/* Department */}
-                <ComboBox
-                    title={"Department"}
-                    data={["admin", "sales", "tech"]}
-                    required={true}
-                    value={form.department}
-                    onChange={handleDeptChange}
-                />
+                <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                        {showCustomDept ? (
+                            <div>
+                                <label className="block text-gray-700 font-medium mb-1">Department*</label>
+                                <input
+                                    name="department"
+                                    type="text"
+                                    value={form.department}
+                                    onChange={handleChange}
+                                    placeholder="Enter custom department"
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 h-[42px]"
+                                    required
+                                />
+                            </div>
+                        ) : (
+                            <ComboBox
+                                title={"Department"}
+                                data={["admin", "sales", "tech"]}
+                                required={true}
+                                value={form.department}
+                                onChange={handleDeptChange}
+                            />
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCustomDept(!showCustomDept);
+                            setForm({ ...form, department: "" });
+                        }}
+                        className="h-[42px] px-3 mb-[2px] bg-gray-100 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-200 flex items-center gap-1 text-sm font-medium transition-colors"
+                    >
+                        {showCustomDept ? "Select" : "+ Add"}
+                    </button>
+                </div>
 
                 {/* Reporting Manager */}
-                <ComboBox
-                    title={"Reporting Manager"}
-                    textField={"name"}
-                    data={managerData}
-                    required={true}
-                    value={form.manager}
-                    onChange={handleManagerChange}
-                />
+                <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                        {showCustomManager ? (
+                            <div>
+                                <label className="block text-gray-700 font-medium mb-1">Reporting Manager*</label>
+                                <input
+                                    name="manager"
+                                    type="text"
+                                    value={form.manager}
+                                    onChange={handleChange}
+                                    placeholder="Enter custom manager name"
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 h-[42px]"
+                                    required
+                                />
+                            </div>
+                        ) : (
+                            <ComboBox
+                                title={"Reporting Manager"}
+                                textField={"name"}
+                                data={managerData}
+                                required={true}
+                                value={form.manager}
+                                onChange={handleManagerChange}
+                            />
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCustomManager(!showCustomManager);
+                            setForm({ ...form, manager: "" });
+                        }}
+                        className="h-[42px] px-3 mb-[2px] bg-gray-100 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-200 flex items-center gap-1 text-sm font-medium transition-colors"
+                    >
+                        {showCustomManager ? "Select" : "+ Add"}
+                    </button>
+                </div>
 
                 {/* Gender */}
                 <ComboBox
