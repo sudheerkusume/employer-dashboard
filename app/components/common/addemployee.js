@@ -3,6 +3,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useSWRFetch } from "../config/useswrfetch";
 import ComboBox from "./form/combobox";
 import RootContext from "../config/rootcontext";
+import InputBox from "./form/inputbox";
 
 export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }) {
     const isEdit = !!editData?._id;
@@ -149,7 +150,7 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl p-6 md:p-8 border border-gray-100">
+        <div className="w-full max-w-4xl mx-auto bg-white/95 p-2 border border-gray-50">
             <div className="mb-8 text-center">
                 <h2 className="text-3xl font-extrabold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
                     {isEdit ? "Edit Employee Details" : "Add New Employee"}
@@ -167,65 +168,54 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
 
             <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
                 {/* Section 1: Personal Info */}
-                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="p-5 bg-white rounded-xl border border-gray-100">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">Personal Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Name */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
-                            <input
-                                name="name"
-                                type="text"
-                                value={form.name}
-                                onChange={handleChange}
-                                placeholder="Enter full name"
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+
+                        <InputBox
+                            name="name"
+                            title="Full Name"
+                            value={form.name}
+                            type="text"
+                            onChange={handleChange}
+                            // placeholder="Enter full name"
+                            required
+                        />
 
                         {/* Email */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
-                            <input
-                                name="email"
-                                type="email"
-                                autoComplete="off"
-                                value={form.email}
-                                onChange={handleChange}
-                                placeholder="Enter email"
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+                        <InputBox
+                            name="email"
+                            title="Email Address"
+                            type="email"
+                            autoComplete="off"
+                            value={form.email}
+                            onChange={handleChange}
+                            // placeholder="Enter email"
+                            required
+                        />
 
                         {/* Mobile */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mobile Number</label>
-                            <input
-                                name="mobile"
-                                type="tel"
-                                value={form.mobile}
-                                onChange={handleChange}
-                                placeholder="Enter mobile number"
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+                        <InputBox
+                            name="mobile"
+                            title="Mobile Number"
+                            type="tel"
+                            value={form.mobile}
+                            onChange={handleChange}
+                            // placeholder="Enter mobile number"
+                            required
+                        />
 
                         {/* Date of Birth */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date of Birth</label>
-                            <input
-                                name="dateOfBirth"
-                                type="date"
-                                value={form.dateOfBirth}
-                                onChange={handleChange}
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
-                        
+                        <InputBox
+                            name="dateOfBirth"
+                            title="Date of Birth"
+                            type="date"
+                            value={form.dateOfBirth}
+                            onChange={handleChange}
+                            required
+                        />
+
                         {/* Gender */}
                         <div className="col-span-1 md:col-span-2">
                             <ComboBox
@@ -240,7 +230,7 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                 </div>
 
                 {/* Section 2: Work Info */}
-                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="p-5 bg-white rounded-xl border border-gray-100">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">Employment Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Role */}
@@ -255,35 +245,29 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                         </div>
 
                         {/* Designation */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Designation</label>
-                            <input
-                                name="designation"
-                                type="text"
-                                value={form.designation}
-                                onChange={handleChange}
-                                placeholder="e.g. Software Engineer"
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+                        <InputBox
+                            name="designation"
+                            title="Designation"
+                            type="text"
+                            value={form.designation}
+                            onChange={handleChange}
+                            placeholder="e.g. Software Engineer"
+                            required
+                        />
 
                         {/* Department */}
                         <div className="flex items-end gap-2">
                             <div className="flex-1">
                                 {showCustomDept ? (
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Department*</label>
-                                        <input
-                                            name="department"
-                                            type="text"
-                                            value={form.department}
-                                            onChange={handleChange}
-                                            placeholder="Enter custom department"
-                                            className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300 h-[42px]"
-                                            required
-                                        />
-                                    </div>
+                                    <InputBox
+                                        name="department"
+                                        title="Department"
+                                        type="text"
+                                        value={form.department}
+                                        onChange={handleChange}
+                                        placeholder="Enter custom department"
+                                        required
+                                    />
                                 ) : (
                                     <ComboBox
                                         title={"Department"}
@@ -310,18 +294,15 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                         <div className="flex items-end gap-2">
                             <div className="flex-1">
                                 {showCustomManager ? (
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reporting Manager*</label>
-                                        <input
-                                            name="manager"
-                                            type="text"
-                                            value={form.manager}
-                                            onChange={handleChange}
-                                            placeholder="Enter custom manager name"
-                                            className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300 h-[42px]"
-                                            required
-                                        />
-                                    </div>
+                                    <InputBox
+                                        name="manager"
+                                        title="Reporting Manager"
+                                        type="text"
+                                        value={form.manager}
+                                        onChange={handleChange}
+                                        placeholder="Enter custom manager name"
+                                        required
+                                    />
                                 ) : (
                                     <ComboBox
                                         title={"Reporting Manager"}
@@ -346,54 +327,45 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                         </div>
 
                         {/* CTC */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">CTC (Salary)</label>
-                            <input
-                                name="ctc"
-                                type="text"
-                                value={form.ctc}
-                                onChange={handleChange}
-                                placeholder="e.g. 5,00,000"
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+                        <InputBox
+                            name="ctc"
+                            title="CTC (Salary)"
+                            type="text"
+                            value={form.ctc}
+                            onChange={handleChange}
+                            placeholder="e.g. 5,00,000"
+                            required
+                        />
 
                         {/* Date of Joining */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date of Joining</label>
-                            <input
-                                name="dateOfJoining"
-                                type="date"
-                                value={form.dateOfJoining}
-                                onChange={handleChange}
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
-                                required
-                            />
-                        </div>
+                        <InputBox
+                            name="dateOfJoining"
+                            title="Date of Joining"
+                            type="date"
+                            value={form.dateOfJoining}
+                            onChange={handleChange}
+                            required
+                        />
                     </div>
                 </div>
 
                 {/* Section 3: Security */}
-                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="p-5 bg-white rounded-xl border border-gray-100">
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">Security</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Password */}
                         <div className="md:col-span-1">
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                {isEdit ? "New Password (Optional)" : "Account Password"}
-                            </label>
-                            <input
+                            <InputBox
                                 name="password"
+                                title={isEdit ? "New Password (Optional)" : "Account Password"}
                                 type="password"
                                 autoComplete="new-password"
                                 value={form.password}
                                 onChange={handleChange}
                                 placeholder={isEdit ? "Leave blank to keep current" : "Enter a secure password"}
-                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all hover:border-gray-300"
                                 required={!isEdit}
                             />
-                            {isEdit && <p className="text-xs text-gray-500 mt-1.5">Leave blank if you don't want to change the password.</p>}
+                            {isEdit && <p className="text-xs text-gray-500 mt-1.5 ml-1">Leave blank if you don't want to change the password.</p>}
                         </div>
                     </div>
                 </div>
@@ -403,14 +375,13 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full md:w-auto min-w-[220px] py-3 px-6 rounded-xl font-bold text-white shadow-lg transition-all duration-300 ${
-                            loading 
-                            ? "bg-gray-400 cursor-not-allowed shadow-none" 
+                        className={`w-full md:w-auto min-w-[220px] py-2.5 px-4 rounded-xl font-bold text-white shadow-lg transition-all duration-300 ${loading
+                            ? "bg-gray-400 cursor-not-allowed shadow-none"
                             : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 hover:-translate-y-0.5 hover:shadow-orange-500/30"
-                        }`}
+                            }`}
                     >
-                        {loading 
-                            ? (isEdit ? "Updating Record..." : "Adding Employee...") 
+                        {loading
+                            ? (isEdit ? "Updating Record..." : "Adding Employee...")
                             : (isEdit ? "Save Changes" : "Create Employee Record")}
                     </button>
                 </div>
