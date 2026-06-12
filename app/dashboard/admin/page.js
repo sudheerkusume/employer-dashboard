@@ -50,13 +50,13 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
-      const allPendingLeaves = employeesData.flatMap(emp => 
-        (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({...lr, employeeName: emp.name}))
+      const allPendingLeaves = employeesData.flatMap(emp =>
+        (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({ ...lr, employeeName: emp.name }))
       );
       setPendingLeaves(allPendingLeaves);
 
-      const allPendingARs = employeesData.flatMap(emp => 
-        (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({...ar, employeeName: emp.name}))
+      const allPendingARs = employeesData.flatMap(emp =>
+        (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({ ...ar, employeeName: emp.name }))
       );
       setPendingARs(allPendingARs);
     }
@@ -149,12 +149,12 @@ export default function DashboardHome() {
         const upcomingDob = new Date(todayDate.getFullYear(), dobMonth, dobDate);
         const timeDiff = upcomingDob.getTime() - todayDate.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-        
+
         // Handle end of year wrap-around
         let finalDaysDiff = daysDiff;
         if (daysDiff < 0) {
-            const nextYearDob = new Date(todayDate.getFullYear() + 1, dobMonth, dobDate);
-            finalDaysDiff = Math.ceil((nextYearDob.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
+          const nextYearDob = new Date(todayDate.getFullYear() + 1, dobMonth, dobDate);
+          finalDaysDiff = Math.ceil((nextYearDob.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
         }
 
         if (finalDaysDiff > 0 && finalDaysDiff <= 7) {
@@ -162,7 +162,7 @@ export default function DashboardHome() {
         }
       }
     });
-    
+
     upcomingBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
   }
 
@@ -192,10 +192,10 @@ export default function DashboardHome() {
     }
 
     const headers = ["Name", "Email", "Mobile", "Role", "Designation", "Department"];
-    
+
     const csvContent = [
       headers.join(","),
-      ...employeesData.map(emp => 
+      ...employeesData.map(emp =>
         [
           `"${emp.name || ''}"`,
           `"${emp.email || ''}"`,
@@ -394,11 +394,11 @@ export default function DashboardHome() {
         >
           {/* subtle gradient background */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-pink-100 rounded-full blur-3xl opacity-50 -z-10 translate-x-1/2 -translate-y-1/2"></div>
-          
+
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             🎉 Upcoming Birthdays
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Today */}
             <div>
@@ -408,18 +408,18 @@ export default function DashboardHome() {
               ) : (
                 <div className="space-y-3">
                   {birthdaysToday.map((emp, idx) => (
-                     <div key={idx} className="flex items-center gap-3 bg-pink-50 border border-pink-100 p-3 rounded-xl">
-                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white flex items-center justify-center font-bold shadow-md">
-                         {emp.name.charAt(0).toUpperCase()}
-                       </div>
-                       <div>
-                         <p className="font-bold text-gray-900 leading-tight">{emp.name}</p>
-                         <p className="text-xs text-pink-600 font-medium">{emp.department || "Employee"}</p>
-                       </div>
-                       <div className="ml-auto">
-                         <span className="text-xl" title="Happy Birthday!">🎂</span>
-                       </div>
-                     </div>
+                    <div key={idx} className="flex items-center gap-3 bg-pink-50 border border-pink-100 p-3 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white flex items-center justify-center font-bold shadow-md">
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 leading-tight">{emp.name}</p>
+                        <p className="text-xs text-pink-600 font-medium">{emp.department || "Employee"}</p>
+                      </div>
+                      <div className="ml-auto">
+                        <span className="text-xl" title="Happy Birthday!">🎂</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -433,18 +433,18 @@ export default function DashboardHome() {
               ) : (
                 <div className="space-y-3">
                   {upcomingBirthdays.map((emp, idx) => (
-                     <div key={idx} className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-3 rounded-xl">
-                       <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold">
-                         {emp.name.charAt(0).toUpperCase()}
-                       </div>
-                       <div>
-                         <p className="font-semibold text-gray-900 leading-tight">{emp.name}</p>
-                         <p className="text-xs text-gray-500 font-medium">Turns a year older in {emp.daysUntil} day{emp.daysUntil > 1 ? 's' : ''}</p>
-                       </div>
-                       <div className="ml-auto text-sm font-bold text-gray-400">
-                         {format(new Date(emp.dateOfBirth), "MMM dd")}
-                       </div>
-                     </div>
+                    <div key={idx} className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-3 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold">
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 leading-tight">{emp.name}</p>
+                        <p className="text-xs text-gray-500 font-medium">Turns a year older in {emp.daysUntil} day{emp.daysUntil > 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="ml-auto text-sm font-bold text-gray-400">
+                        {format(new Date(emp.dateOfBirth), "MMM dd")}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -452,7 +452,6 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
-
     </div>
   );
 }
