@@ -345,6 +345,14 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     const [showWFHModal, setShowWFHModal] = useState(false);
     const [wfhSubmitting, setWfhSubmitting] = useState(false);
 
+    // Check if current time is past 10:30 Am for AR restrictions
+    const isPastARDeadline = useMemo(() => {
+        const now = new Date();
+        const hour = now.getHours();
+        const minutes = now.getMinutes();
+
+        return hour > 10 || (hour === 10 && minutes >= 30);
+    }, []);
     // Fetch global holidays
     const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
     const globalHolidays = globalHolidaysData || [];
@@ -436,9 +444,9 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
 
         // Calculate actual working days (excluding Sundays, holidays, and tech Tuesdays)
         let actualWorkingDays = totalCalendarDays - sundaysCount - holidaysCount;
-        if (profile?.department === "tech") {
-            actualWorkingDays -= tuesdaysCount;
-        }
+        // if (profile?.department === "tech") {
+        //     actualWorkingDays -= tuesdaysCount;
+        // }
 
         // Initialize counters
         let totalWorked = 0;
@@ -1048,32 +1056,32 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
             {serviceCall && <Loading />}
 
             {/* Left Calendar Section */}
-           <div className="w-full bg-white shadow-lg">
-             <Calendar
-                profile={profile}
-                onCheckIn={onCheckIn}
-                onCheckOut={onCheckOut}
-                isCheckedIn={isCheckedIn}
-                onGoToCalendar={() => setShowCalendar(true)}
-                setMonthName={handleMonthChange}
-                onRequestAR={(dateStr) => {
-                    if (isBeforeDateOfJoining(dateStr)) {
-                        setRootContext(prev => ({
-                            ...prev,
-                            toast: {
-                                show: true,
-                                dismiss: true,
-                                type: 'error',
-                                title: 'Error',
-                                message: 'Cannot apply AR for dates before your date of joining.'
-                            },
-                        }));
-                        return;
-                    }
-                    setShowARModal(true);
-                }}
-            />
-           </div>
+            <div className="w-full bg-white shadow-lg">
+                <Calendar
+                    profile={profile}
+                    onCheckIn={onCheckIn}
+                    onCheckOut={onCheckOut}
+                    isCheckedIn={isCheckedIn}
+                    onGoToCalendar={() => setShowCalendar(true)}
+                    setMonthName={handleMonthChange}
+                    onRequestAR={(dateStr) => {
+                        if (isBeforeDateOfJoining(dateStr)) {
+                            setRootContext(prev => ({
+                                ...prev,
+                                toast: {
+                                    show: true,
+                                    dismiss: true,
+                                    type: 'error',
+                                    title: 'Error',
+                                    message: 'Cannot apply AR for dates before your date of joining.'
+                                },
+                            }));
+                            return;
+                        }
+                        setShowARModal(true);
+                    }}
+                />
+            </div>
 
             {/* Right Side: Summary & Leaves Section */}
             <aside className="w-full bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
@@ -1090,12 +1098,22 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             >
                                 Apply WFH
                             </button>
-                            <button
-                                onClick={() => setShowARModal(true)}
-                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
-                            >
-                                Apply AR
-                            </button>
+                            {!isPastARDeadline ? (
+                                <button
+                                    onClick={() => setShowARModal(true)}
+                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
+                                >
+                                    Apply AR
+                                </button>
+                            ) : (
+                                <button
+                                    disabled
+                                    title="AR application window closes at 10:30 AM"
+                                    className="px-3 py-1 text-sm bg-gray-400 text-white rounded cursor-not-allowed shadow-sm"
+                                >
+                                    Apply AR (Closed)
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1379,46 +1397,46 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                                 );
                             })()}
 
-                        {/* WFH Requests for selected month */}
-                        {(() => {
-                            const wfhReqs = (profile?.wfhRequests || []).filter(req => {
-                                const reqStartMonth = new Date(req.startDate).getMonth();
-                                return reqStartMonth === currentMonth;
-                            });
+                            {/* WFH Requests for selected month */}
+                            {(() => {
+                                const wfhReqs = (profile?.wfhRequests || []).filter(req => {
+                                    const reqStartMonth = new Date(req.startDate).getMonth();
+                                    return reqStartMonth === currentMonth;
+                                });
 
-                            if (wfhReqs.length === 0) return null;
+                                if (wfhReqs.length === 0) return null;
 
-                            return (
-                                <div className="w-full mt-4">
-                                    <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
-                                    <ul className="space-y-2">
-                                        {wfhReqs.map((req, idx) => (
-                                            <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
-                                                <div className="text-sm flex flex-col gap-1">
-                                                    <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
-                                                        Work From Home
-                                                        {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
-                                                        {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
-                                                        {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                return (
+                                    <div className="w-full mt-4">
+                                        <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
+                                        <ul className="space-y-2">
+                                            {wfhReqs.map((req, idx) => (
+                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
+                                                    <div className="text-sm flex flex-col gap-1">
+                                                        <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
+                                                            Work From Home
+                                                            {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
+                                                            {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
+                                                            {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
+                                                        </div>
                                                     </div>
-                                                    <div className="text-xs text-gray-500">
-                                                        {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
-                                                    </div>
-                                                </div>
-                                                {req.status === 'pending' && (
-                                                    <button
-                                                        onClick={() => withdrawWFH(profile._id, req.id)}
-                                                        className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
-                                                    >
-                                                        Withdraw
-                                                    </button>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            );
-                        })()}
+                                                    {req.status === 'pending' && (
+                                                        <button
+                                                            onClick={() => withdrawWFH(profile._id, req.id)}
+                                                            className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
+                                                        >
+                                                            Withdraw
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </>
                 )}

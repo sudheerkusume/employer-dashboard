@@ -439,12 +439,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const isSunday = isSundayHoliday(day);
             const isTuesday = getDay(day) === 6;
             const isHolidayDay = isHoliday(day);
-            const isTuesdayOff = profile?.department === "tech" && isTuesday;
-
             if (isPastDate && !map[dayStr]) {
                 if (isSunday) {
-                    map[dayStr] = { status: 'sunday', workingHours: 0 };
-                } else if (isTuesdayOff) {
                     map[dayStr] = { status: 'sunday', workingHours: 0 };
                 } else if (isHolidayDay) {
                     map[dayStr] = { status: 'holiday', workingHours: 0 };
@@ -489,7 +485,6 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
     // Today's status checks
     const isTodaySunday = isSundayHoliday(today);
-    const isTodayTuesdayOff = isOffDay(today) && profile?.department === "tech"; // Only tech gets Tuesday off
     const isTodayHoliday = isHoliday(today, globalHolidays);
 
     // Determine if today has leave applied
@@ -500,8 +495,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         todayAttendance.status === 'leaveApproved'
     );
 
-    // Update disabled states - disable check-in/out on Sunday, Tuesday (only for tech), and holidays
-    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayTuesdayOff || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
+    // Update disabled states - disable check-in/out on Sunday and holidays
+    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
 
     const hasWorkedEnough = useMemo(() => {
         if (!todayAttendance?.checkIn) return false;
@@ -517,7 +512,6 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     const isCheckOutDisabled =
         !isCheckedIn ||
         isTodaySunday ||
-        isTodayTuesdayOff ||
         isTodayHoliday ||
         isLeaveAppliedToday ||
         !hasWorkedEnough;
@@ -539,7 +533,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
         return daysInRange.some(date => {
             const day = getDay(date);
-            return day === 1 || day === 6; // Monday (1) or Saturday (6)
+            return day === 0; // Sunday (0)
         });
     };
 
@@ -595,12 +589,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
 
             // Common restrictions for all departments
-            if (day === 1 || day === 6) { // Monday (1) or Saturday (6)
-                return true;
-            }
-
-            // Additional restriction for tech department - no leave on Tuesday
-            if (profile?.department === "tech" && day === 6) { // Tuesday (2)
+            if (day === 0) { // Sunday (0)
                 return true;
             }
 
@@ -612,19 +601,11 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             let errorMessage = '';
             let restrictedDays = [];
 
-            if (profile?.department === "tech") {
-                restrictedDays = invalidDays.map(d => {
-                    const dayName = format(d, "EEE");
-                    return `${format(d, "MMM dd")} (${dayName})`;
-                }).join(", ");
-                errorMessage = `Leave cannot be applied on Monday, Tuesday or Saturday. Please remove: ${restrictedDays}`;
-            } else {
-                restrictedDays = invalidDays.map(d => {
-                    const dayName = format(d, "EEE");
-                    return `${format(d, "MMM dd")} (${dayName})`;
-                }).join(", ");
-                errorMessage = `Leave cannot be applied on Monday or Saturday. Please remove: ${restrictedDays}`;
-            }
+            restrictedDays = invalidDays.map(d => {
+                const dayName = format(d, "EEE");
+                return `${format(d, "MMM dd")} (${dayName})`;
+            }).join(", ");
+            errorMessage = `Leave cannot be applied on Sunday. Please remove: ${restrictedDays}`;
 
             setRootContext(prev => ({
                 ...prev,
@@ -728,12 +709,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const day = getDay(date);
 
             // Common restrictions for all departments
-            if (day === 1 || day === 6) {
-                return true;
-            }
-
-            // Additional restriction for tech department
-            if (profile?.department === "tech" && day === 6) {
+            if (day === 0) {
                 return true;
             }
 
@@ -756,9 +732,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             const { hasInvalidDays, invalidDays } = checkInvalidDays(date, leaveRange.end);
             if (hasInvalidDays) {
                 const restrictedDays = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
-                const message = profile?.department === "tech"
-                    ? `Leave cannot be applied on Monday, Tuesday or Saturday. Invalid days: ${restrictedDays}`
-                    : `Leave cannot be applied on Monday or Saturday. Invalid days: ${restrictedDays}`;
+                const message = `Leave cannot be applied on Sunday. Invalid days: ${restrictedDays}`;
 
                 setRootContext(prev => ({
                     ...prev,
@@ -915,19 +889,12 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
-                    const isTuesday = getDay(day) === 6;
-                    const isTechOffDay = profile?.department === "tech" && isTuesday;
                     const isSunday = isSundayHoliday(day);
                     const isHolidayDay = isHoliday(day);
 
                     let status = att?.status || null;
 
                     if (status === "presentLate") status = "present";
-
-                    // Tuesday off only after joining and in current month
-                    if (!isBeforeJoining && isCurrentMonth && isTechOffDay) {
-                        status = "sunday";
-                    }
 
                     // No marking before joining
                     if (isBeforeJoining) {
@@ -947,8 +914,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isLeaveApplied = att?.status === "leaveApplied";
                     const isLeaveApproved = att?.status === "leaveApproved";
 
-                    // Determine if it's a working day (not Sunday, holiday, or tech Tuesday off)
-                    const isWorkingDay = !isSunday && !isHolidayDay && !isTechOffDay;
+                    // Determine if it's a working day (not Sunday, holiday)
+                    const isWorkingDay = !isSunday && !isHolidayDay;
 
                     // Determine text color
                     let dayTextColor = "text-gray-900"; // Default
@@ -960,7 +927,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     } else if (isLeaveApproved) {
                         dayTextColor = "text-white";
                     } else if (isTodayDate && isWorkingDay) {
-                        // Today is green only if it's a working day (not Sunday, holiday, or tech Tuesday off)
+                        // Today is green only if it's a working day (not Sunday, holiday)
                         dayTextColor = "text-[#48a84dff] font-bold";
                     } else if (status === 'sunday' || status === 'holiday') {
                         dayTextColor = "text-gray-900"; // Keep normal color for off days
@@ -968,9 +935,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     const dayBgColor = isLeaveApproved ? "bg-[#e8d15dff] rounded-full" : "";
 
-                    // Light gray background for ALL Tuesdays in current month for tech department
-                    // This includes past, present, and future Tuesdays
-                    const tuesdayBgColor = isCurrentMonth && !isBeforeJoining && isTechOffDay ? "bg-[#d5d7d9ff]" : "";
+                    const tuesdayBgColor = "";
 
                     return (
                         <div
@@ -1003,13 +968,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                             ? "Checked In"
                                             : status === "approved"
                                                 ? "Leave Approved"
-                                                : isTechOffDay
-                                                    ? "Off Day (Tuesday)"
-                                                    : "Today"
+                                                : "Today"
                                         : status === "sunday"
-                                            ? profile.department === "tech" && getDay(day) === 6
-                                                ? "Off Day (Tuesday)"
-                                                : "Sunday"
+                                            ? "Sunday"
                                             : status === "holiday"
                                                 ? "Holiday"
                                                 : att
