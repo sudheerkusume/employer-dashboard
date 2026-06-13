@@ -19,7 +19,9 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
         gender: "male",
         designation: "",
         department: "",
-        ctc: ""
+        ctc: "",
+        accountNo: "",
+        ifscCode: ""
     });
     const [loading, setLoading] = useState(false);
     const [showCustomDept, setShowCustomDept] = useState(false);
@@ -49,7 +51,9 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                 gender: editData.gender || "male",
                 designation: editData.designation || "",
                 department: editData.department || "",
-                ctc: editData.ctc || ""
+                ctc: editData.ctc || "",
+                accountNo: editData.accountNo || "",
+                ifscCode: editData.ifscCode || ""
             });
         }
     }, [editData]);
@@ -81,6 +85,8 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                 designation: form.designation,
                 department: form.department,
                 ctc: form.ctc,
+                accountNo: form.accountNo,
+                ifscCode: form.ifscCode,
             };
 
             let url = "/api/employees";
@@ -345,6 +351,28 @@ export default function AddEmployeeForm({ currentUserRole, editData, onSuccess }
                             value={form.dateOfJoining}
                             onChange={handleChange}
                             required
+                        />
+
+                        {/* Bank Account No. */}
+                        <InputBox
+                            name="accountNo"
+                            title="Bank Account No."
+                            type="text"
+                            value={form.accountNo}
+                            onChange={handleChange}
+                            placeholder="Enter bank account number"
+                            required={false}
+                        />
+
+                        {/* IFSC Code */}
+                        <InputBox
+                            name="ifscCode"
+                            title="IFSC Code"
+                            type="text"
+                            value={form.ifscCode}
+                            onChange={handleChange}
+                            placeholder="Enter IFSC code"
+                            required={false}
                         />
                     </div>
                 </div>

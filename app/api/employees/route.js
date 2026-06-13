@@ -42,6 +42,8 @@ const employeeSchema = Joi.object({
     department: Joi.string().required(),
     designation: Joi.string().required(),
     ctc: Joi.string().required(),
+    accountNo: Joi.string().allow('', null).optional(),
+    ifscCode: Joi.string().allow('', null).optional(),
 });
 
 const resetPasswordSchema = Joi.object({
@@ -195,7 +197,7 @@ export async function PUT(request) {
             const textFields = [
                 "name", "email", "mobile", "gender", "password", "summary", "reportingManager",
                 "panNumber", "aadhaarNumber", "designation", "department",
-                "employeeCode", "ctc", "regime", "isActive"
+                "employeeCode", "ctc", "regime", "isActive", "accountNo", "ifscCode"
             ];
             textFields.forEach(key => {
                 const value = formData.get(key);
@@ -332,7 +334,7 @@ export async function PUT(request) {
             "name", "email", "panNumber", "password", "role", "summary",
             "experience", "education", "attendance", "designation", "ctc",
             "dateOfJoining", "dateOfBirth", "gender", "mobile", "department", "leaves",
-            "reportingId", "reportingManager", "isActive"
+            "reportingId", "reportingManager", "isActive", "accountNo", "ifscCode"
         ];
 
         allowedFields.forEach(field => {
