@@ -2,9 +2,12 @@
 import React, { useEffect, useState } from "react";
 import PayslipCard from "../payslipcard";
 import { generatePayslip } from "../config/payslipgenerate";
+import { useSWRFetch } from "../config/useswrfetch";
 
 export default function Payslips({ profile }) {
     const [payslips, setPayslips] = useState([]);
+
+    const { data: holidaysData } = useSWRFetch("/api/holidays");
 
     useEffect(() => {
         if (!profile) return;
@@ -43,7 +46,7 @@ export default function Payslips({ profile }) {
 
         // Generate payslips until we reach the latest available month
         while (year < latestAvailableYear || (year === latestAvailableYear && month <= latestAvailableMonth)) {
-            const payslip = generatePayslip(profile, month, year);
+            const payslip = generatePayslip(profile, month, year, holidaysData);
             if (payslip) {
                 // Check if this payslip already exists to avoid duplicates
                 const exists = generatedPayslips.some(
@@ -70,7 +73,7 @@ export default function Payslips({ profile }) {
         });
 
         setPayslips(generatedPayslips);
-    }, [profile]);
+    }, [profile, holidaysData]);
 
     return (
         <div className="max-w-3xl text-gray-800 mx-auto mt-8">

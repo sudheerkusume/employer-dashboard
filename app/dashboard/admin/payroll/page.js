@@ -22,11 +22,15 @@ export default function AdminPayrollPage() {
         isLoading: employeesLoading,
     } = useSWRFetch("/api/employees");
 
+    const {
+        data: holidaysData,
+    } = useSWRFetch("/api/holidays");
+
     const calculateAttendance = (emp, monthDate) => {
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
         const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
-        const holidays = ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+        const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
         
         const totalWorkingDays = monthDates.filter(
           (d) => !isSunday(d) && !holidays.includes(format(d, "yyyy-MM-dd"))
@@ -143,7 +147,7 @@ export default function AdminPayrollPage() {
                 totalEmployees: employees.length
             }
         };
-    }, [employeesData, selectedMonth]);
+    }, [employeesData, selectedMonth, holidaysData]);
 
     if (employeesError) return <Error />;
     if (employeesLoading) return <Loading />;
