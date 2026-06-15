@@ -37,6 +37,14 @@ const isBefore9AM = () => {
     return currentHour < 9;
 };
 
+// Helper: Check if current time is after 10:30 AM
+const isAfter1030AM = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    return currentHour > 10 || (currentHour === 10 && currentMinute > 30);
+};
+
 // Helper: Check if it's Tuesday (off day)
 const isOffDay = (date) => {
     const day = getDay(date); // Sunday=0, Monday=1, ..., Saturday=6
@@ -496,7 +504,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
     );
 
     // Update disabled states - disable check-in/out on Sunday and holidays
-    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isLeaveAppliedToday;
+    const isCheckInDisabled = isCheckedIn || isTodaySunday || isTodayHoliday || isBefore9AM() || isAfter1030AM() || isLeaveAppliedToday;
 
     const hasWorkedEnough = useMemo(() => {
         if (!todayAttendance?.checkIn) return false;
@@ -787,6 +795,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                 <button
                     onClick={onCheckIn}
                     disabled={isCheckInDisabled}
+                    title={isCheckInDisabled ? (isBefore9AM() ? "Login starts at 9:00 AM" : isAfter1030AM() ? "Login closed after 10:30 AM" : "") : ""}
                     className={`flex-1 px-3 py-2 text-sm rounded-lg transition ${isCheckInDisabled
                         ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                         : "bg-blue-600 text-white hover:bg-blue-700"

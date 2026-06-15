@@ -1,7 +1,7 @@
 // Helper function to format date
 import { format } from 'date-fns';
 
-export function generatePayslip(employee, targetMonth, targetYear) {
+export function generatePayslip(employee, targetMonth, targetYear, holidaysData = null) {
     const currentDate = new Date();
     const currentDay = currentDate.getDate();
     const currentMonth = currentDate.getMonth();
@@ -51,17 +51,19 @@ export function generatePayslip(employee, targetMonth, targetYear) {
         startDay = dojDay;
     }
 
-    // ✅ Define holidays for the year
-    const holidays = [
-        `${year}-01-01`, // New Year
-        `${year}-01-26`, // Republic Day
-        `${year}-03-25`, // Holi
-        `${year}-08-15`, // Independence Day
-        `${year}-10-02`, // Gandhi Jayanti
-        `${year}-10-18`, // Dussehra
-        `${year}-10-20`, // Diwali
-        `${year}-12-25`  // Christmas
-    ];
+    // ✅ Define holidays
+    const holidays = holidaysData 
+        ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd"))
+        : [
+            `${year}-01-01`, // New Year
+            `${year}-01-26`, // Republic Day
+            `${year}-03-25`, // Holi
+            `${year}-08-15`, // Independence Day
+            `${year}-10-02`, // Gandhi Jayanti
+            `${year}-10-18`, // Dussehra
+            `${year}-10-20`, // Diwali
+            `${year}-12-25`  // Christmas
+        ];
 
     // ✅ Function to calculate working hours from check-in and check-out
     const calculateWorkingHours = (checkIn, checkOut) => {
