@@ -102,20 +102,37 @@ export default function AboutMe({ profile }) {
 
     // Effect to update states when profile prop changes
     useEffect(() => {
-        setSummary(profile.summary || 'Write a brief summary about yourself, your skills, and your professional goals.');
+        setSummary(profile?.summary || 'Write a brief summary about yourself, your skills, and your professional goals.');
 
-        const sortedExperiences = sortExperiences(profile.experience || []);
-        const sortedEducation = sortEducation(profile.education || []);
+        const sortedExperiences = sortExperiences(profile?.experience || []);
+        const sortedEducation = sortEducation(profile?.education || []);
 
         setExperience(sortedExperiences);
         setEducation(sortedEducation);
+        
+        // Ensure tempPersonal is populated once the profile loads
+        setTempPersonal({
+            name: profile?.name || '',
+            email: profile?.email || '',
+            mobile: profile?.mobile || '',
+            gender: profile?.gender || '',
+            dateOfBirth: profile?.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '',
+            panNumber: profile?.panNumber || '',
+            aadhaarNumber: profile?.aadhaarNumber || '',
+            designation: profile?.designation || '',
+            department: profile?.department || '',
+            employeeCode: profile?.employeeCode || '',
+            ctc: profile?.ctc || '',
+            regime: profile?.regime || ''
+        });
+
         setTempAccount({
             accountHolderName: profile?.accountDetails?.accountHolderName || '',
             accountNumber: profile?.accountDetails?.accountNumber || '',
             ifscCode: profile?.accountDetails?.ifscCode || '',
             branch: profile?.accountDetails?.branch || ''
         });
-    }, [profile?.accountDetails]);
+    }, [profile]);
 
     // Effect to manage the global adding/editing state
     useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useSWRFetch } from "@/app/components/config/useswrfetch";
-import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval, parse, differenceInMinutes, isAfter, isSunday } from "date-fns";
+import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval, parse, differenceInMinutes, isAfter, isBefore, isSunday } from "date-fns";
 import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import { motion } from "framer-motion";
@@ -73,27 +73,57 @@ export default function AdminPayrollPage() {
                  const checkIn = parse(record.checkIn, "HH:mm", new Date());
                  if (isAfter(checkIn, lateThreshold)) lateDays++;
               }
-            } else if (record.checkIn && record.checkOut) {
-              const checkIn = parse(record.checkIn, "HH:mm", new Date());
-              const checkOut = parse(record.checkOut, "HH:mm", new Date());
-              let workedHours = differenceInMinutes(checkOut, checkIn) / 60;
-              if (workedHours < 0) workedHours += 24;
-              
-              if (workedHours >= 8.75) totalPresent += 1;
-              else if (workedHours >= 4.25) {
+            } else if (record.checkIn || record.status === "present") {
+              let morningPresent = false;
+              let afternoonPresent = false;
+
+              if (record.checkIn) {
+                 const checkInTime = parse(record.checkIn, "HH:mm", new Date());
+                 const noonThreshold = parse("13:30", "HH:mm", new Date()); // 1:30 PM
+                 const lateThreshold = parse("10:00", "HH:mm", new Date());
+
+                 if (isBefore(checkInTime, noonThreshold)) {
+                    morningPresent = true;
+                 } else {
+                    afternoonPresent = true;
+                 }
+                 
+                 if (isAfter(checkInTime, lateThreshold)) lateDays++;
+              } else if (record.status === "present") {
+                 morningPresent = true; // Fallback
+              }
+
+              if (record.checkOut) {
+                 const checkOutTime = parse(record.checkOut, "HH:mm", new Date());
+                 const eveningThreshold = parse("18:00", "HH:mm", new Date()); // 6:00 PM
+                 
+                 if (morningPresent) {
+                    if (isAfter(checkOutTime, eveningThreshold)) {
+                       afternoonPresent = true; // Stayed till evening -> Full Day
+                    }
+                 } else if (afternoonPresent) {
+                    if (isAfter(checkOutTime, eveningThreshold)) {
+                       afternoonPresent = true; // Validated afternoon checkout
+                    } else {
+                       afternoonPresent = true; // Basic assumption if checked out before 6 but logged in afternoon
+                    }
+                 }
+              } else {
+                 // Forgot to checkout
+                 if (morningPresent) {
+                    afternoonPresent = false; // Morning half day
+                 }
+                 if (afternoonPresent && !morningPresent) {
+                    afternoonPresent = false; // Absent
+                 }
+              }
+
+              // Calculate final present value
+              if (morningPresent && afternoonPresent) {
+                 totalPresent += 1;
+              } else if (morningPresent || afternoonPresent) {
                  totalPresent += 0.5;
                  halfDays += 1;
-              }
-              
-              const lateThreshold = parse("10:00", "HH:mm", new Date());
-              if (isAfter(checkIn, lateThreshold)) lateDays++;
-
-            } else if (record.status === "present") {
-              totalPresent += 1;
-              if (record.checkIn) {
-                 const lateThreshold = parse("10:00", "HH:mm", new Date());
-                 const checkIn = parse(record.checkIn, "HH:mm", new Date());
-                 if (isAfter(checkIn, lateThreshold)) lateDays++;
               }
             }
           }

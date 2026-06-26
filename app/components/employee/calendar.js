@@ -345,14 +345,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
     const [showWFHModal, setShowWFHModal] = useState(false);
     const [wfhSubmitting, setWfhSubmitting] = useState(false);
 
-    // Check if current time is past 10:30 Am for AR restrictions
-    const isPastARDeadline = useMemo(() => {
-        const now = new Date();
-        const hour = now.getHours();
-        const minutes = now.getMinutes();
 
-        return hour > 10 || (hour === 10 && minutes >= 30);
-    }, []);
     // Fetch global holidays
     const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
     const globalHolidays = globalHolidaysData || [];
@@ -1098,22 +1091,12 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                             >
                                 Apply WFH
                             </button>
-                            {!isPastARDeadline ? (
-                                <button
-                                    onClick={() => setShowARModal(true)}
-                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
-                                >
-                                    Apply AR
-                                </button>
-                            ) : (
-                                <button
-                                    disabled
-                                    title="AR application window closes at 10:30 AM"
-                                    className="px-3 py-1 text-sm bg-gray-400 text-white rounded cursor-not-allowed shadow-sm"
-                                >
-                                    Apply AR (Closed)
-                                </button>
-                            )}
+                            <button
+                                onClick={() => setShowARModal(true)}
+                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
+                            >
+                                Apply AR
+                            </button>
                         </div>
                     )}
                 </div>

@@ -12,7 +12,7 @@ import { Outfit } from "next/font/google";
 const outfit = Outfit({ subsets: ["latin"] });
 import Loading from "@/app/components/common/loading";
 import { useSWRFetch } from "@/app/components/config/useswrfetch";
-import { format } from "date-fns";
+import { format, parse, isAfter } from "date-fns";
 import RootContext from "@/app/components/config/rootcontext";
 
 export default function DashboardHome() {
@@ -51,7 +51,12 @@ export default function DashboardHome() {
   useEffect(() => {
     if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
       const allPendingLeaves = employeesData.flatMap(emp =>
-        (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({ ...lr, employeeName: emp.name }))
+        (emp.leaves || []).filter(lr => lr.status === "pending").map(lr => ({ ...lr, employeeName: emp.name }))
+      );
+
+      allPendingLeaves.sort((a, b) => new
+        Date(b.createdAt || b.startDate) - new
+          Date(a.createdAt || a.startDate)
       );
       setPendingLeaves(allPendingLeaves);
 
@@ -69,10 +74,12 @@ export default function DashboardHome() {
   let presentToday = 0;
   let onLeaveToday = 0;
   let lateCheckins = 0;
+  let withoutIntimation = 0;
   let recentCheckins = [];
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const monthName = format(new Date(), "MMMM");
+  const isSundayToday = new Date().getDay() === 0;
 
   if (employeesData) {
     employeesData.forEach(emp => {
@@ -83,28 +90,63 @@ export default function DashboardHome() {
         new Date(leave.endDate) >= new Date()
       );
 
+      const monthData = emp.attendance?.[monthName] || [];
+      const todayRecord = monthData.find(d => d.date === todayStr);
+      const isPresent = todayRecord && (todayRecord.checkIn || todayRecord.status === "present");
+
       if (isOnLeave) {
         onLeaveToday++;
-      } else {
-        // Check Attendance
-        const monthData = emp.attendance?.[monthName] || [];
-        const todayRecord = monthData.find(d => d.date === todayStr);
-        if (todayRecord && (todayRecord.checkIn || todayRecord.status === "present")) {
-          presentToday++;
-          if (todayRecord.checkIn && todayRecord.checkIn > "09:30") {
+      }
+      else if (isPresent) {
+        presentToday++;
+        if (todayRecord.checkIn) {
+          const checkInTime = parse(todayRecord.checkIn, "HH:mm", new Date());
+          const lateThreshold = parse("10:30", "HH:mm", new Date());
+          if (isAfter(checkInTime, lateThreshold)) {
             lateCheckins++;
           }
-          if (todayRecord.checkIn) {
-            recentCheckins.push({
-              user: emp.name,
-              action: `checked in at ${todayRecord.checkIn}`,
-              time: "Today",
-              type: "checkin"
-            });
-          }
+          recentCheckins.push({
+            user: emp.name,
+            action: `checked in at ${todayRecord.checkIn}`,
+            time: "Today",
+            type: "checkin"
+          });
         }
       }
-    });
+      else {
+        if (!isSundayToday) {
+          withoutIntimation++;
+        }
+      }
+      // else {
+      //   // Check Attendance
+      //   const monthData = emp.attendance?.[monthName] || [];
+      //   const todayRecord = monthData.find(d => d.date === todayStr);
+      //   if (todayRecord && (todayRecord.checkIn || todayRecord.status === "present")) {
+      //     presentToday++;
+
+      //     // --- Late Check in ---- //  
+
+      //     if (todayRecord.checkIn) {
+      //       const checkInTime = parse(todayRecord.checkIn, "HH:mm", new Date());
+      //       const lateThreshold = parse("10:00", "HH:mm", new Date());
+      //       if (isAfter(checkInTime, lateThreshold)) {
+      //         lateCheckins++;
+      //       }
+      //     }
+
+      //     if (todayRecord.checkIn) {
+      //       recentCheckins.push({
+      //         user: emp.name,
+      //         action: `checked in at ${todayRecord.checkIn}`,
+      //         time: "Today",
+      //         type: "checkin"
+      //       });
+      //     }
+      //   }
+      // }
+    }
+    );
   }
 
   const pendingRequests = pendingLeaves.length + pendingARs.length;
@@ -171,12 +213,18 @@ export default function DashboardHome() {
   const leavePercent = totalEmployees ? Math.round((onLeaveToday / totalEmployees) * 100) : 0;
   const absentPercent = totalEmployees ? Math.max(0, 100 - presentPercent - leavePercent) : 0;
 
+  // const statCards = [
+  //   { title: "Total Employees", value: totalEmployees.toString(), icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
+  //   { title: "Present Today", value: presentToday.toString(), icon: UserCheck, color: "bg-green-500", light: "bg-green-50", text: "text-green-600" },
+  //   { title: "On Leave", value: onLeaveToday.toString(), icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
+  //   { title: "Late Check-ins", value: lateCheckins.toString(), icon: Clock, color: "bg-yellow-500", light: "bg-yellow-50", text: "text-yellow-600" },
+  //   { title: "Pending Requests", value: pendingRequests.toString(), icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" },
+  // ];
   const statCards = [
-    { title: "Total Employees", value: totalEmployees.toString(), icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
-    { title: "Present Today", value: presentToday.toString(), icon: UserCheck, color: "bg-green-500", light: "bg-green-50", text: "text-green-600" },
-    { title: "On Leave", value: onLeaveToday.toString(), icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
-    { title: "Late Check-ins", value: lateCheckins.toString(), icon: Clock, color: "bg-yellow-500", light: "bg-yellow-50", text: "text-yellow-600" },
-    { title: "Pending Requests", value: pendingRequests.toString(), icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" },
+    { title: "Total Employees", value: totalEmployees.toString(), link: "/dashboard/admin/employees", icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
+    { title: "Present Today", value: presentToday.toString(), subStatLabel: "Late Check-ins", subStatValue: lateCheckins.toString(), link: "/dashboard/admin/attendance", icon: UserCheck, color: "bg-emerald-500", light: "bg-emerald-50", text: "text-emerald-600" },
+    { title: "Leave Approved", value: onLeaveToday.toString(), subStatLabel: "Without Intimation", subStatValue: withoutIntimation.toString(), link: "/dashboard/admin/leaves", icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
+    { title: "Pending Requests", value: pendingRequests.toString(), link: "/dashboard/admin/leaves", icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" }
   ];
 
   const attendanceStats = [
@@ -259,25 +307,43 @@ export default function DashboardHome() {
       </div>
 
       {/* Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {statCards.map((stat, index) => (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            key={stat.title}
-            className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 rounded-xl ${stat.light} ${stat.text}`}>
-                <stat.icon size={24} />
+          <Link href={stat.link} key={stat.title} className="block h-full">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-gray-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full cursor-pointer"
+            >
+              {/* Sleek Top-Right Corner Shape */}
+              <div className={`absolute top-0 right-0 w-24 h-24 ${stat.light} rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`} />
+
+              <div className="flex justify-between items-start relative z-10">
+                <div>
+                  <p className="text-gray-500 text-sm font-semibold mb-1">{stat.title}</p>
+                  <h3 className={`${outfit.className} text-3xl font-bold text-gray-900`}>{stat.value}</h3>
+                </div>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md ${stat.color}`}>
+                  <stat.icon size={24} />
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
-              <p className="text-sm font-medium text-gray-500 mt-1">{stat.title}</p>
-            </div>
-          </motion.div>
+
+              {/* Sub-stat section (Late Check-ins, etc) */}
+              {
+                stat.subStatLabel && (
+                  <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between relative z-10">
+                    <span className="text-xs font-medium text-gray-500">
+                      {stat.subStatLabel}
+                    </span>
+                    <span className={`text-sm font-bold ${stat.text}`}>
+                      {stat.subStatValue}
+                    </span>
+                  </div>
+                )
+              }
+            </motion.div>
+          </Link>
         ))}
       </div>
 
