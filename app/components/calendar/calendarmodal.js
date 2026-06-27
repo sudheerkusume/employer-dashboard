@@ -140,8 +140,8 @@ export default function CalendarModal({ profile, mutated, showCalendar, setShowC
                                                 <button
                                                     key={cat}
                                                     className={`flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap ${selectedCategory === cat
-                                                            ? "bg-yellow-100 text-yellow-700 font-semibold"
-                                                            : "bg-white border hover:bg-gray-100"
+                                                        ? "bg-yellow-100 text-yellow-700 font-semibold"
+                                                        : "bg-white border hover:bg-gray-100"
                                                         }`}
                                                     onClick={() => setSelectedCategory(cat)}
                                                 >
@@ -160,8 +160,8 @@ export default function CalendarModal({ profile, mutated, showCalendar, setShowC
                                                 <li key={cat}>
                                                     <button
                                                         className={`flex items-center w-full text-left p-2 rounded-lg text-sm transition ${selectedCategory === cat
-                                                                ? 'bg-yellow-100 text-yellow-700 font-medium'
-                                                                : 'hover:bg-gray-100 text-gray-700'
+                                                            ? 'bg-yellow-100 text-yellow-700 font-medium'
+                                                            : 'hover:bg-gray-100 text-gray-700'
                                                             }`}
                                                         onClick={() => setSelectedCategory(cat)}
                                                     >

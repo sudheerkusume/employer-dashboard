@@ -41,7 +41,6 @@ export default function MonthView({
   };
 
   const attendance = profile.attendance || {};
-  const department = profile.department?.toLowerCase() || '';
   const joiningDate = new Date(profile.dateOfJoining);
 
   // Helper function to check if date is Sunday
@@ -63,7 +62,6 @@ export default function MonthView({
     // Extract numeric working hours from string like "9.03 hrs" or "8.50"
     const getNumericWorkingHours = (hoursStr) => {
       if (!hoursStr) return 0;
-      // Remove "hrs" and any non-numeric characters except decimal point
       const numericStr = hoursStr.toString().replace('hrs', '').trim();
       return parseFloat(numericStr) || 0;
     };
@@ -73,32 +71,28 @@ export default function MonthView({
     // Handle approved leaves first - check both leaveStatus and status fields
     if (leaveStatus === 'approved' || leaveStatus === 'firstHalfApproved' || leaveStatus === 'secondHalfApproved') {
       if (leaveType === 'full' || leaveType === 'casual') {
-        return 'leaveApproved'; // Full day leave
+        return 'leaveApproved';
       }
 
       if (leaveType === 'first half' || leaveStatus === 'firstHalfApproved') {
-        // For future dates with first half approved, just show the leave without absent/present
         if (isFutureDate) {
-          return 'firstHalfApproved'; // Just show first half leave for future dates
+          return 'firstHalfApproved';
         }
-        // First half approved - check if second half is present based on working hours
         if (workingHours >= 4) {
-          return 'firstHalfApproved_present'; // First half leave (yellow), second half present (green)
+          return 'firstHalfApproved_present';
         } else {
-          return 'firstHalfApproved_absent'; // First half leave (yellow), second half absent (red)
+          return 'firstHalfApproved_absent';
         }
       }
 
       if (leaveType === 'second half' || leaveStatus === 'secondHalfApproved') {
-        // For future dates with second half approved, just show the leave without absent/present
         if (isFutureDate) {
-          return 'secondHalfApproved'; // Just show second half leave for future dates
+          return 'secondHalfApproved';
         }
-        // Second half approved - check if first half is present based on working hours
         if (workingHours >= 4) {
-          return 'secondHalfApproved_present'; // Second half leave (yellow), first half present (green)
+          return 'secondHalfApproved_present';
         } else {
-          return 'secondHalfApproved_absent'; // Second half leave (yellow), first half absent (red)
+          return 'secondHalfApproved_absent';
         }
       }
     }
@@ -108,41 +102,33 @@ export default function MonthView({
       return 'present';
     }
 
-    // If no status but working hours are 8.45+ and check-in/check-out exist, mark as present
     if ((!leaveStatus || leaveStatus === 'Checked In') && checkIn && checkOut && workingHours >= 8.45) {
       return 'present';
     }
 
-    // Condition: no check-in and check-out times
     if (!checkIn && !checkOut) {
-      // For future dates without data, return null to show transparent
       if (isFutureDate) {
         return null;
       }
       return 'absent';
     }
 
-    // Condition: present with 8+ working hours
     if (workingHours >= 8.45) {
       return 'present';
     }
 
-    // Handle half days based on working hours
     if (workingHours >= 4) {
-      // Determine which half based on check-in time
       if (checkIn) {
         const checkInTime = checkIn.split(':').map(Number);
         const checkInHour = checkInTime[0] + (checkInTime[1] / 60);
-
-        if (checkInHour <= 12.0) { // Check-in before 12:00 = first half
+        if (checkInHour <= 12.0) {
           return 'firstHalfp';
-        } else { // Check-in after 12:00 = second half
+        } else {
           return 'secondhalfp';
         }
       }
     }
 
-    // Default case - for future dates return null, for past dates return absent
     return isFutureDate ? null : 'absent';
   };
 
@@ -160,7 +146,7 @@ export default function MonthView({
       const diffMs = checkOutTime - checkInTime;
       const diffHours = diffMs / (1000 * 60 * 60);
 
-      return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+      return Math.round(diffHours * 100) / 100;
     } catch (error) {
       return null;
     }
@@ -175,7 +161,6 @@ export default function MonthView({
         monthData.forEach((att) => {
           const attDate = new Date(att.date);
           if (attDate <= today && attDate >= joiningDate) {
-            // Calculate working hours if not provided
             if (!att.workingHours && att.checkIn && att.checkOut) {
               att.workingHours = calculateWorkingHours(att.checkIn, att.checkOut);
             }
@@ -222,21 +207,9 @@ export default function MonthView({
       // Check for holidays and Sundays for the selected month
       const isHoliday = evts.some(e => e.type === "holiday");
       const isSunday = weekday === 0;
-      const isTechOffDay = department === "tech" && weekday === 6; // Tuesday is off for tech (2 = Tuesday)
 
-      // FOR TECH DEPARTMENT: Always show "Off" on Tuesdays regardless of attendance data
-      if (department === "tech" && isTechOffDay && isCurrentMonth && !beforeJoining) {
-        att = {
-          date: formattedDate,
-          status: 'sunday', // Use sunday status for consistent coloring
-          checkIn: '',
-          checkOut: '',
-          workingHours: '',
-          isOffDay: true // Flag to indicate it's an off day
-        };
-      }
-      // For future dates in current month, only show leaves and off days
-      else if (isFutureDate && isCurrentMonth) {
+      // ---- For future dates in current month ----
+      if (isFutureDate && isCurrentMonth) {
         let futureStatus = null;
 
         // Check if there's a leave application for this future date
@@ -246,10 +219,6 @@ export default function MonthView({
         // Check for Sunday
         else if (isSunday) {
           futureStatus = 'sunday';
-        }
-        // Check for tech off day (Tuesday)
-        else if (isTechOffDay) {
-          futureStatus = 'sunday'; // Use same color as Sunday for tech off days
         }
         // Check for holiday
         else if (isHoliday) {
@@ -263,11 +232,13 @@ export default function MonthView({
             checkIn: '',
             checkOut: '',
             workingHours: '',
-            ...att // Keep existing att data if any
+            ...att
           };
         }
-      } else if (isCurrentMonth && !beforeJoining && !isFutureDate) {
-        // For current month past dates, determine status normally
+      }
+      // ---- For current month past dates ----
+      else if (isCurrentMonth && !beforeJoining && !isFutureDate) {
+        // Determine status normally
         const determinedStatus = determineStatus(
           att?.checkIn,
           att?.checkOut,
@@ -277,7 +248,6 @@ export default function MonthView({
           att?.workingHours
         );
 
-        // Override status with determined status
         if (att && determinedStatus) {
           att = { ...att, status: determinedStatus };
         } else if (!att && determinedStatus) {
@@ -291,16 +261,12 @@ export default function MonthView({
         }
       }
 
-      // ---- AUTO STATUS for current month past dates ----
+      // ---- AUTO STATUS for current month past dates without attendance ----
       if (isCurrentMonth && !beforeJoining && !isFutureDate && !att) {
         let autoStatus = '';
-        if (department === 'tech') {
-          if (weekday === 0 || weekday === 6) autoStatus = 'sunday'; // Sunday and Tuesday off for tech
-        } else {
-          if (weekday === 0) autoStatus = 'sunday'; // Only Sunday off for others
-        }
-
-        if (isHoliday) {
+        if (isSunday) {
+          autoStatus = 'sunday';
+        } else if (isHoliday) {
           autoStatus = 'holiday';
         }
 
@@ -319,14 +285,11 @@ export default function MonthView({
       let bgColor = "#ffffff";
 
       if (!isCurrentMonth) {
-        // Disable previous and future months
         bgColor = "#f9f9f9";
       } else if (beforeJoining) {
         bgColor = "#f0f0f0";
       } else if (isSunday) {
         bgColor = categoryColors.sunday || "#d5d7d9ff";
-      } else if (isTechOffDay) {
-        bgColor = categoryColors.sunday || "#d5d7d9ff"; // Same as Sunday for tech off days (Tuesday)
       } else if (isHoliday) {
         bgColor = categoryColors.holiday || "#CBC3E3";
       } else if (att?.status === "absent") {
@@ -339,7 +302,7 @@ export default function MonthView({
         att?.status === "secondHalf" ||
         att?.status === "firstHalfp" ||
         att?.status === "secondhalfp" ||
-        att?.status === "secondHalfApproved_present" // Second half leave + first half present
+        att?.status === "secondHalfApproved_present"
       ) {
         bgColor = categoryColors.present || "#A8DCAB";
       } else if (
@@ -355,25 +318,19 @@ export default function MonthView({
         bgColor = categoryColors["Checked In"] || "#2563eb";
       }
 
-      // Today highlight (only for current month working days)
+      // Today highlight (only for current month working days, not Sunday or holiday)
       if (
         isTodayDate &&
         isCurrentMonth &&
         !isSunday &&
-        !isTechOffDay &&
         !isHoliday
       ) {
         bgColor = categoryColors.today || "#48a84dff";
       }
 
-      // Format display text for attendance badge
-      const getAttendanceDisplayText = (attendance, isTechOff) => {
+      // ---- Format display text for attendance badge ----
+      const getAttendanceDisplayText = (attendance) => {
         if (!attendance) return '';
-
-        // FOR TECH DEPARTMENT: Always show "Off" on Tuesdays
-        if (isTechOff) {
-          return 'Off';
-        }
 
         const status = attendance.status;
         let displayText = status;
@@ -405,14 +362,11 @@ export default function MonthView({
           if (status === 'firstHalfApproved') displayText = 'First Half Leave';
           else if (status === 'secondHalfApproved') displayText = 'Second Half Leave';
           else if (status === 'leaveApproved') displayText = 'Full Day Leave';
-          else if (status === 'sunday' && isTechOffDay) displayText = 'Off';
           else if (status === 'sunday') displayText = 'Sunday';
           else if (status === 'holiday') displayText = 'Holiday';
         }
         // For off days
-        else if (status === 'sunday' && isTechOffDay) {
-          displayText = 'Off';
-        } else if (status === 'sunday') {
+        else if (status === 'sunday') {
           displayText = 'Sunday';
         }
 
@@ -458,7 +412,7 @@ export default function MonthView({
                   (att.status === 'presentLate' ? categoryColors.present : "#2563eb"),
               }}
             >
-              {getAttendanceDisplayText(att, department === "tech" && isTechOffDay)}
+              {getAttendanceDisplayText(att)}
             </div>
           )}
 
