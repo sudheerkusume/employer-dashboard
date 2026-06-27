@@ -232,6 +232,9 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
         'secondHalfApproved_present', 'secondHalfApproved_absent'
     ].includes(status);
 
+    // For split circles, we use a horizontal split (left/right) by default.
+    // The "isDiagonal" variable was removed; we use a simple left/right split.
+    // If you need diagonal, you can modify, but we'll keep horizontal for consistency.
     return (
         <div
             className="relative"
@@ -247,7 +250,7 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                 style={{
                     width: size,
                     height: size,
-                    backgroundColor: !needsSplit && colors.left !== 'transparent' ? colors.left : 'transparent',
+                    backgroundColor: !needsSplit && colors.top !== 'transparent' ? colors.top : 'transparent',
                     borderRadius: '50%'
                 }}
             />
@@ -267,35 +270,21 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                     </defs>
 
                     <g clipPath={`url(#circle-${size})`}>
-                        {isDiagonal ? (
-                            <>
-                                <path
-                                    d={`M 0,0 L ${size},${size} L 0,${size} Z`}
-                                    fill={colors.left !== 'transparent' ? colors.left : 'none'}
-                                />
-                                <path
-                                    d={`M 0,0 L ${size},${size} L ${size},0 Z`}
-                                    fill={colors.right !== 'transparent' ? colors.right : 'none'}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <rect
-                                    x="0"
-                                    y="0"
-                                    width={size / 2}
-                                    height={size}
-                                    fill={colors.left}
-                                />
-                                <rect
-                                    x={size / 2}
-                                    y="0"
-                                    width={size / 2}
-                                    height={size}
-                                    fill={colors.right}
-                                />
-                            </>
-                        )}
+                        {/* Horizontal split: left half and right half */}
+                        <rect
+                            x="0"
+                            y="0"
+                            width={size / 2}
+                            height={size}
+                            fill={colors.top}
+                        />
+                        <rect
+                            x={size / 2}
+                            y="0"
+                            width={size / 2}
+                            height={size}
+                            fill={colors.bottom}
+                        />
                     </g>
                 </svg>
             )}
@@ -425,7 +414,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
             if (!isAfterJoining || !isCurrentMonth) return;
 
             const isSunday = isSundayHoliday(day);
-            const isHolidayDay = isHoliday(day);
+            const isHolidayDay = isHoliday(day, globalHolidays);
 
             if (isPastDate && !map[dayStr]) {
                 if (isSunday) {
@@ -439,7 +428,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         });
 
         return map;
-    }, [profile, currentDate, allDays]);
+    }, [profile, currentDate, allDays, globalHolidays, today]);
 
 
     const handleOpenLeaveModal = () => {
@@ -879,7 +868,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
 
                     const isSunday = isSundayHoliday(day);
-                    const isHolidayDay = isHoliday(day);
+                    const isHolidayDay = isHoliday(day, globalHolidays);
 
                     let status = att?.status || null;
 
@@ -904,8 +893,6 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     // Determine if it's a working day (not Sunday, holiday)
                     const isWorkingDay = !isSunday && !isHolidayDay;
-                    // Determine if it's a working day (not Sunday, holiday)
-                    const isWorkingDay = !isSunday && !isHolidayDay;
 
                     let dayTextColor = "text-gray-900";
 
@@ -922,6 +909,30 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                     }
 
                     const dayBgColor = isLeaveApproved ? "bg-[#e8d15dff] rounded-full" : "";
+
+                    // Build title string correctly
+                    let titleText = "";
+                    if (isBeforeJoining || !isCurrentMonth) {
+                        titleText = "";
+                    } else if (isTodayDate) {
+                        if (att?.checkIn) {
+                            titleText = "Checked In";
+                        } else if (status === "approved") {
+                            titleText = "Leave Approved";
+                        } else {
+                            titleText = "Today";
+                        }
+                    } else if (status === "sunday") {
+                        titleText = "Sunday";
+                    } else if (status === "holiday") {
+                        titleText = "Holiday";
+                    } else if (att) {
+                        titleText = att.status || "No data";
+                    } else if (isFutureDate) {
+                        titleText = "Future Date";
+                    } else {
+                        titleText = "No data";
+                    }
 
                     return (
                         <div
@@ -947,27 +958,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                     ? "cursor-not-allowed hover:ring-0"
                                     : "cursor-pointer hover:ring-2 hover:ring-gray-300"
                                 }`}
-                            title={
-                                isBeforeJoining || !isCurrentMonth
-                                    ? ""
-                                    : isTodayDate
-                                        ? att?.checkIn
-                                            ? "Checked In"
-                                            : status === "approved"
-                                                ? "Leave Approved"
-                                                : "Today"
-                                                : "Today"
-                                        : status === "sunday"
-                                            ? "Sunday"
-                                            ? "Sunday"
-                                            : status === "holiday"
-                                                ? "Holiday"
-                                                : att
-                                                    ? att.status
-                                                    : isFutureDate
-                                                        ? "Future Date"
-                                                        : "No data"
-                            }
+                            title={titleText}
                         >
                             {!isTodayDate &&
                                 !isBeforeJoining &&
