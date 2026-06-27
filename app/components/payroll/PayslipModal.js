@@ -2,35 +2,45 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon, PrinterIcon } from "@heroicons/react/24/outline";
-import { format } from "date-fns";
+import { format, getDaysInMonth } from "date-fns";
 
 export default function PayslipModal({ employee, month, onClose }) {
     const monthName = format(month, "MMMM yyyy");
+    const totalDays = getDaysInMonth(month);
 
     const printPayslip = () => {
         window.print();
     };
 
+    // Calculate details safely
+    const basicFixed = employee.monthlyBaseSalary || 0;
+    const basicEarned = employee.monthlyBaseSalary || 0;
+
+    // Deductions
+    const leaveDeductions = employee.deductions || 0;
+    const totalDeductions = leaveDeductions;
+    const netPay = (basicEarned - totalDeductions) || 0;
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm print:bg-white print:p-0">
+            <div key="payslip-backdrop" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm print:bg-white print:p-0">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden print:shadow-none print:max-w-full"
+                    className="bg-white shadow-xl w-full max-w-4xl overflow-y-auto max-h-[90vh] print:shadow-none print:max-w-full print:h-auto print:max-h-none print:overflow-visible"
                 >
                     {/* Header Controls (Hidden when printing) */}
-                    <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 print:hidden">
+                    <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50 print:hidden sticky top-0 z-10">
                         <h2 className="text-lg font-bold text-gray-900">Salary Slip - {monthName}</h2>
                         <div className="flex gap-2">
-                            <button 
+                            <button
                                 onClick={printPayslip}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50"
                             >
                                 <PrinterIcon className="w-4 h-4" /> Print PDF
                             </button>
-                            <button 
+                            <button
                                 onClick={onClose}
                                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             >
@@ -40,101 +50,194 @@ export default function PayslipModal({ employee, month, onClose }) {
                     </div>
 
                     {/* Payslip Content (This part gets printed) */}
-                    <div className="p-8 print:p-4">
+                    <div id="payslip-content" className="p-8 print:p-4 text-gray-900 text-[13px] font-sans leading-snug">
                         {/* Company Header */}
-                        <div className="text-center mb-8 border-b-2 border-gray-900 pb-6">
-                            <h1 className="text-3xl font-black tracking-tight text-gray-900">Realbeez</h1>
-                            <p className="text-gray-500 font-medium text-sm mt-1">Payslip for the month of {monthName}</p>
+                        <div className="text-center mb-6">
+                            <h1 className="text-3xl font-black tracking-tight text-blue-900 uppercase">BMAX PROJECTS PRIVATE LIMITED</h1>
+                            <div className="mt-4 border-b border-black w-max mx-auto px-4 pb-1">
+                                <h2 className="text-base font-bold underline decoration-1 underline-offset-2 uppercase tracking-wide">
+                                    Payslip for the month of {monthName}
+                                </h2>
+                            </div>
                         </div>
 
-                        {/* Employee Details */}
-                        <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
-                            <div className="space-y-3">
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">Employee Name:</span> <span className="font-bold text-gray-900">{employee.name}</span></div>
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">Designation:</span> <span className="font-semibold text-gray-700 capitalize">{employee.role ? employee.role.replace('_', ' ') : 'N/A'}</span></div>
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">Employee ID:</span> <span className="font-semibold text-gray-700">{employee.employeeCode || "N/A"}</span></div>
+                        {/* Employee Details Grid */}
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-8 px-2 font-medium">
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Employee ID:</div>
+                                <div>{employee.employeeCode || "-"}</div>
                             </div>
-                            <div className="space-y-3">
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">Days Present:</span> <span className="font-semibold text-gray-700">{employee.daysPresent}</span></div>
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">Days Absent:</span> <span className="font-semibold text-gray-700">{employee.daysAbsent}</span></div>
-                                <div className="flex"><span className="w-32 font-bold text-gray-500">PAN Number:</span> <span className="font-semibold text-gray-700">{employee.panNumber || "N/A"}</span></div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Name:</div>
+                                <div>{employee.name || "-"}</div>
+                            </div>
+
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">DOJ:</div>
+                                <div>{employee.dateOfJoining ? format(new Date(employee.dateOfJoining), "yyyy-MM-dd HH:mm:ss") : "-"}</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">No. Days:</div>
+                                <div>{totalDays}</div>
+                            </div>
+
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Designation:</div>
+                                <div className="capitalize">{employee.designation || employee.role?.replace('_', ' ') || "-"}</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Department:</div>
+                                <div>{employee.department || "-"}</div>
+                            </div>
+
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Bank Account No.:</div>
+                                <div>{employee.accountNo || "-"}</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">IFSC Code:</div>
+                                <div>{employee.ifscCode || "-"}</div>
+                            </div>
+
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Client Name:</div>
+                                <div>BMAX PROJECTS PRIVATE LIMITED</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Place of Work:</div>
+                                <div>Hyderabad, TS</div>
                             </div>
                         </div>
 
                         {/* Salary Table */}
-                        <div className="border border-gray-200 rounded-xl overflow-hidden mb-8">
-                            <div className="grid grid-cols-2 bg-gray-50 border-b border-gray-200 font-bold text-gray-700 text-sm">
-                                <div className="p-4 border-r border-gray-200">Earnings</div>
-                                <div className="p-4">Deductions</div>
-                            </div>
-                            <div className="grid grid-cols-2 text-sm text-gray-600">
-                                {/* Earnings Side */}
-                                <div className="p-4 space-y-3 border-r border-gray-200">
-                                    <div className="flex justify-between">
-                                        <span className="font-medium">Basic Salary</span>
-                                        <span className="font-bold text-gray-900">₹{employee.monthlyBaseSalary ? employee.monthlyBaseSalary.toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</span>
-                                    </div>
-                                    {/* Add Allowances here if needed in future */}
-                                </div>
-                                
-                                {/* Deductions Side */}
-                                <div className="p-4 space-y-3">
-                                    <div className="flex justify-between">
-                                        <span className="font-medium">Leave Deductions</span>
-                                        <span className="font-bold text-red-600">₹{employee.deductions ? employee.deductions.toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="font-medium">Taxes (TDS)</span>
-                                        <span className="font-bold text-red-600">₹0.00</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* Totals */}
-                            <div className="grid grid-cols-2 bg-gray-50 border-t border-gray-200 text-sm">
-                                <div className="p-4 flex justify-between font-bold border-r border-gray-200">
-                                    <span className="text-gray-700">Total Earnings</span>
-                                    <span className="text-gray-900">₹{employee.monthlyBaseSalary ? employee.monthlyBaseSalary.toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</span>
-                                </div>
-                                <div className="p-4 flex justify-between font-bold">
-                                    <span className="text-gray-700">Total Deductions</span>
-                                    <span className="text-red-600">₹{employee.deductions ? employee.deductions.toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</span>
-                                </div>
-                            </div>
+                        <div className="border-2 border-gray-600 mb-6">
+                            <table className="w-full text-center border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-300 text-gray-900 border-b-2 border-gray-600">
+                                        <th className="py-2 px-2 border-r border-gray-600 font-bold w-1/3">Earnings</th>
+                                        <th className="py-2 px-2 border-r border-gray-600 font-bold">Fixed</th>
+                                        <th className="py-2 px-2 border-r border-gray-600 font-bold">Earnings Amount</th>
+                                        <th className="py-2 px-2 border-r border-gray-600 font-bold w-1/3">Deduction</th>
+                                        <th className="py-2 px-2 font-bold">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">BASIC</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">{Math.round(basicFixed)}</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">{Math.round(basicEarned)}</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Leave Deductions</td>
+                                        <td className="py-1.5 px-2">{Math.round(leaveDeductions)}</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">HRA</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">ID card Deduction</td>
+                                        <td className="py-1.5 px-2">0</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Bonus</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">PPEs Deduction</td>
+                                        <td className="py-1.5 px-2">0</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Public Holiday Wages</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Other Deductions</td>
+                                        <td className="py-1.5 px-2">0</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Earned leaves</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">PT</td>
+                                        <td className="py-1.5 px-2">0</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">PPEs.</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">TDS</td>
+                                        <td className="py-1.5 px-2">0</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Other Allowances</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">-</td>
+                                        <td className="py-1.5 px-2">-</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Reimbursement of Transport</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">-</td>
+                                        <td className="py-1.5 px-2">-</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-300">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">Attendance Bonus</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">-</td>
+                                        <td className="py-1.5 px-2">-</td>
+                                    </tr>
+                                    <tr className="border-b-2 border-gray-600">
+                                        <td className="py-1.5 px-2 border-r border-gray-600 text-left pl-4 font-medium">OT</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">0</td>
+                                        <td className="py-1.5 px-2 border-r border-gray-600">-</td>
+                                        <td className="py-1.5 px-2">-</td>
+                                    </tr>
+                                    {/* Totals Row */}
+                                    <tr className="font-bold border-b-2 border-gray-600 bg-gray-50">
+                                        <td className="py-2 px-2 border-r border-gray-600 text-left pl-4">Total Earnings(A)</td>
+                                        <td className="py-2 px-2 border-r border-gray-600">{Math.round(basicFixed)}</td>
+                                        <td className="py-2 px-2 border-r border-gray-600">{Math.round(basicEarned)}</td>
+                                        <td className="py-2 px-2 border-r border-gray-600 text-left pl-4">Total Deduction(B)</td>
+                                        <td className="py-2 px-2">{Math.round(totalDeductions)}</td>
+                                    </tr>
+                                    {/* Net Pay Row */}
+                                    <tr className="font-bold">
+                                        <td colSpan={2} className="py-2 px-2 border-r border-gray-600 text-left pl-4">Net pay(A-B)</td>
+                                        <td className="py-2 px-2 border-r border-gray-600 text-left pl-4">{Math.round(netPay)}/-</td>
+                                        <td colSpan={2} className="py-2 px-2"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
-                        {/* Net Pay */}
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-6 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-emerald-800 font-bold uppercase tracking-wider text-sm">Net Payable Salary</h3>
-                                <p className="text-emerald-600 text-xs mt-1 font-medium">Amount transferred to bank account</p>
-                            </div>
-                            <div className="text-3xl font-black text-emerald-600">
-                                ₹{employee.netSalary ? employee.netSalary.toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}
-                            </div>
-                        </div>
-                        
-                        <div className="mt-8 text-center text-xs text-gray-400 font-medium">
-                            This is a computer generated document. No signature is required.
+                        {/* Footer Notes */}
+                        <div className="text-center font-bold space-y-1 mt-8 text-xs">
+                            <p>**Thanks for Your Hard work**</p>
+                            <p>*This is system Generated Pay Slip and does not require signature*</p>
                         </div>
                     </div>
                 </motion.div>
             </div>
-            
+
             {/* Styles for printing */}
             <style jsx global>{`
                 @media print {
+                    @page {
+                        margin: 0.5in;
+                        size: A4;
+                    }
                     body * {
-                        visibility: hidden;
+                        visibility: hidden !important;
                     }
-                    .fixed {
+                    #payslip-content, #payslip-content * {
+                        visibility: visible !important;
+                    }
+                    #payslip-content {
                         position: absolute !important;
-                    }
-                    .print\\:bg-white * {
-                        visibility: visible;
-                    }
-                    .print\\:hidden {
-                        display: none !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        background: white !important;
                     }
                 }
             `}</style>

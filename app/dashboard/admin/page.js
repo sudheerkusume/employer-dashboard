@@ -12,7 +12,7 @@ import { Outfit } from "next/font/google";
 const outfit = Outfit({ subsets: ["latin"] });
 import Loading from "@/app/components/common/loading";
 import { useSWRFetch } from "@/app/components/config/useswrfetch";
-import { format } from "date-fns";
+import { format, parse, isAfter } from "date-fns";
 import RootContext from "@/app/components/config/rootcontext";
 
 export default function DashboardHome() {
@@ -50,13 +50,18 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
-      const allPendingLeaves = employeesData.flatMap(emp => 
-        (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({...lr, employeeName: emp.name}))
+      const allPendingLeaves = employeesData.flatMap(emp =>
+        (emp.leaves || []).filter(lr => lr.status === "pending").map(lr => ({ ...lr, employeeName: emp.name }))
+      );
+
+      allPendingLeaves.sort((a, b) => new
+        Date(b.createdAt || b.startDate) - new
+          Date(a.createdAt || a.startDate)
       );
       setPendingLeaves(allPendingLeaves);
 
-      const allPendingARs = employeesData.flatMap(emp => 
-        (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({...ar, employeeName: emp.name}))
+      const allPendingARs = employeesData.flatMap(emp =>
+        (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({ ...ar, employeeName: emp.name }))
       );
       setPendingARs(allPendingARs);
     }
@@ -69,10 +74,12 @@ export default function DashboardHome() {
   let presentToday = 0;
   let onLeaveToday = 0;
   let lateCheckins = 0;
+  let withoutIntimation = 0;
   let recentCheckins = [];
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const monthName = format(new Date(), "MMMM");
+  const isSundayToday = new Date().getDay() === 0;
 
   if (employeesData) {
     employeesData.forEach(emp => {
@@ -83,28 +90,63 @@ export default function DashboardHome() {
         new Date(leave.endDate) >= new Date()
       );
 
+      const monthData = emp.attendance?.[monthName] || [];
+      const todayRecord = monthData.find(d => d.date === todayStr);
+      const isPresent = todayRecord && (todayRecord.checkIn || todayRecord.status === "present");
+
       if (isOnLeave) {
         onLeaveToday++;
-      } else {
-        // Check Attendance
-        const monthData = emp.attendance?.[monthName] || [];
-        const todayRecord = monthData.find(d => d.date === todayStr);
-        if (todayRecord && (todayRecord.checkIn || todayRecord.status === "present")) {
-          presentToday++;
-          if (todayRecord.checkIn && todayRecord.checkIn > "09:30") {
+      }
+      else if (isPresent) {
+        presentToday++;
+        if (todayRecord.checkIn) {
+          const checkInTime = parse(todayRecord.checkIn, "HH:mm", new Date());
+          const lateThreshold = parse("10:30", "HH:mm", new Date());
+          if (isAfter(checkInTime, lateThreshold)) {
             lateCheckins++;
           }
-          if (todayRecord.checkIn) {
-            recentCheckins.push({
-              user: emp.name,
-              action: `checked in at ${todayRecord.checkIn}`,
-              time: "Today",
-              type: "checkin"
-            });
-          }
+          recentCheckins.push({
+            user: emp.name,
+            action: `checked in at ${todayRecord.checkIn}`,
+            time: "Today",
+            type: "checkin"
+          });
         }
       }
-    });
+      else {
+        if (!isSundayToday) {
+          withoutIntimation++;
+        }
+      }
+      // else {
+      //   // Check Attendance
+      //   const monthData = emp.attendance?.[monthName] || [];
+      //   const todayRecord = monthData.find(d => d.date === todayStr);
+      //   if (todayRecord && (todayRecord.checkIn || todayRecord.status === "present")) {
+      //     presentToday++;
+
+      //     // --- Late Check in ---- //  
+
+      //     if (todayRecord.checkIn) {
+      //       const checkInTime = parse(todayRecord.checkIn, "HH:mm", new Date());
+      //       const lateThreshold = parse("10:00", "HH:mm", new Date());
+      //       if (isAfter(checkInTime, lateThreshold)) {
+      //         lateCheckins++;
+      //       }
+      //     }
+
+      //     if (todayRecord.checkIn) {
+      //       recentCheckins.push({
+      //         user: emp.name,
+      //         action: `checked in at ${todayRecord.checkIn}`,
+      //         time: "Today",
+      //         type: "checkin"
+      //       });
+      //     }
+      //   }
+      // }
+    }
+    );
   }
 
   const pendingRequests = pendingLeaves.length + pendingARs.length;
@@ -149,12 +191,12 @@ export default function DashboardHome() {
         const upcomingDob = new Date(todayDate.getFullYear(), dobMonth, dobDate);
         const timeDiff = upcomingDob.getTime() - todayDate.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-        
+
         // Handle end of year wrap-around
         let finalDaysDiff = daysDiff;
         if (daysDiff < 0) {
-            const nextYearDob = new Date(todayDate.getFullYear() + 1, dobMonth, dobDate);
-            finalDaysDiff = Math.ceil((nextYearDob.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
+          const nextYearDob = new Date(todayDate.getFullYear() + 1, dobMonth, dobDate);
+          finalDaysDiff = Math.ceil((nextYearDob.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
         }
 
         if (finalDaysDiff > 0 && finalDaysDiff <= 7) {
@@ -162,7 +204,7 @@ export default function DashboardHome() {
         }
       }
     });
-    
+
     upcomingBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
   }
 
@@ -171,12 +213,18 @@ export default function DashboardHome() {
   const leavePercent = totalEmployees ? Math.round((onLeaveToday / totalEmployees) * 100) : 0;
   const absentPercent = totalEmployees ? Math.max(0, 100 - presentPercent - leavePercent) : 0;
 
+  // const statCards = [
+  //   { title: "Total Employees", value: totalEmployees.toString(), icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
+  //   { title: "Present Today", value: presentToday.toString(), icon: UserCheck, color: "bg-green-500", light: "bg-green-50", text: "text-green-600" },
+  //   { title: "On Leave", value: onLeaveToday.toString(), icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
+  //   { title: "Late Check-ins", value: lateCheckins.toString(), icon: Clock, color: "bg-yellow-500", light: "bg-yellow-50", text: "text-yellow-600" },
+  //   { title: "Pending Requests", value: pendingRequests.toString(), icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" },
+  // ];
   const statCards = [
-    { title: "Total Employees", value: totalEmployees.toString(), icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
-    { title: "Present Today", value: presentToday.toString(), icon: UserCheck, color: "bg-green-500", light: "bg-green-50", text: "text-green-600" },
-    { title: "On Leave", value: onLeaveToday.toString(), icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
-    { title: "Late Check-ins", value: lateCheckins.toString(), icon: Clock, color: "bg-yellow-500", light: "bg-yellow-50", text: "text-yellow-600" },
-    { title: "Pending Requests", value: pendingRequests.toString(), icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" },
+    { title: "Total Employees", value: totalEmployees.toString(), link: "/dashboard/admin/employees", icon: Users, color: "bg-blue-500", light: "bg-blue-50", text: "text-blue-600" },
+    { title: "Present Today", value: presentToday.toString(), subStatLabel: "Late Check-ins", subStatValue: lateCheckins.toString(), link: "/dashboard/admin/attendance", icon: UserCheck, color: "bg-emerald-500", light: "bg-emerald-50", text: "text-emerald-600" },
+    { title: "Leave Approved", value: onLeaveToday.toString(), subStatLabel: "Without Intimation", subStatValue: withoutIntimation.toString(), link: "/dashboard/admin/leaves", icon: UserX, color: "bg-orange-500", light: "bg-orange-50", text: "text-orange-600" },
+    { title: "Pending Requests", value: pendingRequests.toString(), link: "/dashboard/admin/leaves", icon: Bell, color: "bg-purple-500", light: "bg-purple-50", text: "text-purple-600" }
   ];
 
   const attendanceStats = [
@@ -192,10 +240,10 @@ export default function DashboardHome() {
     }
 
     const headers = ["Name", "Email", "Mobile", "Role", "Designation", "Department"];
-    
+
     const csvContent = [
       headers.join(","),
-      ...employeesData.map(emp => 
+      ...employeesData.map(emp =>
         [
           `"${emp.name || ''}"`,
           `"${emp.email || ''}"`,
@@ -259,25 +307,43 @@ export default function DashboardHome() {
       </div>
 
       {/* Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {statCards.map((stat, index) => (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            key={stat.title}
-            className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 rounded-xl ${stat.light} ${stat.text}`}>
-                <stat.icon size={24} />
+          <Link href={stat.link} key={stat.title} className="block h-full">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-gray-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full cursor-pointer"
+            >
+              {/* Sleek Top-Right Corner Shape */}
+              <div className={`absolute top-0 right-0 w-24 h-24 ${stat.light} rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`} />
+
+              <div className="flex justify-between items-start relative z-10">
+                <div>
+                  <p className="text-gray-500 text-sm font-semibold mb-1">{stat.title}</p>
+                  <h3 className={`${outfit.className} text-3xl font-bold text-gray-900`}>{stat.value}</h3>
+                </div>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md ${stat.color}`}>
+                  <stat.icon size={24} />
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
-              <p className="text-sm font-medium text-gray-500 mt-1">{stat.title}</p>
-            </div>
-          </motion.div>
+
+              {/* Sub-stat section (Late Check-ins, etc) */}
+              {
+                stat.subStatLabel && (
+                  <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between relative z-10">
+                    <span className="text-xs font-medium text-gray-500">
+                      {stat.subStatLabel}
+                    </span>
+                    <span className={`text-sm font-bold ${stat.text}`}>
+                      {stat.subStatValue}
+                    </span>
+                  </div>
+                )
+              }
+            </motion.div>
+          </Link>
         ))}
       </div>
 
@@ -394,11 +460,11 @@ export default function DashboardHome() {
         >
           {/* subtle gradient background */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-pink-100 rounded-full blur-3xl opacity-50 -z-10 translate-x-1/2 -translate-y-1/2"></div>
-          
+
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             🎉 Upcoming Birthdays
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Today */}
             <div>
@@ -408,18 +474,18 @@ export default function DashboardHome() {
               ) : (
                 <div className="space-y-3">
                   {birthdaysToday.map((emp, idx) => (
-                     <div key={idx} className="flex items-center gap-3 bg-pink-50 border border-pink-100 p-3 rounded-xl">
-                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white flex items-center justify-center font-bold shadow-md">
-                         {emp.name.charAt(0).toUpperCase()}
-                       </div>
-                       <div>
-                         <p className="font-bold text-gray-900 leading-tight">{emp.name}</p>
-                         <p className="text-xs text-pink-600 font-medium">{emp.department || "Employee"}</p>
-                       </div>
-                       <div className="ml-auto">
-                         <span className="text-xl" title="Happy Birthday!">🎂</span>
-                       </div>
-                     </div>
+                    <div key={idx} className="flex items-center gap-3 bg-pink-50 border border-pink-100 p-3 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white flex items-center justify-center font-bold shadow-md">
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 leading-tight">{emp.name}</p>
+                        <p className="text-xs text-pink-600 font-medium">{emp.department || "Employee"}</p>
+                      </div>
+                      <div className="ml-auto">
+                        <span className="text-xl" title="Happy Birthday!">🎂</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -433,18 +499,18 @@ export default function DashboardHome() {
               ) : (
                 <div className="space-y-3">
                   {upcomingBirthdays.map((emp, idx) => (
-                     <div key={idx} className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-3 rounded-xl">
-                       <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold">
-                         {emp.name.charAt(0).toUpperCase()}
-                       </div>
-                       <div>
-                         <p className="font-semibold text-gray-900 leading-tight">{emp.name}</p>
-                         <p className="text-xs text-gray-500 font-medium">Turns a year older in {emp.daysUntil} day{emp.daysUntil > 1 ? 's' : ''}</p>
-                       </div>
-                       <div className="ml-auto text-sm font-bold text-gray-400">
-                         {format(new Date(emp.dateOfBirth), "MMM dd")}
-                       </div>
-                     </div>
+                    <div key={idx} className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-3 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold">
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 leading-tight">{emp.name}</p>
+                        <p className="text-xs text-gray-500 font-medium">Turns a year older in {emp.daysUntil} day{emp.daysUntil > 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="ml-auto text-sm font-bold text-gray-400">
+                        {format(new Date(emp.dateOfBirth), "MMM dd")}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -452,7 +518,6 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
-
     </div>
   );
 }

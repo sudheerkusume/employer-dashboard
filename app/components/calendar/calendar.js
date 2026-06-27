@@ -36,7 +36,7 @@ const categoryColors = {
     halfDay: "#A8DCAB",
     absent: "#ff6a6a",
     "Checked In": "#2563eb",
-    leaveApproved: "#e8d15dff",
+    leaveApproved: "#FFA500",
     holiday: "#CBC3E3",
     sunday: "#d5d7d9ff",
     today: "#48a84dff",
@@ -95,6 +95,12 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
     const currentDate = date ? new Date(date) : null;
     const isFutureDate = currentDate && currentDate > today;
 
+    if (isFutureDate && !leaveStatus) {
+        return { topStatus: null, bottomStatus: null };
+    }
+
+    let topStatus = 'absent';
+    let bottomStatus = 'absent';
     // Extract numeric working hours from string like "9.03 hrs" or "8.50"
     const getNumericWorkingHours = (hoursStr) => {
         if (!hoursStr) return 0;
@@ -181,39 +187,39 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
     const getColors = () => {
         switch (status) {
             case 'present':
-                return { left: categoryColors.present, right: categoryColors.present };
+                return { top: categoryColors.present, bottom: categoryColors.present };
             case 'wfh':
-                return { left: categoryColors.wfh, right: categoryColors.wfh };
+                return { top: categoryColors.wfh, bottom: categoryColors.wfh };
             case 'firstHalfp':
-                return { left: categoryColors.firstHalf, right: categoryColors.absent };
+                return { top: categoryColors.firstHalf, bottom: categoryColors.absent };
             case 'secondhalfp':
-                return { left: categoryColors.absent, right: categoryColors.secondHalf };
+                return { top: categoryColors.absent, bottom: categoryColors.secondHalf };
             case 'firstHalfApproved':
-                return { left: categoryColors.leaveApproved, right: 'transparent' };
+                return { top: categoryColors.leaveApproved, bottom: 'transparent' };
             case 'secondHalfApproved':
-                return { left: 'transparent', right: categoryColors.leaveApproved };
+                return { top: 'transparent', bottom: categoryColors.leaveApproved };
             case 'firstHalfApproved_present':
-                return { left: categoryColors.leaveApproved, right: categoryColors.present };
+                return { top: categoryColors.leaveApproved, bottom: categoryColors.present };
             case 'firstHalfApproved_absent':
-                return { left: categoryColors.leaveApproved, right: categoryColors.absent };
+                return { top: categoryColors.leaveApproved, bottom: categoryColors.absent };
             case 'secondHalfApproved_present':
-                return { left: categoryColors.present, right: categoryColors.leaveApproved };
+                return { top: categoryColors.present, bottom: categoryColors.leaveApproved };
             case 'secondHalfApproved_absent':
-                return { left: categoryColors.absent, right: categoryColors.leaveApproved };
+                return { top: categoryColors.absent, bottom: categoryColors.leaveApproved };
             case 'leaveApproved':
-                return { left: categoryColors.leaveApproved, right: categoryColors.leaveApproved };
+                return { top: categoryColors.leaveApproved, bottom: categoryColors.leaveApproved };
             case 'absent':
-                return { left: categoryColors.absent, right: categoryColors.absent };
+                return { top: categoryColors.absent, bottom: categoryColors.absent };
             case 'holiday':
-                return { left: categoryColors.holiday, right: categoryColors.holiday };
+                return { top: categoryColors.holiday, bottom: categoryColors.holiday };
             case 'sunday':
-                return { left: categoryColors.sunday, right: categoryColors.sunday };
+                return { top: categoryColors.sunday, bottom: categoryColors.sunday };
             case 'today':
-                return { left: categoryColors.today, right: categoryColors.today };
+                return { top: categoryColors.today, bottom: categoryColors.today };
             default:
                 return isToday
-                    ? { left: '#d1d5db', right: '#d1d5db' }
-                    : { left: 'transparent', right: 'transparent' };
+                    ? { top: '#d1d5db', bottom: '#d1d5db' }
+                    : { top: 'transparent', bottom: 'transparent' };
         }
     };
 
@@ -221,12 +227,6 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
 
     const needsSplit = [
         'firstHalfp', 'secondhalfp',
-        'firstHalfApproved', 'secondHalfApproved',
-        'firstHalfApproved_present', 'firstHalfApproved_absent',
-        'secondHalfApproved_present', 'secondHalfApproved_absent'
-    ].includes(status);
-
-    const isDiagonal = [
         'firstHalfApproved', 'secondHalfApproved',
         'firstHalfApproved_present', 'firstHalfApproved_absent',
         'secondHalfApproved_present', 'secondHalfApproved_absent'
@@ -506,7 +506,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
         return daysInRange.some(date => {
             const day = getDay(date);
-            return day === 1 || day === 6; // Monday (1) or Saturday (6)
+            return day === 0; // Sunday (0)
         });
     };
 
@@ -904,6 +904,8 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
 
                     // Determine if it's a working day (not Sunday, holiday)
                     const isWorkingDay = !isSunday && !isHolidayDay;
+                    // Determine if it's a working day (not Sunday, holiday)
+                    const isWorkingDay = !isSunday && !isHolidayDay;
 
                     let dayTextColor = "text-gray-900";
 
@@ -954,7 +956,9 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                             : status === "approved"
                                                 ? "Leave Approved"
                                                 : "Today"
+                                                : "Today"
                                         : status === "sunday"
+                                            ? "Sunday"
                                             ? "Sunday"
                                             : status === "holiday"
                                                 ? "Holiday"

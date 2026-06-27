@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useSWRFetch } from "@/app/components/config/useswrfetch";
-import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval, parse, differenceInMinutes, isAfter, isBefore, isSunday } from "date-fns";
 import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import { motion } from "framer-motion";
@@ -22,6 +22,118 @@ export default function AdminPayrollPage() {
         isLoading: employeesLoading,
     } = useSWRFetch("/api/employees");
 
+    const {
+        data: holidaysData,
+    } = useSWRFetch("/api/holidays");
+
+    const calculateAttendance = (emp, monthDate) => {
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
+        const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
+        const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+        
+        const totalWorkingDays = monthDates.filter(
+          (d) => !isSunday(d) && !holidays.includes(format(d, "yyyy-MM-dd"))
+        ).length;
+
+        const monthName = monthDate.toLocaleString("default", { month: "long" });
+        const monthData = emp.attendance?.[monthName] || [];
+        
+        let totalPresent = 0;
+        let lateDays = 0;
+        let halfDays = 0;
+        
+        const empLeaves = emp.leaves || [];
+        const approvedLeaves = empLeaves.filter(l => l.status === "approved");
+
+        let leaveDaysInMonth = 0;
+
+        monthDates.forEach(date => {
+          const dateStr = format(date, "yyyy-MM-dd");
+          const isWorkingDay = !isSunday(date) && !holidays.includes(dateStr);
+          
+          const isOnLeave = approvedLeaves.some(l => {
+            const start = parse(l.startDate, "yyyy-MM-dd", new Date());
+            const end = parse(l.endDate, "yyyy-MM-dd", new Date());
+            return start <= date && end >= date;
+          });
+
+          if (isOnLeave && isWorkingDay) leaveDaysInMonth++;
+
+          const record = monthData.find(d => d.date === dateStr);
+          if (record) {
+            if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+              if (record.status === "present") totalPresent += 1;
+              else if (record.status === "halfDay" || record.status === "firstHalfApproved" || record.status === "secondHalfApproved") {
+                totalPresent += 0.5;
+                halfDays += 1;
+              }
+              if (record.checkIn) {
+                 const lateThreshold = parse("10:00", "HH:mm", new Date());
+                 const checkIn = parse(record.checkIn, "HH:mm", new Date());
+                 if (isAfter(checkIn, lateThreshold)) lateDays++;
+              }
+            } else if (record.checkIn || record.status === "present") {
+              let morningPresent = false;
+              let afternoonPresent = false;
+
+              if (record.checkIn) {
+                 const checkInTime = parse(record.checkIn, "HH:mm", new Date());
+                 const noonThreshold = parse("13:30", "HH:mm", new Date()); // 1:30 PM
+                 const lateThreshold = parse("10:00", "HH:mm", new Date());
+
+                 if (isBefore(checkInTime, noonThreshold)) {
+                    morningPresent = true;
+                 } else {
+                    afternoonPresent = true;
+                 }
+                 
+                 if (isAfter(checkInTime, lateThreshold)) lateDays++;
+              } else if (record.status === "present") {
+                 morningPresent = true; // Fallback
+              }
+
+              if (record.checkOut) {
+                 const checkOutTime = parse(record.checkOut, "HH:mm", new Date());
+                 const eveningThreshold = parse("18:00", "HH:mm", new Date()); // 6:00 PM
+                 
+                 if (morningPresent) {
+                    if (isAfter(checkOutTime, eveningThreshold)) {
+                       afternoonPresent = true; // Stayed till evening -> Full Day
+                    }
+                 } else if (afternoonPresent) {
+                    if (isAfter(checkOutTime, eveningThreshold)) {
+                       afternoonPresent = true; // Validated afternoon checkout
+                    } else {
+                       afternoonPresent = true; // Basic assumption if checked out before 6 but logged in afternoon
+                    }
+                 }
+              } else {
+                 // Forgot to checkout
+                 if (morningPresent) {
+                    afternoonPresent = false; // Morning half day
+                 }
+                 if (afternoonPresent && !morningPresent) {
+                    afternoonPresent = false; // Absent
+                 }
+              }
+
+              // Calculate final present value
+              if (morningPresent && afternoonPresent) {
+                 totalPresent += 1;
+              } else if (morningPresent || afternoonPresent) {
+                 totalPresent += 0.5;
+                 halfDays += 1;
+              }
+            }
+          }
+        });
+
+        const totalAbsent = Math.max(0, totalWorkingDays - Math.floor(totalPresent) - leaveDaysInMonth);
+
+        return { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth, halfDays };
+    };
+
     const payrollData = useMemo(() => {
         if (!employeesData) return { employees: [], summary: { totalPayroll: 0, processedEmployees: 0, totalEmployees: 0 } };
 
@@ -34,34 +146,9 @@ export default function AdminPayrollPage() {
             const ctc = parseFloat(emp.ctc || 0);
             const monthlyBaseSalary = ctc / 12;
 
-            const attendanceRecords = emp.attendance?.[monthName] || [];
-            let daysPresent = 0;
-            let daysAbsent = 0;
-
-            const monthInterval = eachDayOfInterval({
-                start: startOfMonth(selectedMonth),
-                end: endOfMonth(selectedMonth)
-            });
-
-            const presentDates = new Set(attendanceRecords.map(r => r.date));
-            const approvedLeaveDates = new Set();
-            (emp.leaves || []).forEach(leave => {
-                if (leave.status === "approved" && leave.leaveDates) {
-                    leave.leaveDates.forEach(d => approvedLeaveDates.add(d));
-                }
-            });
-
-            monthInterval.forEach(date => {
-                const dateStr = format(date, "yyyy-MM-dd");
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6; // Sun/Sat
-                if (presentDates.has(dateStr) || approvedLeaveDates.has(dateStr) || isWeekend) {
-                    daysPresent++;
-                } else {
-                    if (date <= new Date()) {
-                        daysAbsent++;
-                    }
-                }
-            });
+            const stats = calculateAttendance(emp, selectedMonth);
+            const daysPresent = stats.totalPresent;
+            const daysAbsent = stats.totalAbsent;
 
             const perDaySalary = monthlyBaseSalary / daysInMonth;
             const deductions = daysAbsent * perDaySalary;
@@ -90,7 +177,7 @@ export default function AdminPayrollPage() {
                 totalEmployees: employees.length
             }
         };
-    }, [employeesData, selectedMonth]);
+    }, [employeesData, selectedMonth, holidaysData]);
 
     if (employeesError) return <Error />;
     if (employeesLoading) return <Loading />;

@@ -18,7 +18,7 @@ const staticEmployees = [
     {
         _id: "super_admin_001",
         name: "Admin",
-        email: "superadmin@realbeez.com",
+        email: "superadmin@salesbeez.com",
         mobile: "9999999999",
         password: "Superadmin@123",
         role: "super_admin",

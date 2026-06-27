@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@amcharts/amcharts5": "^5.13.6",
-    "@headlessui/react": "^2.2.9",
+    "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "cloudinary": "^2.8.0",
     "date-fns": "^4.1.0",

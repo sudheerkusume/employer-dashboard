@@ -10,11 +10,12 @@ import {
   isSunday,
   format,
   isAfter,
+  isBefore,
 } from "date-fns";
 import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, UserCheck, Users, Clock, AlertCircle, CalendarDays, LayoutGrid, List, Edit3, X } from "lucide-react";
+import { Calendar, UserCheck, Users, Clock, AlertCircle, CalendarDays, LayoutGrid, List, Edit3, X, Eye } from "lucide-react";
 import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
 import { Outfit } from "next/font/google";
@@ -28,8 +29,9 @@ export default function AdminAttendancePage() {
   
   // Edit State
   const [editingAttendance, setEditingAttendance] = useState(null);
-  const [editForm, setEditForm] = useState({ checkIn: "", checkOut: "" });
+  const [editForm, setEditForm] = useState({ checkIn: "", checkOut: "", status: "absent" });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [viewingReport, setViewingReport] = useState(null);
 
   const { rootContext } = useContext(RootContext);
   const [currentUserRole, setCurrentUserRole] = useState(null);
@@ -55,27 +57,118 @@ export default function AdminAttendancePage() {
     isLoading: employeesLoading,
   } = useSWRFetch("/api/employees");
 
-  const calculateAttendance = (attendance, monthDate) => {
+  const {
+    data: holidaysData,
+  } = useSWRFetch("/api/holidays");
+
+  const calculateAttendance = (emp, monthDate) => {
     const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
     const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    const holidays = ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+    const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+    
     const totalWorkingDays = monthDates.filter(
       (d) => !isSunday(d) && !holidays.includes(format(d, "yyyy-MM-dd"))
     ).length;
+
     const monthName = monthDate.toLocaleString("default", { month: "long" });
+    const monthData = emp.attendance?.[monthName] || [];
+    
     let totalPresent = 0;
-    (attendance?.[monthName] || []).forEach((item) => {
-      if (item.checkIn && item.checkOut) {
-        const checkIn = parse(item.checkIn, "HH:mm", new Date());
-        const checkOut = parse(item.checkOut, "HH:mm", new Date());
-        const workedHours = differenceInMinutes(checkOut, checkIn) / 60;
-        if (workedHours >= 8.75) totalPresent += 1;
-        else if (workedHours >= 4.25) totalPresent += 0.5;
-      } else if (item.status === "present") totalPresent += 1;
-      else if (["firstHalfApproved", "secondHalfApproved", "halfDay"].includes(item.status)) totalPresent += 0.5;
+    let lateDays = 0;
+    let halfDays = 0;
+    
+    const empLeaves = emp.leaves || [];
+    const approvedLeaves = empLeaves.filter(l => l.status === "approved");
+
+    let leaveDaysInMonth = 0;
+
+    monthDates.forEach(date => {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const isWorkingDay = !isSunday(date) && !holidays.includes(dateStr);
+      
+      const isOnLeave = approvedLeaves.some(l => {
+        const start = parse(l.startDate, "yyyy-MM-dd", new Date());
+        const end = parse(l.endDate, "yyyy-MM-dd", new Date());
+        return start <= date && end >= date;
+      });
+
+      if (isOnLeave && isWorkingDay) leaveDaysInMonth++;
+
+      const record = monthData.find(d => d.date === dateStr);
+      if (record) {
+        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+          // If manually overridden by admin, or explicitly absent/halfDay, respect it over hours calculation
+          if (record.status === "present") totalPresent += 1;
+          else if (record.status === "halfDay" || record.status === "firstHalfApproved" || record.status === "secondHalfApproved") {
+            totalPresent += 0.5;
+            halfDays += 1;
+          }
+          
+          if (record.checkIn) {
+             const lateThreshold = parse("10:00", "HH:mm", new Date());
+             const checkIn = parse(record.checkIn, "HH:mm", new Date());
+             if (isAfter(checkIn, lateThreshold)) lateDays++;
+          }
+        } else if (record.checkIn || record.status === "present") {
+          let morningPresent = false;
+          let afternoonPresent = false;
+
+          if (record.checkIn) {
+             const checkInTime = parse(record.checkIn, "HH:mm", new Date());
+             const noonThreshold = parse("13:30", "HH:mm", new Date()); // 1:30 PM
+             const lateThreshold = parse("10:00", "HH:mm", new Date());
+
+             if (isBefore(checkInTime, noonThreshold)) {
+                morningPresent = true;
+             } else {
+                afternoonPresent = true;
+             }
+             
+             if (isAfter(checkInTime, lateThreshold)) lateDays++;
+          } else if (record.status === "present") {
+             morningPresent = true; // Fallback
+          }
+
+          if (record.checkOut) {
+             const checkOutTime = parse(record.checkOut, "HH:mm", new Date());
+             const eveningThreshold = parse("18:00", "HH:mm", new Date()); // 6:00 PM
+             
+             if (morningPresent) {
+                if (isAfter(checkOutTime, eveningThreshold)) {
+                   afternoonPresent = true; // Stayed till evening -> Full Day
+                }
+             } else if (afternoonPresent) {
+                if (isAfter(checkOutTime, eveningThreshold)) {
+                   afternoonPresent = true; // Validated afternoon checkout
+                } else {
+                   afternoonPresent = true; // Basic assumption if checked out before 6 but logged in afternoon
+                }
+             }
+          } else {
+             // Forgot to checkout
+             if (morningPresent) {
+                afternoonPresent = false; // Morning half day
+             }
+             if (afternoonPresent && !morningPresent) {
+                afternoonPresent = false; // Absent
+             }
+          }
+
+          // Calculate final present value
+          if (morningPresent && afternoonPresent) {
+             totalPresent += 1;
+          } else if (morningPresent || afternoonPresent) {
+             totalPresent += 0.5;
+             halfDays += 1;
+          }
+        }
+      }
     });
-    return { totalWorkingDays, totalPresent };
+
+    const totalAbsent = Math.max(0, totalWorkingDays - Math.floor(totalPresent) - leaveDaysInMonth);
+
+    return { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth, halfDays };
   };
 
   const visibleEmployees = useMemo(() => {
@@ -152,14 +245,14 @@ export default function AdminAttendancePage() {
           ...newAttendance[monthName][recordIndex],
           checkIn: editForm.checkIn,
           checkOut: editForm.checkOut,
-          status: editForm.checkIn ? "present" : "absent"
+          status: editForm.status
         };
       } else {
         newAttendance[monthName].push({
           date: date,
           checkIn: editForm.checkIn,
           checkOut: editForm.checkOut,
-          status: editForm.checkIn ? "present" : "absent"
+          status: editForm.status
         });
       }
       
@@ -377,17 +470,19 @@ export default function AdminAttendancePage() {
                   <tr>
                     <th scope="col" className="px-6 py-4 font-bold tracking-wider">Employee</th>
                     <th scope="col" className="px-6 py-4 font-bold tracking-wider">Role</th>
-                    <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Check-In</th>
-                    <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Check-Out</th>
+                    <th scope="col" className="px-6 py-4 font-bold tracking-wider">Designation</th>
                     <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Work Days</th>
                     <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Present</th>
+                    <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Absent</th>
+                    <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Late</th>
+                    <th scope="col" className="px-6 py-4 font-bold tracking-wider text-center">Leaves</th>
                     <th scope="col" className="px-6 py-4 font-bold tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {visibleEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-10 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center">
                           <UserCheck size={40} className="text-gray-300 mb-3" />
                           <p className="text-base font-bold text-gray-900">No attendance data</p>
@@ -399,7 +494,7 @@ export default function AdminAttendancePage() {
                       const monthName = selectedMonth.toLocaleString("default", { month: "long" });
                       const monthData = emp.attendance?.[monthName] || [];
                       const todayRecord = monthData.find((d) => d.date === todayStr);
-                      const { totalWorkingDays, totalPresent } = calculateAttendance(emp.attendance, selectedMonth);
+                      const { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth } = calculateAttendance(emp, selectedMonth);
 
                       let roleColor = "bg-blue-50 text-blue-700 border-blue-200";
                       if (emp.role === "manager") roleColor = "bg-amber-50 text-amber-700 border-amber-200";
@@ -428,51 +523,34 @@ export default function AdminAttendancePage() {
                               {emp.role.replace('_', ' ')}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold ${todayRecord?.checkIn ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'text-gray-400'}`}>
-                              {todayRecord?.checkIn || "--:--"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold ${todayRecord?.checkOut ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'text-gray-400'}`}>
-                              {todayRecord?.checkOut || "--:--"}
-                            </span>
+                          <td className="px-6 py-4">
+                            <span className="text-xs text-gray-600 font-semibold">{emp.designation || 'N/A'}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
                             <span className="text-gray-600 font-bold">{totalWorkingDays}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className="font-black text-gray-900 text-base">{totalPresent}</span>
-                              <span className="text-xs text-gray-400 font-bold">/ {totalWorkingDays}</span>
-                            </div>
-                            <div className="w-20 h-2 bg-gray-100 rounded-full mt-2 mx-auto overflow-hidden">
-                              <div 
-                                className="h-full bg-emerald-500 rounded-full" 
-                                style={{ width: `${totalWorkingDays > 0 ? Math.min((totalPresent / totalWorkingDays) * 100, 100) : 0}%` }}
-                              />
-                            </div>
+                            <span className="font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{totalPresent}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-md">{totalAbsent}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">{lateDays}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-md">{leaveDaysInMonth}</span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => {
-                                setEditingAttendance({
-                                  empId: emp._id,
-                                  name: emp.name,
-                                  date: todayStr,
-                                  monthName: monthName,
-                                  attendanceData: emp.attendance
-                                });
-                                setEditForm({
-                                  checkIn: todayRecord?.checkIn || "",
-                                  checkOut: todayRecord?.checkOut || ""
-                                });
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
-                              title="Manual Adjust"
-                            >
-                              <Edit3 size={18} />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => setViewingReport({ emp, monthDate: selectedMonth, stats: { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth } })}
+                                className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
+                                title="View Detailed Report"
+                              >
+                                <Eye size={16} /> Report
+                              </button>
+                            </div>
                           </td>
                         </motion.tr>
                       );
@@ -487,7 +565,7 @@ export default function AdminAttendancePage() {
 
       {/* Edit Attendance Modal */}
       {editingAttendance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -508,6 +586,18 @@ export default function AdminAttendancePage() {
                 <p className="text-sm text-gray-500 font-medium">Employee</p>
                 <p className="text-base font-bold text-gray-900">{editingAttendance.name}</p>
                 <p className="text-xs text-gray-400 mt-1">Date: {editingAttendance.date}</p>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-medium"
+                >
+                  <option value="absent">Absent</option>
+                  <option value="present">Present</option>
+                  <option value="halfDay">Half Day</option>
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -545,6 +635,164 @@ export default function AdminAttendancePage() {
                 >
                   {isUpdating ? "Saving..." : "Save Changes"}
                 </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Detailed Monthly Report Modal */}
+      {viewingReport && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
+          >
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div>
+                <h3 className={`${outfit.className} text-xl font-bold text-gray-900`}>Monthly Report</h3>
+                <p className="text-sm text-gray-500">{viewingReport.emp.name} • {viewingReport.monthDate.toLocaleString("default", { month: "long", year: "numeric" })}</p>
+              </div>
+              <button 
+                onClick={() => setViewingReport(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-5 gap-4 mb-6">
+                 {/* 5 stat cards */}
+                 <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                    <p className="text-xs text-blue-600 font-bold mb-1">Work Days</p>
+                    <p className="text-xl font-black text-blue-800">{viewingReport.stats.totalWorkingDays}</p>
+                 </div>
+                 <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                    <p className="text-xs text-emerald-600 font-bold mb-1">Present</p>
+                    <p className="text-xl font-black text-emerald-800">{viewingReport.stats.totalPresent}</p>
+                 </div>
+                 <div className="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                    <p className="text-xs text-rose-600 font-bold mb-1">Absent</p>
+                    <p className="text-xl font-black text-rose-800">{viewingReport.stats.totalAbsent}</p>
+                 </div>
+                 <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
+                    <p className="text-xs text-amber-600 font-bold mb-1">Late</p>
+                    <p className="text-xl font-black text-amber-800">{viewingReport.stats.lateDays}</p>
+                 </div>
+                 <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 text-center">
+                    <p className="text-xs text-purple-600 font-bold mb-1">Leaves</p>
+                    <p className="text-xl font-black text-purple-800">{viewingReport.stats.leaveDaysInMonth}</p>
+                 </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 font-bold tracking-wider">Date</th>
+                      <th className="px-4 py-3 font-bold tracking-wider">Status</th>
+                      <th className="px-4 py-3 font-bold tracking-wider text-center">Check In</th>
+                      <th className="px-4 py-3 font-bold tracking-wider text-center">Check Out</th>
+                      <th className="px-4 py-3 font-bold tracking-wider text-center">Hours</th>
+                      <th className="px-4 py-3 font-bold tracking-wider text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {eachDayOfInterval({ 
+                      start: startOfMonth(viewingReport.monthDate), 
+                      end: endOfMonth(viewingReport.monthDate) 
+                    }).map((date) => {
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+                      const isWeekend = isSunday(date);
+                      const isHoliday = holidays.includes(dateStr);
+                      const monthName = viewingReport.monthDate.toLocaleString("default", { month: "long" });
+                      const record = (viewingReport.emp.attendance?.[monthName] || []).find(d => d.date === dateStr);
+                      
+                      const empLeaves = viewingReport.emp.leaves || [];
+                      const isOnLeave = empLeaves.some(l => 
+                        l.status === "approved" && 
+                        parse(l.startDate, "yyyy-MM-dd", new Date()) <= date && 
+                        parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
+                      );
+
+                      let status = "Absent";
+                      let style = "bg-rose-50 text-rose-700";
+                      let hours = "--";
+
+                      if (isWeekend) { status = "Weekend"; style = "bg-gray-100 text-gray-600"; }
+                      else if (isHoliday) { status = "Holiday"; style = "bg-indigo-50 text-indigo-700"; }
+                      else if (isOnLeave) { status = "Leave"; style = "bg-purple-50 text-purple-700"; }
+                      else if (record?.checkIn) {
+                        const checkIn = parse(record.checkIn, "HH:mm", new Date());
+                        const lateThreshold = parse("10:00", "HH:mm", new Date());
+                        
+                        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+                           status = record.status === "present" ? "Present" : (record.status === "halfDay" ? "Half Day" : "Absent");
+                           style = status === "Present" ? "bg-emerald-50 text-emerald-700" : (status === "Half Day" ? "bg-orange-50 text-orange-700" : "bg-rose-50 text-rose-700");
+                        } else if (isAfter(checkIn, lateThreshold)) {
+                           status = "Late"; style = "bg-amber-50 text-amber-700";
+                        } else {
+                           status = "Present"; style = "bg-emerald-50 text-emerald-700";
+                        }
+                        
+                        if (record.checkOut) {
+                           const checkOut = parse(record.checkOut, "HH:mm", new Date());
+                           let workedHours = differenceInMinutes(checkOut, checkIn) / 60;
+                           if (workedHours < 0) workedHours += 24;
+                           hours = workedHours.toFixed(1) + "h";
+                        }
+                      } else if (date > new Date()) {
+                        status = "Upcoming"; style = "text-gray-400 bg-transparent";
+                      }
+
+                      return (
+                        <tr key={dateStr} className={`hover:bg-gray-50 ${isWeekend ? 'bg-gray-50/50' : ''}`}>
+                          <td className="px-4 py-3 font-medium border-b border-gray-100">
+                            <div className="flex flex-col">
+                              <span className="text-gray-900">{format(date, "dd MMM, yyyy")}</span>
+                              <span className="text-[11px] text-gray-500 uppercase">{format(date, "EEE")}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 border-b border-gray-100">
+                            <span className={`px-2 py-1 rounded-md text-xs font-bold ${style}`}>
+                              {status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-semibold text-gray-700 border-b border-gray-100">{record?.checkIn || "--:--"}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-gray-700 border-b border-gray-100">{record?.checkOut || "--:--"}</td>
+                          <td className="px-4 py-3 text-center text-xs font-bold text-gray-500 border-b border-gray-100">{hours}</td>
+                          <td className="px-4 py-3 text-center border-b border-gray-100">
+                            {date <= new Date() && !isHoliday && !isWeekend && (
+                                <button 
+                                  onClick={() => {
+                                    setEditingAttendance({
+                                      empId: viewingReport.emp._id,
+                                      name: viewingReport.emp.name,
+                                      date: dateStr,
+                                      monthName: viewingReport.monthDate.toLocaleString("default", { month: "long" }),
+                                      attendanceData: viewingReport.emp.attendance || {}
+                                    });
+                                    setEditForm({
+                                      checkIn: record?.checkIn || "",
+                                      checkOut: record?.checkOut || "",
+                                      status: record?.status || (record?.checkIn ? "present" : "absent")
+                                    });
+                                  }}
+                                  className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 p-1.5 rounded-lg transition-colors"
+                                  title="Edit Attendance"
+                                >
+                                  <Edit3 size={16} />
+                                </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </motion.div>

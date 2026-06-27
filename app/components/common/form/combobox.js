@@ -60,7 +60,7 @@ function ComboBox(props) {
             </div>
           }
           {mainData?.length > 0 && (
-            <ComboboxOptions className={optionsHeight ? `absolute z-50 mt-1 ${optionsHeight} left-0 w-full overflow-auto rounded-md bg-white text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm [&:first-child]:rounded-t-lg [&:last-child]:rounded-b-lg` : `absolute z-10 mt-1 max-h-60 left-0 w-full overflow-auto rounded-md bg-white text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm [&:first-child]:rounded-t-lg [&:last-child]:rounded-b-lg`}>
+            <ComboboxOptions className={optionsHeight ? `absolute z-50 mt-1 ${optionsHeight} left-0 w-full overflow-auto rounded-md bg-white text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm [&:first-child]:rounded-t-lg [&:last-child]:rounded-b-lg` : `absolute z-10 mt-2.5 max-h-60 left-0 w-full overflow-auto rounded-md bg-white text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm [&:first-child]:rounded-t-lg [&:last-child]:rounded-b-lg`}>
               {mainData.map((item, index) => (
                 <ComboboxOption
                   key={index}

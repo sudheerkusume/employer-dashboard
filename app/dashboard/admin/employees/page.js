@@ -16,9 +16,9 @@ import Error from "@/app/components/common/error";
 import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Users, UserPlus, Edit, Trash2, Search, Filter, Briefcase, Mail, Phone, MapPin, Building, Calendar, Download, UserMinus, UserCheck, LogOut, AlertCircle, 
-  CheckCircle2, XCircle 
+import {
+  Users, UserPlus, Edit, Trash2, Search, Filter, Briefcase, Mail, Phone, MapPin, Building, Calendar, Download, UserMinus, UserCheck, LogOut, AlertCircle,
+  CheckCircle2, XCircle
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -63,18 +63,18 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
-      const allPendingLeaves = employeesData.flatMap(emp => 
+      const allPendingLeaves = employeesData.flatMap(emp =>
         (emp.leaveRequests || []).filter(lr => lr.status === "pending").map(lr => ({
-          ...lr, 
+          ...lr,
           employeeName: emp.name,
           reportingManagerId: emp.reportingManagerId || emp.reportingManager
         }))
       );
       setPendingLeaves(allPendingLeaves);
 
-      const allPendingARs = employeesData.flatMap(emp => 
+      const allPendingARs = employeesData.flatMap(emp =>
         (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({
-          ...ar, 
+          ...ar,
           employeeName: emp.name,
           reportingManagerId: emp.reportingManagerId || emp.reportingManager
         }))
@@ -181,9 +181,9 @@ export default function AdminDashboard() {
     const newStatus = employee.isActive === false ? true : false;
     const actionText = newStatus ? "activate" : "deactivate";
     if (!confirm(`Are you sure you want to ${actionText} this employee?`)) return;
-    
+
     try {
-      const res = await fetch(`/api/employees`, { 
+      const res = await fetch(`/api/employees`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: employee._id, isActive: newStatus })
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 font-sans text-gray-900">
       {actionLoading && <Loading />}
-      
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
@@ -241,9 +241,9 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-gray-500 mt-1">Manage employees, track attendance, and handle requests.</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => {
@@ -255,11 +255,11 @@ export default function AdminDashboard() {
             <UserPlus size={18} />
             Add Employee
           </motion.button>
-          
-          <motion.button 
+
+          <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={logOut} 
+            onClick={logOut}
             className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-red-600 font-medium rounded-xl hover:bg-red-50 hover:border-red-100 transition-all shadow-sm"
           >
             <LogOut size={18} />
@@ -271,7 +271,7 @@ export default function AdminDashboard() {
       {/* Alerts / Pending Tasks */}
       <AnimatePresence>
         {(filteredLeaves.length > 0 || filteredARs.length > 0) && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10"
@@ -286,8 +286,8 @@ export default function AdminDashboard() {
                 </div>
                 <div className="p-5 flex flex-col gap-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                   {filteredLeaves.map((leave) => (
-                    <motion.div 
-                      key={leave._id} 
+                    <motion.div
+                      key={leave._id}
                       layout
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -325,8 +325,8 @@ export default function AdminDashboard() {
                 </div>
                 <div className="p-5 flex flex-col gap-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                   {filteredARs.map((ar) => (
-                    <motion.div 
-                      key={ar._id} 
+                    <motion.div
+                      key={ar._id}
                       layout
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -358,7 +358,7 @@ export default function AdminDashboard() {
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50">
           <div className="flex items-center gap-3">
-             <h2 className="text-lg font-bold text-gray-800">All Employees</h2>
+            <h2 className="text-lg font-bold text-gray-800">All Employees</h2>
           </div>
         </div>
 
@@ -397,8 +397,8 @@ export default function AdminDashboard() {
                   if (emp.role === "super_admin") roleColor = "bg-indigo-50 text-indigo-700 border-indigo-200";
 
                   return (
-                    <motion.tr 
-                      key={emp._id} 
+                    <motion.tr
+                      key={emp._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       whileHover={{ backgroundColor: "rgba(249, 250, 251, 0.5)" }}
@@ -431,15 +431,15 @@ export default function AdminDashboard() {
                       {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => handleEditEmployee(emp)} 
+                            <button
+                              onClick={() => handleEditEmployee(emp)}
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip-trigger"
                               title="Edit Employee"
                             >
                               <Edit size={16} />
                             </button>
-                            <button 
-                              onClick={() => handleToggleActive(emp)} 
+                            <button
+                              onClick={() => handleToggleActive(emp)}
                               className={`p-1.5 rounded-lg transition-colors tooltip-trigger ${emp.isActive !== false ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
                               title={emp.isActive !== false ? "Deactivate Employee" : "Activate Employee"}
                             >
@@ -460,8 +460,8 @@ export default function AdminDashboard() {
       {/* Add/Edit Employee Modal */}
       <AnimatePresence>
         {isClient && showAddForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2">
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -471,11 +471,11 @@ export default function AdminDashboard() {
                 setEditEmployeeData(null);
               }}
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-gray-100"
+              className="relative w-full sm:w-[65%] m-auto bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-gray-50"
             >
               <button
                 onClick={() => {
