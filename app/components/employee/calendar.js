@@ -1,1455 +1,1318 @@
 'use client';
-import React, { useState, useMemo, useContext } from 'react';
-import Calendar from '../calendar/calendar';
-import RootContext from '../config/rootcontext';
-import Loading from '../common/loading';
+import React, { useState, useMemo, Fragment, useContext, useEffect } from 'react';
+import {
+    format, addMonths, subMonths, startOfMonth, endOfMonth,
+    startOfWeek, endOfWeek, eachDayOfInterval,
+    getMonth, setMonth, getYear, setYear, isSunday,
+    set, getDay, isSameMonth,
+    differenceInMinutes
+} from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { Dialog, Transition } from '@headlessui/react';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import { Mutated, useSWRFetch } from '../config/useswrfetch';
-import { eachDayOfInterval, startOfMonth, endOfMonth, isSunday, parse, differenceInMinutes, parseISO, format, differenceInCalendarDays, isSameDay, addMonths, getDay, isLastDayOfMonth, isBefore, getDate } from 'date-fns';
-import { formatDateTime } from '../config/sitesettings';
-import CalendarModal from '../calendar/calendarmodal';
+import Loading from '../common/loading';
+import RootContext from '../config/rootcontext';
+import ComboBox from '../common/form/combobox';
+import { CalendarDaysIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/20/solid';
 
-// --- Enhanced Attendance Regularization (AR) Form ---
-function ARForm({ defaultDate, onClose, onSubmit, submitting }) {
+// Constants for working hours
+const HALF_DAY_MINUTES = 270;   // 4.5 hours
+const FULL_DAY_MINUTES = 540;   // 9 hours
+
+// Format minutes to "X Hours Y Minutes"
+const formatDuration = (minutes) => {
+    if (!minutes || minutes < 0) return '0 Minutes';
+    const hrs = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hrs} Hour${hrs !== 1 ? 's' : ''} ${mins} Minute${mins !== 1 ? 's' : ''}`;
+};
+
+const categoryColors = {
+    present: "#A8DCAB",
+    wfh: "#818cf8",
+    firstHalf: "#A8DCAB",
+    secondHalf: "#A8DCAB",
+    halfDay: "#A8DCAB",
+    absent: "#ff6a6a",
+    "Checked In": "#2563eb",
+    leaveApproved: "#e8d15dff",
+    holiday: "#CBC3E3",
+    sunday: "#d5d7d9ff",
+    today: "#48a84dff",
+};
+
+// Helper: Check if current time is before 9 AM
+const isBefore9AM = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    return currentHour < 9;
+};
+
+// Helper: Check if it's Sunday (holiday)
+const isSundayHoliday = (date) => {
+    return getDay(date) === 0; // Sunday (0) is holiday
+};
+
+// Helper: Check if date is holiday
+const isHoliday = (date, globalHolidays = []) => {
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    return globalHolidays.some(h => format(new Date(h.date), 'yyyy-MM-dd') === formattedDate);
+};
+
+// Helper: Calculate working hours in decimal
+const calculateWorkingHours = (checkIn, checkOut, date) => {
+    if (!checkIn || !checkOut) return 0;
+
+    const [inH, inM] = checkIn.split(':').map(Number);
+    const [outH, outM] = checkOut.split(':').map(Number);
+    const start = inH * 60 + inM;
+    const end = outH * 60 + outM;
+
+    let diffMinutes = Math.max(0, end - start);
+
+    // Adjust for lunch break based on day
+    const day = getDay(new Date(date));
+    if (day !== 6) { // Not Saturday
+        // Subtract 1 hour lunch break for normal days
+        diffMinutes = Math.max(0, diffMinutes - 60);
+    } else {
+        // Saturday: Subtract 30 minutes lunch break
+        diffMinutes = Math.max(0, diffMinutes - 30);
+    }
+
+    return diffMinutes / 60; // hours as decimal
+};
+
+// Helper: Determine status based on your rules
+const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workingHoursStr) => {
+    // Check if it's Sunday (holiday) - return 'sunday' for Sundays
+    if (date && isSundayHoliday(new Date(date))) {
+        return 'sunday';
+    }
+
     const today = new Date();
-    const maxPastDate = new Date();
-    maxPastDate.setDate(today.getDate() - 3); // 3 days back from today
+    const currentDate = date ? new Date(date) : null;
+    const isFutureDate = currentDate && currentDate > today;
 
-    const [dateFrom, setDateFrom] = useState(defaultDate || format(maxPastDate, 'yyyy-MM-dd'));
-    const [dateTo, setDateTo] = useState(defaultDate || format(maxPastDate, 'yyyy-MM-dd'));
-    const [checkIn, setInTime] = useState('09:30');
-    const [checkOut, setOutTime] = useState('18:30');
-    const [reason, setReason] = useState('');
-    const [error, setError] = useState('');
-
-    // Validate dates
-    const validateDates = (fromDate, toDate) => {
-        const from = new Date(fromDate);
-        const to = new Date(toDate);
-        const today = new Date();
-
-        // Reset error
-        setError('');
-
-        // Check if dates are in future
-        if (from > today || to > today) {
-            setError('Cannot apply AR for future dates. Only past dates are allowed.');
-            return false;
-        }
-
-        // Check if dates are more than 3 days back
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(today.getDate() - 3);
-
-        if (from < threeDaysAgo || to < threeDaysAgo) {
-            setError('AR can only be applied for the past 3 days.');
-            return false;
-        }
-
-        // Check if from date is after to date
-        if (from > to) {
-            setError('From date cannot be after To date.');
-            return false;
-        }
-
-        return true;
+    // Extract numeric working hours from string like "9.03 hrs" or "8.50"
+    const getNumericWorkingHours = (hoursStr) => {
+        if (!hoursStr) return 0;
+        const numericStr = hoursStr.toString().replace('hrs', '').trim();
+        return parseFloat(numericStr) || 0;
     };
 
-    const handleDateFromChange = (e) => {
-        const newDateFrom = e.target.value;
-        setDateFrom(newDateFrom);
+    const workingHours = getNumericWorkingHours(workingHoursStr);
 
-        // If dateTo is before new dateFrom, update dateTo to match
-        if (dateTo && newDateFrom > dateTo) {
-            setDateTo(newDateFrom);
+    // Handle approved leaves first - check both leaveStatus and status fields
+    if (leaveStatus === 'approved' || leaveStatus === 'firstHalfApproved' || leaveStatus === 'secondHalfApproved') {
+        if (leaveType === 'full' || leaveType === 'casual') {
+            return 'leaveApproved'; // Full day leave
         }
 
-        validateDates(newDateFrom, dateTo || newDateFrom);
+        if (leaveType === 'first half' || leaveStatus === 'firstHalfApproved') {
+            if (isFutureDate) {
+                return 'firstHalfApproved';
+            }
+            if (workingHours >= 4) {
+                return 'firstHalfApproved_present';
+            } else {
+                return 'firstHalfApproved_absent';
+            }
+        }
+
+        if (leaveType === 'second half' || leaveStatus === 'secondHalfApproved') {
+            if (isFutureDate) {
+                return 'secondHalfApproved';
+            }
+            if (workingHours >= 4) {
+                return 'secondHalfApproved_present';
+            } else {
+                return 'secondHalfApproved_absent';
+            }
+        }
+    }
+
+    // Handle WFH explicitly
+    if (leaveStatus === 'Present (WFH)') {
+        return 'wfh';
+    }
+
+    // Handle present status (including presentLate)
+    if ((workingHours >= 8.45 || leaveStatus === 'present') || leaveStatus === 'presentLate') {
+        return 'present';
+    }
+
+    if ((!leaveStatus || leaveStatus === 'Checked In') && checkIn && checkOut && workingHours >= 8.45) {
+        return 'present';
+    }
+
+    if (!checkIn && !checkOut) {
+        if (isFutureDate) {
+            return null;
+        }
+        return 'absent';
+    }
+
+    if (workingHours >= 8.45) {
+        return 'present';
+    }
+
+    if (workingHours >= 4) {
+        if (checkIn) {
+            const checkInTime = checkIn.split(':').map(Number);
+            const checkInHour = checkInTime[0] + (checkInTime[1] / 60);
+            if (checkInHour <= 12.0) {
+                return 'firstHalfp';
+            } else {
+                return 'secondhalfp';
+            }
+        }
+    }
+
+    return isFutureDate ? null : 'absent';
+};
+
+// Split Circle Component for visual indicators
+const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
+    const radius = size / 2;
+    const center = radius;
+
+    const getColors = () => {
+        switch (status) {
+            case 'present':
+                return { left: categoryColors.present, right: categoryColors.present };
+            case 'wfh':
+                return { left: categoryColors.wfh, right: categoryColors.wfh };
+            case 'firstHalfp':
+                return { left: categoryColors.firstHalf, right: categoryColors.absent };
+            case 'secondhalfp':
+                return { left: categoryColors.absent, right: categoryColors.secondHalf };
+            case 'firstHalfApproved':
+                return { left: categoryColors.leaveApproved, right: 'transparent' };
+            case 'secondHalfApproved':
+                return { left: 'transparent', right: categoryColors.leaveApproved };
+            case 'firstHalfApproved_present':
+                return { left: categoryColors.leaveApproved, right: categoryColors.present };
+            case 'firstHalfApproved_absent':
+                return { left: categoryColors.leaveApproved, right: categoryColors.absent };
+            case 'secondHalfApproved_present':
+                return { left: categoryColors.present, right: categoryColors.leaveApproved };
+            case 'secondHalfApproved_absent':
+                return { left: categoryColors.absent, right: categoryColors.leaveApproved };
+            case 'leaveApproved':
+                return { left: categoryColors.leaveApproved, right: categoryColors.leaveApproved };
+            case 'absent':
+                return { left: categoryColors.absent, right: categoryColors.absent };
+            case 'holiday':
+                return { left: categoryColors.holiday, right: categoryColors.holiday };
+            case 'sunday':
+                return { left: categoryColors.sunday, right: categoryColors.sunday };
+            case 'today':
+                return { left: categoryColors.today, right: categoryColors.today };
+            default:
+                return isToday
+                    ? { left: '#d1d5db', right: '#d1d5db' }
+                    : { left: 'transparent', right: 'transparent' };
+        }
     };
 
-    const handleDateToChange = (e) => {
-        const newDateTo = e.target.value;
-        setDateTo(newDateTo);
-        validateDates(dateFrom, newDateTo);
-    };
+    const colors = getColors();
 
-    const handleSubmit = () => {
-        if (!validateDates(dateFrom, dateTo)) {
-            return;
-        }
+    const needsSplit = [
+        'firstHalfp', 'secondhalfp',
+        'firstHalfApproved', 'secondHalfApproved',
+        'firstHalfApproved_present', 'firstHalfApproved_absent',
+        'secondHalfApproved_present', 'secondHalfApproved_absent'
+    ].includes(status);
 
-        if (!reason.trim()) {
-            setError('Please provide a reason for attendance regularization.');
-            return;
-        }
-
-        if (!checkIn || !checkOut) {
-            setError('Please provide both check-in and check-out times.');
-            return;
-        }
-
-        // Check if check-out is before check-in
-        const [inHours, inMinutes] = checkIn.split(':').map(Number);
-        const [outHours, outMinutes] = checkOut.split(':').map(Number);
-
-        if (outHours < inHours || (outHours === inHours && outMinutes <= inMinutes)) {
-            setError('Check-out time must be after check-in time.');
-            return;
-        }
-
-        onSubmit({ dateFrom, dateTo, checkIn, checkOut, reason });
-    };
-
-    // Calculate min and max dates for date inputs
-    const minDate = format(maxPastDate, 'yyyy-MM-dd');
-    const maxDate = format(today, 'yyyy-MM-dd');
+    const isDiagonal = [
+        'firstHalfApproved', 'secondHalfApproved',
+        'firstHalfApproved_present', 'firstHalfApproved_absent',
+        'secondHalfApproved_present', 'secondHalfApproved_absent'
+    ].includes(status);
 
     return (
-        <div className="relative bg-white text-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 transition-all duration-300 border border-gray-700">
-            {/* Header */}
-            <h3 className="text-2xl font-semibold mb-4 text-[#FFD700] flex items-center gap-2">
-                🕒 Attendance Regularization
-            </h3>
+        <div
+            className="relative"
+            style={{
+                width: size,
+                height: size,
+                borderRadius: '50%',
+                overflow: 'hidden'
+            }}
+        >
+            <div
+                className="absolute rounded-full border border-gray-300"
+                style={{
+                    width: size,
+                    height: size,
+                    backgroundColor: !needsSplit && colors.left !== 'transparent' ? colors.left : 'transparent',
+                    borderRadius: '50%'
+                }}
+            />
 
-            {/* Info Message */}
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> AR can only be applied for the past 3 days. Today is {format(today, 'MMM dd, yyyy')}.
-                </p>
-            </div>
+            {needsSplit && (
+                <svg
+                    width={size}
+                    height={size}
+                    className="absolute top-0 left-0"
+                    viewBox={`0 0 ${size} ${size}`}
+                    style={{ borderRadius: '50%' }}
+                >
+                    <defs>
+                        <clipPath id={`circle-${size}`}>
+                            <circle cx={center} cy={center} r={radius - 1} />
+                        </clipPath>
+                    </defs>
 
-            {/* Error Message */}
-            {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800">{error}</p>
-                </div>
+                    <g clipPath={`url(#circle-${size})`}>
+                        {isDiagonal ? (
+                            <>
+                                <path
+                                    d={`M 0,0 L ${size},${size} L 0,${size} Z`}
+                                    fill={colors.left !== 'transparent' ? colors.left : 'none'}
+                                />
+                                <path
+                                    d={`M 0,0 L ${size},${size} L ${size},0 Z`}
+                                    fill={colors.right !== 'transparent' ? colors.right : 'none'}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <rect
+                                    x="0"
+                                    y="0"
+                                    width={size / 2}
+                                    height={size}
+                                    fill={colors.left}
+                                />
+                                <rect
+                                    x={size / 2}
+                                    y="0"
+                                    width={size / 2}
+                                    height={size}
+                                    fill={colors.right}
+                                />
+                            </>
+                        )}
+                    </g>
+                </svg>
             )}
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">From Date *</label>
-                    <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={handleDateFromChange}
-                        min={minDate}
-                        max={maxDate}
-                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:border-none focus:ring-2 focus:ring-[#FFD700]"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">To Date *</label>
-                    <input
-                        type="date"
-                        value={dateTo}
-                        onChange={handleDateToChange}
-                        min={dateFrom || minDate}
-                        max={maxDate}
-                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:border-none focus:ring-2 focus:ring-[#FFD700]"
-                        required
-                    />
-                </div>
-            </div>
-
-            {/* Time Inputs */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">In Time *</label>
-                    <input
-                        type="time"
-                        value={checkIn}
-                        onChange={(e) => setInTime(e.target.value)}
-                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:border-none focus:ring-2 focus:ring-[#FFD700]"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">Out Time *</label>
-                    <input
-                        type="time"
-                        value={checkOut}
-                        onChange={(e) => setOutTime(e.target.value)}
-                        className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:border-none focus:ring-2 focus:ring-[#FFD700]"
-                        required
-                    />
-                </div>
-            </div>
-
-            {/* Reason */}
-            <div className="mb-4">
-                <label className="block text-sm text-gray-900 mb-1">Reason *</label>
-                <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    rows={3}
-                    placeholder="Explain why you're requesting this adjustment..."
-                    className="w-full bg-white text-gray-800 border border-gray-600 rounded-lg p-2 focus:outline-none focus:border-none focus:ring-2 focus:ring-[#FFD700]"
-                    required
+            {isToday && !status && (
+                <div
+                    className="absolute rounded-full border-2 border-gray-600"
+                    style={{
+                        width: size,
+                        height: size,
+                        top: 0,
+                        left: 0,
+                        borderRadius: '50%'
+                    }}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                    {reason.length}/500 characters
-                </p>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3">
-                <button
-                    onClick={onClose}
-                    disabled={submitting}
-                    className="px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                    Cancel
-                </button>
-                <button
-                    disabled={submitting}
-                    onClick={handleSubmit}
-                    className={`px-4 py-2 rounded-lg text-black font-semibold transition ${submitting
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-[#FFD700] hover:bg-yellow-400'
-                        }`}
-                >
-                    {submitting ? 'Submitting...' : 'Submit'}
-                </button>
-            </div>
-
-            {/* Subtle glow */}
-            <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-yellow-400/10 to-transparent pointer-events-none" />
+            )}
         </div>
     );
-}
+};
 
-// --- WFH Form ---
-function WFHForm({ defaultDate, onClose, onSubmit, submitting }) {
+
+export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn, setMonthName }) {
     const today = new Date();
-    const [dateFrom, setDateFrom] = useState(defaultDate || format(today, 'yyyy-MM-dd'));
-    const [dateTo, setDateTo] = useState(defaultDate || format(today, 'yyyy-MM-dd'));
-    const [reason, setReason] = useState('');
-    const [error, setError] = useState('');
-
-    const handleDateFromChange = (e) => {
-        const newDateFrom = e.target.value;
-        setDateFrom(newDateFrom);
-        if (dateTo && newDateFrom > dateTo) {
-            setDateTo(newDateFrom);
-        }
-    };
-
-    const handleDateToChange = (e) => {
-        const newDateTo = e.target.value;
-        setDateTo(newDateTo);
-        if (dateFrom && newDateTo < dateFrom) {
-            setError('To date cannot be before From date.');
-        } else {
-            setError('');
-        }
-    };
-
-    const handleSubmit = () => {
-        if (dateTo < dateFrom) {
-            setError('To date cannot be before From date.');
-            return;
-        }
-        if (!reason.trim()) {
-            setError('Please provide a reason for WFH.');
-            return;
-        }
-        onSubmit({ dateFrom, dateTo, reason });
-    };
-
-    return (
-        <div className="relative bg-white text-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 transition-all duration-300 border border-gray-200">
-            <h3 className="text-2xl font-semibold mb-4 text-indigo-600 flex items-center gap-2">
-                🏠 Apply Work From Home
-            </h3>
-
-            {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800">{error}</p>
-                </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">From Date *</label>
-                    <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={handleDateFromChange}
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm text-gray-900 mb-1">To Date *</label>
-                    <input
-                        type="date"
-                        value={dateTo}
-                        onChange={handleDateToChange}
-                        min={dateFrom}
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                    />
-                </div>
-            </div>
-
-            <div className="mb-4">
-                <label className="block text-sm text-gray-900 mb-1">Reason *</label>
-                <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    rows={3}
-                    placeholder="Provide a valid reason for working from home..."
-                    className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                />
-            </div>
-
-            <div className="flex justify-end gap-3">
-                <button
-                    onClick={onClose}
-                    disabled={submitting}
-                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                    Cancel
-                </button>
-                <button
-                    disabled={submitting}
-                    onClick={handleSubmit}
-                    className={`px-4 py-2 rounded-lg text-white font-semibold transition ${submitting
-                        ? 'bg-indigo-300 cursor-not-allowed'
-                        : 'bg-indigo-600 hover:bg-indigo-700'
-                        }`}
-                >
-                    {submitting ? 'Submitting...' : 'Submit Request'}
-                </button>
-            </div>
-        </div>
-    );
-}
-
-
-export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn }) {
-    const myDate = new Date();
-    const [currentDate, setCurrentDate] = useState(myDate);
-    const [showCalendar, setShowCalendar] = useState(false);
-    const [loadingLeave, setLoadingLeave] = useState(null);
+    const [currentDate, setCurrentDate] = useState(today);
+    const [selectedMonth, setSelectedMonth] = useState(getMonth(today));
+    const [selectedYear, setSelectedYear] = useState(getYear(today));
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [popupData, setPopupData] = useState(null);
     const { setRootContext } = useContext(RootContext);
-    const [serviceCall, setServiceCall] = useState(false);
-
-    const mutated = Mutated(profile ? `/api/employees?id=${profile._id}` : null)
-
-    const [showARModal, setShowARModal] = useState(false);
-    const [arSubmitting, setArSubmitting] = useState(false);
-
-    const [showWFHModal, setShowWFHModal] = useState(false);
-    const [wfhSubmitting, setWfhSubmitting] = useState(false);
-
-
-    // Fetch global holidays
     const { data: globalHolidaysData } = useSWRFetch("/api/holidays");
     const globalHolidays = globalHolidaysData || [];
+    // Leave modal states
+    const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+    const [isSelectingLeave, setIsSelectingLeave] = useState(false);
+    const [leaveRange, setLeaveRange] = useState({
+        start: null,
+        end: null,
+        leaveType: '',
+        reason: ''
+    });
 
-    const monthNames = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ];
+    // Early logout modal state
+    const [earlyLogoutModal, setEarlyLogoutModal] = useState({
+        open: false,
+        workedMinutes: 0,
+        requiredMinutes: 0,
+        message: '',
+    });
 
-    // Get current month from Calendar component
-    const [currentMonth, setCurrentMonth] = useState(myDate.getMonth());
-
-    // Handle month change from Calendar component
-    const handleMonthChange = (monthIndex) => {
-        setCurrentMonth(monthIndex);
+    const updateCalendarDate = (month, year) => {
+        const effectiveYear = isNaN(year) ? getYear(today) : year;
+        const newDate = setMonth(setYear(new Date(), effectiveYear), month);
+        setCurrentDate(newDate);
     };
 
-    const FULL_DAY_HOURS = 8.45; // 8h 27m (8.45 hours)
-    const HALF_DAY_HOURS = 4.00; // 4 hours
+    const handleMonthChange = (e) => {
+        const newMonth = parseInt(e.target.value);
+        setSelectedMonth(newMonth);
+        updateCalendarDate(newMonth, selectedYear);
+        setMonthName(newMonth)
+    };
 
-    // Helper function to calculate working hours from check-in/check-out
-    const calculateWorkingHours = (checkIn, checkOut, date, status) => {
-        if (!checkIn || !checkOut) return 0;
-
-        const [inH, inM] = checkIn.split(':').map(Number);
-        const [outH, outM] = checkOut.split(':').map(Number);
-        const start = inH * 60 + inM;
-        const end = outH * 60 + outM;
-
-        let diffMinutes = Math.max(0, end - start);
-
-        // Handle half-day approved leaves
-        if (status === 'firsthalfapproved') {
-            // First half: check-in 9:00-9:45, check-out 13:30+
-            return 4.0; // 4 hours for first half
-        } else if (status === 'secondhalfapproved') {
-            // Second half: check-in 13:00-13:45, check-out 18:30+
-            return 4.0; // 4 hours for second half
-        }
-
-        // Adjust for lunch break based on day for full days
-        const day = getDay(new Date(date));
-        if (day !== 6) { // Not Saturday
-            diffMinutes = Math.max(0, diffMinutes - 60);
+    const handleYearChange = (e) => {
+        const inputValue = e.target.value;
+        if (inputValue === '') {
+            setSelectedYear('');
+            updateCalendarDate(selectedMonth, getYear(today));
         } else {
-            diffMinutes = Math.max(0, diffMinutes - 30);
+            const newYear = parseInt(inputValue);
+            if (!isNaN(newYear) && newYear >= 1900 && newYear <= 2100) {
+                setSelectedYear(newYear);
+                updateCalendarDate(selectedMonth, newYear);
+            }
         }
-
-        return diffMinutes / 60; // hours as decimal
     };
 
-    // Check if date is before date of joining
-    const isBeforeDateOfJoining = (date) => {
-        if (!profile?.dateOfJoining) return false;
-        const doj = new Date(profile.dateOfJoining);
-        const checkDate = new Date(date);
-        return isBefore(checkDate, doj);
-    };
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    const [serviceCall, setServiceCall] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
 
-    const calculateAttendanceByMonthIndex = (profile, monthIndex, year = myDate.getFullYear(), globalHolidays = []) => {
-        const monthName = monthNames[monthIndex];
+    const attendanceMap = useMemo(() => {
+        const map = {};
+        if (!profile?.attendance) return map;
 
-        // Get the actual month start and end dates
-        const start = startOfMonth(new Date(year, monthIndex, 1));
-        const end = endOfMonth(start);
-        const monthDates = eachDayOfInterval({ start, end });
+        const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
 
-        const holidays = globalHolidays.map(h => format(new Date(h.date), 'yyyy-MM-dd'));
+        const currentMonthName = format(currentDate, 'MMMM');
+        if (profile.attendance[currentMonthName]) {
+            profile.attendance[currentMonthName].forEach(att => {
+                const attDate = new Date(att.date);
+                if (getMonth(attDate) === getMonth(currentDate) && getYear(attDate) === getYear(currentDate)) {
+                    let workingHours = calculateWorkingHours(att.checkIn, att.checkOut, att.date);
 
-        // Calculate total calendar days in month
-        const totalCalendarDays = monthDates.length;
+                    let status = determineStatus(
+                        att.checkIn,
+                        att.checkOut,
+                        att.leaveType,
+                        att.status,
+                        att.date,
+                        att.workingHours
+                    );
 
-        // Calculate Sundays, holidays, and working days
-        let sundaysCount = 0;
-        let holidaysCount = 0;
-        let totalWorkingDays = totalCalendarDays;
-        let tuesdaysCount = 0;
-
-        monthDates.forEach(date => {
-            const formatted = format(date, 'yyyy-MM-dd');
-            const isSundayFlag = isSunday(date);
-            const isHoliday = holidays.includes(formatted);
-            const isTuesday = getDay(date) === 6;
-
-            if (isSundayFlag) sundaysCount++;
-            if (isHoliday) holidaysCount++;
-            if (isTuesday) tuesdaysCount++;
-        });
-
-        // Calculate actual working days (excluding Sundays, holidays, and tech Tuesdays)
-        let actualWorkingDays = totalCalendarDays - sundaysCount - holidaysCount;
-        // if (profile?.department === "tech") {
-        //     actualWorkingDays -= tuesdaysCount;
-        // }
-
-        // Initialize counters
-        let totalWorked = 0;
-        let totalHoursWorked = 0;
-        let presentLate = 0;
-        let earlyOut = 0;
-        let firstHalf = 0;
-        let secondHalf = 0;
-        let cumulativeLateEarly = 0;
-        let lossOfPay = 0;
-        let paidLeaves = 0;
-        let absentDays = 0;
-        let presentDays = 0;
-
-        // Track all dates that should be marked as absent
-        const absentDateSet = new Set();
-
-        // Process attendance data for the month
-        if (profile && profile.attendance && profile.attendance[monthName]) {
-            profile.attendance[monthName].forEach(item => {
-                // Skip if date is before date of joining
-                if (isBeforeDateOfJoining(item.date)) {
-                    return;
-                }
-
-                // Handle approved leaves (paid leaves)
-                if (item.status === 'approved' || item.status === 'firstHalfApproved' || item.status === 'secondHalfApproved') {
-                    if (item.status === 'approved') {
-                        paidLeaves += 1;
-                        totalWorked += 1;
-                        presentDays += 1;
-                    } else if (item.status === 'firstHalfApproved' || item.status === 'secondHalfApproved') {
-                        paidLeaves += 0.5;
-                        totalWorked += 0.5;
-                        presentDays += 0.5;
-                    }
-                    return;
-                }
-
-                // Handle present status
-                if (item.status === 'present' || item.status === 'presentLate') {
-                    let workingHours = 0;
-
-                    if (item.workingHours && typeof item.workingHours === 'string') {
-                        workingHours = parseFloat(item.workingHours.toString().replace('hrs', '').trim()) || 0;
-                    } else if (item.checkIn && item.checkOut) {
-                        workingHours = calculateWorkingHours(item.checkIn, item.checkOut, item.date);
+                    if (att.leaveType && att.status === "pending") {
+                        status = "leaveApplied";
                     }
 
-                    totalHoursWorked += workingHours;
-                    presentDays += 1;
-
-                    // Time thresholds
-                    const lateThreshold = parse('09:45', 'HH:mm', new Date());
-                    const earlyOutThreshold = parse('18:30', 'HH:mm', new Date());
-
-                    // Check for late arrival
-                    if (item.checkIn) {
-                        const checkInTime = parse(item.checkIn, 'HH:mm', new Date());
-                        if (checkInTime > lateThreshold && checkInTime <= parse('12:00', 'HH:mm', new Date())) {
-                            presentLate += 1;
-                            cumulativeLateEarly += 1;
-                        }
-                    }
-
-                    // Check for early out
-                    if (item.checkOut) {
-                        const checkOutTime = parse(item.checkOut, 'HH:mm', new Date());
-                        if (checkOutTime >= parse('17:45', 'HH:mm', new Date()) && checkOutTime < earlyOutThreshold) {
-                            earlyOut += 1;
-                            cumulativeLateEarly += 1;
-                        }
-                    }
-
-                    if (workingHours >= FULL_DAY_HOURS) {
-                        totalWorked += 1;
-                    } else if (workingHours >= HALF_DAY_HOURS && workingHours < FULL_DAY_HOURS) {
-                        totalWorked += 0.5;
-                        if (item.checkIn) {
-                            const checkInTime = parse(item.checkIn, 'HH:mm', new Date());
-                            const secondHalfStart = parse('13:30', 'HH:mm', new Date());
-                            if (checkInTime < secondHalfStart) {
-                                firstHalf += 1;
-                            } else {
-                                secondHalf += 1;
-                            }
-                        }
-                    } else if (workingHours > 0 && workingHours < HALF_DAY_HOURS) {
-                        totalWorked += 0.25;
-                    } else {
-                        totalWorked += 1;
-                    }
-                }
-
-                // Handle absent days
-                if (item.status === 'absent') {
-                    absentDateSet.add(item.date);
-                    if (item.lossOfPay) {
-                        lossOfPay += item.lossOfPay;
-                    }
-                }
-
-                // Handle "Checked In" status (partial day)
-                if (item.status === 'Checked In' && item.checkIn) {
-                    totalWorked += 0.25;
-                    presentDays += 0.25;
-                    const workingHours = calculateWorkingHours(item.checkIn, item.checkOut || '18:30', item.date);
-                    totalHoursWorked += workingHours;
-                }
-
-                // Handle empty status but with check-in/check-out (count as present)
-                if (!item.status && item.checkIn && item.checkOut) {
-                    const workingHours = calculateWorkingHours(item.checkIn, item.checkOut, item.date);
-                    totalHoursWorked += workingHours;
-                    presentDays += 1;
-
-                    if (workingHours >= FULL_DAY_HOURS) {
-                        totalWorked += 1;
-                    } else if (workingHours >= HALF_DAY_HOURS) {
-                        totalWorked += 0.5;
-                    } else if (workingHours > 0) {
-                        totalWorked += 0.25;
-                    } else {
-                        totalWorked += 1;
-                    }
-                }
-
-                if (item.status === 'present' || item.status === 'presentLate') {
-                    presentDays += 1;
+                    map[att.date] = {
+                        ...att,
+                        workingHours: Number(workingHours) || 0,
+                        status,
+                    };
                 }
             });
         }
 
-        // Calculate absent days for dates without any attendance record
-        monthDates.forEach(date => {
-            const dateStr = format(date, 'yyyy-MM-dd');
-            const isPastDate = date < new Date();
-            const isAfterJoining = !isBeforeDateOfJoining(dateStr);
+        // Mark only PAST dates AFTER joining - ONLY for current month
+        allDays.forEach(day => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const isPastDate = day < today;
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isAfterJoining = dateOfJoining ? day >= dateOfJoining : true;
 
-            // Skip if date is before joining or future date
-            if (!isAfterJoining || !isPastDate) return;
+            if (!isAfterJoining || !isCurrentMonth) return;
 
-            const isSundayFlag = isSunday(date);
-            const isHolidayDay = holidays.includes(dateStr);
+            const isSunday = isSundayHoliday(day);
+            const isHolidayDay = isHoliday(day);
 
-            // Only count as absent if it's a working day (not Sunday, holiday, or tech Tuesday off)
-            if (!isSundayFlag && !isHolidayDay) {
-                // Check if this date has any attendance record
-                const hasAttendance = profile?.attendance?.[monthName]?.some(item => item.date === dateStr);
-                if (!hasAttendance && !absentDateSet.has(dateStr)) {
-                    absentDateSet.add(dateStr);
+            if (isPastDate && !map[dayStr]) {
+                if (isSunday) {
+                    map[dayStr] = { status: 'sunday', workingHours: 0 };
+                } else if (isHolidayDay) {
+                    map[dayStr] = { status: 'holiday', workingHours: 0 };
+                } else {
+                    map[dayStr] = { status: 'absent', workingHours: 0 };
                 }
             }
         });
 
-        // Set the final absent days count
-        absentDays = absentDateSet.size;
+        return map;
+    }, [profile, currentDate, allDays]);
 
-        // Calculate loss of pay ONLY from cumulative late/early (every 3 = 1 loss of pay)
-        // Remove loss of pay from absent days - absent days should not automatically cause loss of pay
-        if (cumulativeLateEarly >= 3) {
-            const additionalLoss = Math.floor(cumulativeLateEarly / 3);
-            lossOfPay = additionalLoss; // Only count late/early penalties for loss of pay
-        }
 
-        return {
-            totalWorked: parseFloat(totalWorked.toFixed(2)),
-            totalWorkingDays: actualWorkingDays, // Use actual working days instead of displayWorkingDays
-            totalCalendarDays,
-            holidaysCount,
-            sundaysCount,
-            tuesdaysCount,
-            presentLate,
-            earlyOut,
-            firstHalf,
-            secondHalf,
-            lossOfPay,
-            totalHoursWorked: parseFloat(totalHoursWorked.toFixed(2)),
-            paidLeaves: parseFloat(paidLeaves.toFixed(2)),
-            absentDays,
-            presentDays: Math.round(presentDays)
-        };
+    const handleOpenLeaveModal = () => {
+        setLeaveModalOpen(true);
+        setIsSelectingLeave(true);
+        setLeaveRange({
+            start: null,
+            end: null,
+            leaveType: '',
+            reason: ''
+        });
     };
 
-    // Update the attendance calculation to use currentMonth
-    const {
-        totalWorked,
-        totalWorkingDays,
-        totalCalendarDays,
-        holidaysCount,
-        sundaysCount,
-        tuesdaysCount,
-        presentLate,
-        earlyOut,
-        firstHalf,
-        secondHalf,
-        lossOfPay,
-        totalHoursWorked,
-        paidLeaves,
-        absentDays,
-        presentDays
-    } = calculateAttendanceByMonthIndex(profile, currentMonth, myDate.getFullYear(), globalHolidays);
-
-    // Check if it's the last day of the current month
-    const isMonthEnd = isLastDayOfMonth(new Date());
-
-    // Check if current month is before date of joining
-    const isMonthBeforeJoining = useMemo(() => {
-        if (!profile?.dateOfJoining) return false;
-        const doj = new Date(profile.dateOfJoining);
-        const currentMonthStart = startOfMonth(new Date(myDate.getFullYear(), currentMonth, 1));
-        const currentMonthEnd = endOfMonth(currentMonthStart);
-        return isBefore(currentMonthEnd, doj);
-    }, [profile?.dateOfJoining, currentMonth]);
-
-    // Check if current month is the current actual month
-    const isCurrentMonth = useMemo(() => {
-        const today = new Date();
-        return currentMonth === today.getMonth() && today.getFullYear() === myDate.getFullYear();
-    }, [currentMonth]);
-
-    // Get previous month data for display
-    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const previousYear = currentMonth === 0 ? myDate.getFullYear() - 1 : myDate.getFullYear();
-
-    const {
-        absentDays: prevAbsentDays,
-        presentDays: prevPresentDays,
-        lossOfPay: prevLossOfPay,
-        totalCalendarDays: prevTotalCalendarDays,
-        holidaysCount: prevHolidaysCount,
-        sundaysCount: prevSundaysCount,
-        tuesdaysCount: prevTuesdaysCount,
-        totalWorkingDays: prevTotalWorkingDays
-    } = calculateAttendanceByMonthIndex(profile, previousMonth, previousYear, globalHolidays);
-
-    // Withdraw leave service
-    const withdrawLeaveService = async (employeeId, startDate, endDate) => {
-        const res = await fetch(`/api/leave/delete?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`, { method: 'DELETE' });
-        return res;
+    const handleCloseLeaveModal = () => {
+        setLeaveModalOpen(false);
+        setIsSelectingLeave(false);
+        setLeaveRange({
+            start: null,
+            end: null,
+            leaveType: '',
+            reason: ''
+        });
     };
 
-    const handleWithdraw = async (employeeId, startDate, endDate, leaveDates) => {
-        try {
-            setLoadingLeave(startDate);
+    const user_details =
+        typeof window !== "undefined" &&
+        JSON.parse(localStorage.getItem("user_details"));
+    const employeeId = user_details?.userId;
 
-            const res = await withdrawLeaveService(employeeId, startDate, endDate);
-            const data = await res.json();
+    const mutated = Mutated(employeeId ? `/api/employees?id=${employeeId}` : null)
 
-            if (!res.ok) {
-                throw new Error(data?.error || 'Failed to withdraw leave');
-            }
+    // Today's status checks
+    const isTodaySunday = isSundayHoliday(today);
+    const isTodayHoliday = isHoliday(today, globalHolidays);
 
-            // Local UI update
-            const monthKeys = Object.keys(profile.attendance);
-            monthKeys.forEach((month) => {
-                profile.attendance[month] = profile.attendance[month].filter(
-                    (l) => !leaveDates.includes(l.date)
-                );
-            });
+    // Determine if today has leave applied
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const todayAttendance = attendanceMap[todayStr];
+    const isLeaveAppliedToday = todayAttendance && (
+        todayAttendance.status === 'leaveApplied' ||
+        todayAttendance.status === 'leaveApproved'
+    );
 
-            setRootContext((prevContext) => ({
-                ...prevContext,
+    // Login button: we only disable if user is already checked in? The requirement says do not disable login button. 
+    // We'll remove all disabling - the handler will manage it.
+    // We'll keep the button enabled always, but the parent onCheckIn may handle the case.
+    // For completeness, we can set disabled to false.
+    const isCheckInDisabled = false; // Always enabled as per requirement
+
+    // Auto-refresh current time every minute
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Helper function to check if dates contain Monday or Saturday
+    const hasInvalidDays = (startDate, endDate) => {
+        if (!startDate || !endDate) return false;
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        return daysInRange.some(date => {
+            const day = getDay(date);
+            return day === 1 || day === 6; // Monday (1) or Saturday (6)
+        });
+    };
+
+    // Calculate if apply button should be disabled
+    const isApplyButtonDisabled =
+        !leaveRange.start ||
+        !leaveRange.end ||
+        !leaveRange.leaveType ||
+        hasInvalidDays(leaveRange.start, leaveRange.end) ||
+        serviceCall;
+
+    const applyLeave = async () => {
+        // Step 1: Basic validations
+        if (!leaveRange.start || !leaveRange.end || !leaveRange.leaveType) {
+            setRootContext(prev => ({
+                ...prev,
                 toast: {
                     show: true,
                     dismiss: true,
-                    type: "success",
-                    title: `Success`,
-                    message: `Leave withdrawn successfully`,
+                    type: "warning",
+                    title: "Warning",
+                    message: "Please fill all required fields before applying for leave.",
                 },
             }));
+            return;
+        }
 
-            mutated();
-        } catch (err) {
-            console.log("Withdraw failed:", err);
-            setRootContext((prevContext) => ({
-                ...prevContext,
+        // Step 2: Validate dates are not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (leaveRange.start < today || leaveRange.end < today) {
+            setRootContext(prev => ({
+                ...prev,
                 toast: {
                     show: true,
                     dismiss: true,
                     type: "error",
-                    title: `Failed`,
-                    message: err.message || "Failed to withdraw leave. Try again.",
+                    title: "Invalid Dates",
+                    message: "Leave can only be applied for today and future dates.",
                 },
             }));
-        } finally {
-            setLoadingLeave(null);
+            return;
         }
-    };
 
-    // Filter leaves dynamically for the month
-    const monthLeaves = useMemo(() => {
-        if (!profile || !profile.attendance) return [];
-        const monthNamee = monthNames[currentMonth];
-        const monthArr = profile.attendance[monthNamee] || [];
+        // Step 3: Prevent leave on restricted days (Monday and Saturday)
+        const daysInRange = eachDayOfInterval({
+            start: leaveRange.start,
+            end: leaveRange.end,
+        });
 
-        // Filter leaves with leaveType and check date of joining
-        const pendingLeaves = monthArr.filter(
-            (item) => item.leaveType && !isBeforeDateOfJoining(item.date)
-        );
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date);
+            return day === 1 || day === 6; // Monday or Saturday
+        });
 
-        // Sort by date ascending
-        pendingLeaves.sort((a, b) => new Date(a.date) - new Date(b.date));
+        if (invalidDays.length > 0) {
+            const restrictedDays = invalidDays.map(d => {
+                const dayName = format(d, "EEE");
+                return `${format(d, "MMM dd")} (${dayName})`;
+            }).join(", ");
+            const errorMessage = `Leave cannot be applied on Monday or Saturday. Please remove: ${restrictedDays}`;
 
-        const grouped = [];
-        let currentGroup = null;
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Leave Dates",
+                    message: errorMessage,
+                },
+            }));
+            return;
+        }
 
-        for (const leave of pendingLeaves) {
-            const leaveDate = parseISO(leave.date);
+        // Step 4: Validate half-day leaves
+        if ((leaveRange.leaveType === 'first half' || leaveRange.leaveType === 'second half') &&
+            leaveRange.start.getTime() !== leaveRange.end.getTime()) {
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Invalid Leave Range",
+                    message: "Half-day leaves (first half/second half) can only be applied for a single day.",
+                },
+            }));
+            return;
+        }
 
-            if (
-                !currentGroup ||
-                leave.leaveType !== currentGroup.leaveType ||
-                differenceInCalendarDays(leaveDate, parseISO(currentGroup.endDate)) > 1
-            ) {
-                // start new range
-                currentGroup = {
-                    leaveType: leave.leaveType,
-                    startDate: leave.date,
-                    endDate: leave.date,
-                    reason: leave.reason || "",
-                    status: leave.status
-                };
-                grouped.push(currentGroup);
+        // Step 5: Proceed to API call
+        setServiceCall(true);
+        try {
+            const res = await fetch("/api/leave/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    employeeId,
+                    startDate: format(leaveRange.start, "yyyy-MM-dd"),
+                    endDate: format(leaveRange.end, "yyyy-MM-dd"),
+                    leaveType: leaveRange.leaveType,
+                    reason: leaveRange.reason || "",
+                }),
+            });
+
+            setServiceCall(false);
+            const data = await res.json();
+
+            if (res.ok) {
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "success",
+                        title: "Success",
+                        message: "Leave applied successfully!",
+                    },
+                }));
+                handleCloseLeaveModal();
+                mutated();
             } else {
-                // extend range
-                currentGroup.endDate = leave.date;
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "error",
+                        title: "Failed",
+                        message: data.error || "Failed to apply leave.",
+                    },
+                }));
+            }
+        } catch (err) {
+            console.log("Error applying leave:", err);
+            setServiceCall(false);
+            setRootContext(prev => ({
+                ...prev,
+                toast: {
+                    show: true,
+                    dismiss: true,
+                    type: "error",
+                    title: "Failed",
+                    message: "An unexpected error occurred while applying leave.",
+                },
+            }));
+        }
+    };
+
+    // Add this helper function to check for invalid days
+    const checkInvalidDays = (startDate, endDate) => {
+        if (!startDate || !endDate) return { hasInvalidDays: false, invalidDays: [] };
+
+        const daysInRange = eachDayOfInterval({
+            start: startDate,
+            end: endDate,
+        });
+
+        const invalidDays = daysInRange.filter(date => {
+            const day = getDay(date);
+            return day === 1 || day === 6;
+        });
+
+        return { hasInvalidDays: invalidDays.length > 0, invalidDays };
+    };
+
+    const handleStartDateChange = (e) => {
+        const date = e.target.value ? new Date(e.target.value) : null;
+        setLeaveRange(prev => ({
+            ...prev,
+            start: date
+        }));
+
+        if (date && leaveRange.end) {
+            const { hasInvalidDays, invalidDays } = checkInvalidDays(date, leaveRange.end);
+            if (hasInvalidDays) {
+                const restrictedDays = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+                const message = `Leave cannot be applied on Monday or Saturday. Invalid days: ${restrictedDays}`;
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "warning",
+                        title: "Invalid Dates Selected",
+                        message: message,
+                    },
+                }));
             }
         }
+    };
 
-        return grouped;
-    }, [profile, currentMonth]);
+    const handleEndDateChange = (e) => {
+        const date = e.target.value ? new Date(e.target.value) : null;
+        setLeaveRange(prev => ({
+            ...prev,
+            end: date
+        }));
 
-    // --- Updated: submit AR request via Mongo API ---
-    const submitAR = async ({ dateFrom, dateTo, checkIn, checkOut, reason }) => {
-        if (!profile?._id) return;
-
-        try {
-            setArSubmitting(true);
-            setServiceCall(true);
-
-            // Check if any date is before date of joining
-            const fromDate = new Date(dateFrom);
-            const toDate = new Date(dateTo);
-            if (isBeforeDateOfJoining(dateFrom) || isBeforeDateOfJoining(dateTo)) {
-                throw new Error('Cannot apply AR for dates before your date of joining.');
+        if (date && leaveRange.start) {
+            const { hasInvalidDays, invalidDays } = checkInvalidDays(leaveRange.start, date);
+            if (hasInvalidDays) {
+                const restrictedDays = invalidDays.map(d => format(d, "EEE, MMM dd")).join(", ");
+                const message = `Leave cannot be applied on Monday or Saturday. Invalid days: ${restrictedDays}`;
+                setRootContext(prev => ({
+                    ...prev,
+                    toast: {
+                        show: true,
+                        dismiss: true,
+                        type: "warning",
+                        title: "Invalid Dates Selected",
+                        message: message,
+                    },
+                }));
             }
-
-            const payload = {
-                employeeId: profile._id,
-                dateFrom,
-                dateTo,
-                checkIn,
-                checkOut,
-                reason,
-                type: 'regularization',
-            };
-
-            const res = await fetch('/api/ar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error || 'Failed to apply regularization.');
-
-            setRootContext(prev => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'success',
-                    title: 'Success',
-                    message: 'Attendance Regularization submitted successfully.'
-                },
-            }));
-
-            // Refresh data
-            mutated();
-            setShowARModal(false);
-
-        } catch (err) {
-            console.log('AR submit error:', err);
-            setRootContext(prev => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'error',
-                    title: 'Error',
-                    message: err.message || 'Failed to submit attendance regularization.'
-                },
-            }));
-        } finally {
-            setServiceCall(false);
-            setArSubmitting(false);
         }
     };
 
-    // --- Submit WFH Request ---
-    const submitWFH = async ({ dateFrom, dateTo, reason }) => {
-        if (!profile?._id) return;
-
-        try {
-            setWfhSubmitting(true);
-            setServiceCall(true);
-
-            // Check if any date is before date of joining
-            if (isBeforeDateOfJoining(dateFrom) || isBeforeDateOfJoining(dateTo)) {
-                throw new Error('Cannot apply WFH for dates before your date of joining.');
-            }
-
-            const payload = {
-                employeeId: profile._id,
-                startDate: dateFrom,
-                endDate: dateTo,
-                reason,
-            };
-
-            const res = await fetch('/api/wfh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error || 'Failed to apply WFH.');
-
-            setRootContext(prev => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'success',
-                    title: 'Success',
-                    message: 'WFH Request submitted successfully.'
-                },
-            }));
-
-            mutated();
-            setShowWFHModal(false);
-
-        } catch (err) {
-            console.log('WFH submit error:', err);
-            setRootContext(prev => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'error',
-                    title: 'Error',
-                    message: err.message || 'Failed to submit WFH request.'
-                },
-            }));
-        } finally {
-            setServiceCall(false);
-            setWfhSubmitting(false);
+    // Handle logout click with early logout validation
+    const handleLogoutClick = () => {
+        if (!isCheckedIn) {
+            // If not checked in, just call parent's onCheckOut (or do nothing)
+            onCheckOut();
+            return;
         }
+
+        // Compute worked minutes from check-in to now
+        const todayStr = format(today, 'yyyy-MM-dd');
+        const att = attendanceMap[todayStr];
+        if (!att || !att.checkIn) {
+            onCheckOut();
+            return;
+        }
+
+        const [inH, inM] = att.checkIn.split(':').map(Number);
+        const checkInTime = set(new Date(), { hours: inH, minutes: inM, seconds: 0, milliseconds: 0 });
+        const workedMinutes = differenceInMinutes(currentTime, checkInTime);
+
+        const requiredHalfDay = HALF_DAY_MINUTES;
+        const requiredFullDay = FULL_DAY_MINUTES;
+
+        let message = '';
+        let requiredMinutes = 0;
+        if (workedMinutes < requiredHalfDay) {
+            const remaining = requiredHalfDay - workedMinutes;
+            message = `You have worked for ${formatDuration(workedMinutes)}.\nYou need ${formatDuration(remaining)} more to complete the minimum Half-Day (${formatDuration(requiredHalfDay)}).\nAre you sure you want to logout?`;
+            requiredMinutes = requiredHalfDay;
+        } else if (workedMinutes < requiredFullDay) {
+            message = `Half-Day requirement completed (${formatDuration(workedMinutes)}).\nFull-Day requires ${formatDuration(requiredFullDay)}.\nAre you sure you want to logout?`;
+            requiredMinutes = requiredFullDay;
+        } else {
+            message = `Full-Day requirement completed (${formatDuration(workedMinutes)}).\nAre you sure you want to logout?`;
+            requiredMinutes = requiredFullDay;
+        }
+
+        setEarlyLogoutModal({
+            open: true,
+            workedMinutes,
+            requiredMinutes,
+            message,
+        });
     };
 
-    // Withdraw AR
-    const withdrawAR = async (employeeId, startDate, endDate, arDates = []) => {
-        if (!employeeId || !startDate || !endDate) return;
-
-        try {
-            setServiceCall(true);
-
-            const res = await fetch(
-                `/api/ar?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`,
-                { method: 'DELETE' }
-            );
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error || 'Failed to withdraw regularization.');
-
-            setRootContext((prev) => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'success',
-                    title: 'Withdrawn',
-                    message: 'Regularization withdrawn successfully.',
-                },
-            }));
-
-            mutated();
-        } catch (err) {
-            console.log('Withdraw AR error:', err);
-            setRootContext((prev) => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'error',
-                    title: 'Error',
-                    message: err.message,
-                },
-            }));
-        } finally {
-            setServiceCall(false);
-        }
+    const confirmLogout = () => {
+        setEarlyLogoutModal({ ...earlyLogoutModal, open: false });
+        onCheckOut();
     };
-
-    // Withdraw WFH
-    const withdrawWFH = async (employeeId, requestId) => {
-        if (!employeeId || !requestId) return;
-
-        try {
-            setServiceCall(true);
-
-            const res = await fetch(
-                `/api/wfh/delete?employeeId=${employeeId}&requestId=${requestId}`,
-                { method: 'DELETE' }
-            );
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error || 'Failed to withdraw WFH request.');
-
-            setRootContext((prev) => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'success',
-                    title: 'Withdrawn',
-                    message: 'WFH request withdrawn successfully.',
-                },
-            }));
-
-            mutated();
-        } catch (err) {
-            console.log('Withdraw WFH error:', err);
-            setRootContext((prev) => ({
-                ...prev,
-                toast: {
-                    show: true,
-                    dismiss: true,
-                    type: 'error',
-                    title: 'Error',
-                    message: err.message,
-                },
-            }));
-        } finally {
-            setServiceCall(false);
-        }
-    };
-
-    // Yesterday UI block
-    const YesterdayBlock = (() => {
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-        // Check if yesterday is before date of joining
-        if (isBeforeDateOfJoining(yesterdayStr)) {
-            return (
-                <div className="bg-gray-100 text-center py-2 rounded-xl mb-3">
-                    <p className="text-sm text-gray-600 italic">No data available for dates before joining.</p>
-                </div>
-            );
-        }
-
-        const monthNameNow = monthNames[yesterday.getMonth()];
-        const yesterdayData =
-            profile.attendance?.[monthNameNow]?.find(
-                (d) => d.date === yesterdayStr
-            ) || null;
-
-        if (!yesterdayData) {
-            return (
-                <div className="bg-gray-100 text-center py-2 rounded-xl mb-3">
-                    <p className="text-sm text-gray-600 italic">No attendance record for yesterday.</p>
-                </div>
-            );
-        }
-
-        const checkIn = yesterdayData.checkIn || "—";
-        const checkOut = yesterdayData.checkOut || "—";
-        let totalHours = "—";
-
-        if (checkIn && checkOut) {
-            const checkInTime = parse(checkIn, "HH:mm", new Date());
-            const checkOutTime = parse(checkOut, "HH:mm", new Date());
-            const minutesWorked = differenceInMinutes(checkOutTime, checkInTime);
-
-            const hours = Math.floor(minutesWorked / 60);
-            const minutes = minutesWorked % 60;
-
-            totalHours = `${hours || 0} hrs ${minutes || 0} mins`;
-        }
-
-        return (
-            <div className="bg-blue-50 p-3 rounded-sm mb-3 border border-blue-200">
-                <p className="text-md text-center font-bold text-gray-700 mb-1">Yesterday's Attendance</p>
-                <p className='text-sm'>Check-in: <strong>{checkIn}</strong></p>
-                <p className='text-sm'>Check-out: <strong>{checkOut}</strong></p>
-                <p className="text-sm mt-1 text-gray-700">Total Worked: <span className="font-bold text-blue-700">{totalHours}</span></p>
-            </div>
-        );
-    })();
 
     return (
-        <div className="flex flex-col md:flex-row w-full text-gray-700 gap-4">
+        <div className=" p-2 sm:p-4 space-y-3 relative bg-gray-50 border-r border-gray-200">
             {serviceCall && <Loading />}
+            <div className="grid grid-cols-2 sm:grid-cols-4 justify-between gap-2 mb-3">
+                {/* Login button always enabled */}
+                <button
+                    onClick={onCheckIn}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg transition bg-blue-600 text-white hover:bg-blue-700"
+                >
+                    {"Login"}
+                </button>
 
-            {/* Left Calendar Section */}
-            <div className="w-full bg-white shadow-lg">
-                <Calendar
-                    profile={profile}
-                    onCheckIn={onCheckIn}
-                    onCheckOut={onCheckOut}
-                    isCheckedIn={isCheckedIn}
-                    onGoToCalendar={() => setShowCalendar(true)}
-                    setMonthName={handleMonthChange}
-                    onRequestAR={(dateStr) => {
-                        if (isBeforeDateOfJoining(dateStr)) {
-                            setRootContext(prev => ({
-                                ...prev,
-                                toast: {
-                                    show: true,
-                                    dismiss: true,
-                                    type: 'error',
-                                    title: 'Error',
-                                    message: 'Cannot apply AR for dates before your date of joining.'
-                                },
-                            }));
-                            return;
-                        }
-                        setShowARModal(true);
-                    }}
-                />
+                {/* Logout button always enabled */}
+                <button
+                    onClick={handleLogoutClick}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg transition bg-green-600 text-white hover:bg-green-700"
+                >
+                    {"Logout"}
+                </button>
+                <button
+                    onClick={handleOpenLeaveModal}
+                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                >
+                    <ClipboardDocumentCheckIcon className="w-5 h-5" />
+                    Leave
+                </button>
+                <button
+                    onClick={onGoToCalendar}
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                >
+                    <CalendarDaysIcon className="w-5 h-5" />
+                </button>
             </div>
 
-            {/* Right Side: Summary & Leaves Section */}
-            <aside className="w-full bg-white shadow-lg rounded-xl sm:p-4 flex flex-col">
-                {/* Month Header */}
-                <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                        {isCurrentMonth ? `${monthNames[currentMonth]} (In Progress)` : `${monthNames[currentMonth]} Summary`}
-                    </h3>
-                    {!isMonthBeforeJoining && isCurrentMonth && (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowWFHModal(true)}
-                                className="px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition shadow-sm"
-                            >
-                                Apply WFH
-                            </button>
-                            <button
-                                onClick={() => setShowARModal(true)}
-                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow-sm"
-                            >
-                                Apply AR
-                            </button>
-                        </div>
-                    )}
-                </div>
+            <div className="flex justify-between items-center mt-2">
+                <button
+                    onClick={() => {
+                        const newDate = subMonths(currentDate, 1);
+                        setSelectedMonth(getMonth(newDate));
+                        setSelectedYear(getYear(newDate));
+                        setCurrentDate(newDate);
+                        setMonthName(getMonth(newDate))
+                    }}
+                    className="rounded-md bg-gray-200 p-1"
+                >
+                    <ChevronLeftIcon className="w-4 h-4" />
+                </button>
 
-                {isMonthBeforeJoining ? (
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center p-1">
-                            <div className="text-4xl mb-2">📅</div>
-                            <p className="text-gray-500 text-sm">
-                                No data available before {profile?.dateOfJoining ? format(new Date(profile.dateOfJoining), 'MMM dd, yyyy') : 'date of joining'}
-                            </p>
-                        </div>
-                    </div>
-                ) : isCurrentMonth ? (
-                    // Current Month - Show "Month in Progress" message
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
-                            <div className="text-4xl mb-3">📊</div>
-                            <h4 className="text-lg font-semibold text-blue-700 mb-2">Month in Progress</h4>
-                            <p className="text-sm text-gray-600">
-                                Attendance summary will be available after the month ends.
-                            </p>
-                        </div>
+                <div className="flex gap-1 items-center">
+                    <select
+                        value={selectedMonth}
+                        onChange={handleMonthChange}
+                        className="appearance-none rounded-md p-0.5 text-sm hover:bg-gray-200"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i} value={i}>{format(new Date(0, i), 'MMMM')}</option>
+                        ))}
+                    </select>
 
-                        {/* Yesterday block for current month */}
-                        {YesterdayBlock}
-
-                        {/* Pending Requests for current month */}
-                        <h4 className="mt-2 mb-2 font-medium w-full">Leave Requests</h4>
-                        <div className="overflow-y-auto max-h-56 space-y-2 w-full">
-                            {/* All Leaves */}
-                            {monthLeaves.length === 0 ? (
-                                <p className="text-gray-400 italic text-sm">No leave requests.</p>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {monthLeaves.map((leave, index) => (
-                                        <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
-                                            <div className="text-sm flex flex-col gap-1">
-                                                <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
-                                                    {leave.leaveType}
-                                                    {leave.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
-                                                    {leave.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
-                                                    {leave.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
-                                                </div>
-                                                <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
-                                            </div>
-                                            {leave.status !== 'approved' && leave.status !== 'rejected' && (
-                                                <button
-                                                    disabled={loadingLeave === leave.startDate}
-                                                    onClick={() => handleWithdraw(
-                                                        profile._id,
-                                                        leave.startDate,
-                                                        leave.endDate,
-                                                        eachDayOfInterval({
-                                                            start: parseISO(leave.startDate),
-                                                            end: parseISO(leave.endDate)
-                                                        }).map(d => format(d, 'yyyy-MM-dd'))
-                                                    )}
-                                                    className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
-                                                        }`}
-                                                >
-                                                    {loadingLeave === leave.startDate ? 'Withdrawing...' : 'Withdraw'}
-                                                </button>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            {/* Pending Regularizations */}
-                            {(() => {
-                                const pendingAR = [];
-                                Object.keys(profile.attendance || {}).forEach(m => {
-                                    (profile.attendance[m] || []).forEach(it => {
-                                        if (it.status === 'pendingRegularization' && !isBeforeDateOfJoining(it.date)) {
-                                            pendingAR.push(it);
-                                        }
-                                    });
-                                });
-
-                                if (pendingAR.length === 0) return null;
-
-                                return (
-                                    <div className="w-full">
-                                        <h5 className="text-sm font-medium mt-4 mb-2">Pending Regularizations</h5>
-                                        <ul className="space-y-2">
-                                            {pendingAR.map((ar, idx) => (
-                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
-                                                    <div className="text-sm">
-                                                        <div className="font-medium">{formatDateTime(ar.date, 'DD-MM-YYYY')}</div>
-                                                        <div className="text-xs text-gray-500">{ar.checkIn || '—'} - {ar.checkOut || '—'}</div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => withdrawAR(profile._id, ar.date, ar.date, [ar.date])}
-                                                        className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
-                                                    >
-                                                        Withdraw
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                );
-                            })()}
-
-                            {/* WFH Requests for current month */}
-                            {(() => {
-                                const wfhReqs = (profile?.wfhRequests || []).filter(req => {
-                                    const reqStartMonth = new Date(req.startDate).getMonth();
-                                    return reqStartMonth === currentMonth;
-                                });
-
-                                if (wfhReqs.length === 0) return null;
-
-                                return (
-                                    <div className="w-full mt-4">
-                                        <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
-                                        <ul className="space-y-2">
-                                            {wfhReqs.map((req, idx) => (
-                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
-                                                    <div className="text-sm flex flex-col gap-1">
-                                                        <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
-                                                            Work From Home
-                                                            {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
-                                                            {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
-                                                            {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
-                                                        </div>
-                                                    </div>
-                                                    {req.status === 'pending' && (
-                                                        <button
-                                                            onClick={() => withdrawWFH(profile._id, req.id)}
-                                                            className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
-                                                        >
-                                                            Withdraw
-                                                        </button>
-                                                    )}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    </div>
-                ) : (
-                    // Previous Month - Show Full Summary
-                    <>
-                        {/* Simplified Summary Section - Only Present, Absent, and Loss of Pay */}
-                        <div className="space-y-3 mb-4">
-                            {/* Present Days Counter */}
-                            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                                <p className="text-sm font-medium text-gray-700">Total Present Days</p>
-                                <p className="text-2xl font-bold text-green-700">
-                                    {presentDays}
-                                </p>
-                                <p className="text-xs text-gray-600 mt-1">
-                                    Includes full days, half days, and approved leaves
-                                </p>
-                            </div>
-
-                            {/* Absent Days Counter */}
-                            <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                <p className="text-sm font-medium text-gray-700">Total Absent Days</p>
-                                <p className="text-2xl font-bold text-red-700">
-                                    {absentDays}
-                                </p>
-                                <p className="text-xs text-gray-600 mt-1">
-                                    Days marked as absent
-                                </p>
-                            </div>
-
-                            {/* Loss of Pay */}
-                            {lossOfPay > 0 && (
-                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                                    <p className="text-sm font-medium text-gray-700">Loss of Pay</p>
-                                    <p className="text-lg font-bold text-orange-700">
-                                        {lossOfPay} days
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                        From late/early penalties (every 3 = 1 day)
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Total Working Days Info */}
-                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <p className="text-sm font-medium text-gray-700">Month Overview</p>
-                                <div className="text-xs text-gray-600 mt-1 space-y-1">
-                                    <p>• Total Days: {totalCalendarDays}</p>
-                                    <p>• Working Days: {totalWorkingDays}</p>
-                                    <p>• Holidays: {holidaysCount}</p>
-                                    <p>• Sundays: {sundaysCount}</p>
-                                    {profile?.department === "tech" && (
-                                        <p>• Tuesdays Off: {tuesdaysCount}</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Yesterday block */}
-                        {YesterdayBlock}
-
-                        {/* Leaves & Pending ARs */}
-                        <h4 className="mt-2 mb-2 font-medium">Leave Requests</h4>
-                        <div className="overflow-y-auto max-h-56 space-y-2">
-                            {/* All Leaves */}
-                            {monthLeaves.length === 0 ? (
-                                <p className="text-gray-400 italic text-sm">No leave requests.</p>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {monthLeaves.map((leave, index) => (
-                                        <li key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded-md">
-                                            <div className="text-sm flex flex-col gap-1">
-                                                <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
-                                                    {leave.leaveType}
-                                                    {leave.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
-                                                    {leave.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
-                                                    {leave.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
-                                                </div>
-                                                <div className="text-xs text-gray-500">{formatDateTime(leave.startDate, 'DD-MM-YYYY')}{leave.startDate !== leave.endDate ? ` to ${formatDateTime(leave.endDate, 'DD-MM-YYYY')}` : ''}</div>
-                                            </div>
-                                            {leave.status !== 'approved' && leave.status !== 'rejected' && (
-                                                <button
-                                                    disabled={loadingLeave === leave.startDate}
-                                                    onClick={() => handleWithdraw(
-                                                        profile._id,
-                                                        leave.startDate,
-                                                        leave.endDate,
-                                                        eachDayOfInterval({
-                                                            start: parseISO(leave.startDate),
-                                                            end: parseISO(leave.endDate)
-                                                        }).map(d => format(d, 'yyyy-MM-dd'))
-                                                    )}
-                                                    className={`px-2 py-1 text-xs rounded-md font-medium text-white ${loadingLeave === leave.startDate ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
-                                                        }`}
-                                                >
-                                                    {loadingLeave === leave.startDate ? 'Withdrawing...' : 'Withdraw'}
-                                                </button>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            {/* Pending Regularizations */}
-                            {(() => {
-                                const pendingAR = [];
-                                Object.keys(profile.attendance || {}).forEach(m => {
-                                    (profile.attendance[m] || []).forEach(it => {
-                                        if (it.status === 'pendingRegularization' && !isBeforeDateOfJoining(it.date)) {
-                                            pendingAR.push(it);
-                                        }
-                                    });
-                                });
-
-                                if (pendingAR.length === 0) return null;
-
-                                return (
-                                    <div>
-                                        <h5 className="text-sm font-medium mt-4 mb-2">Pending Regularizations</h5>
-                                        <ul className="space-y-2">
-                                            {pendingAR.map((ar, idx) => (
-                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
-                                                    <div className="text-sm">
-                                                        <div className="font-medium">{formatDateTime(ar.date, 'DD-MM-YYYY')}</div>
-                                                        <div className="text-xs text-gray-500">{ar.checkIn || '—'} - {ar.checkOut || '—'}</div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => withdrawAR(profile._id, ar.date, ar.date, [ar.date])}
-                                                        className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
-                                                    >
-                                                        Withdraw
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                );
-                            })()}
-
-                            {/* WFH Requests for selected month */}
-                            {(() => {
-                                const wfhReqs = (profile?.wfhRequests || []).filter(req => {
-                                    const reqStartMonth = new Date(req.startDate).getMonth();
-                                    return reqStartMonth === currentMonth;
-                                });
-
-                                if (wfhReqs.length === 0) return null;
-
-                                return (
-                                    <div className="w-full mt-4">
-                                        <h5 className="text-sm font-medium mb-2">WFH Requests</h5>
-                                        <ul className="space-y-2">
-                                            {wfhReqs.map((req, idx) => (
-                                                <li key={idx} className="flex justify-between items-center p-2 border rounded border-gray-200">
-                                                    <div className="text-sm flex flex-col gap-1">
-                                                        <div className="font-medium text-gray-600 capitalize flex items-center gap-2">
-                                                            Work From Home
-                                                            {req.status === 'approved' && <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700">Approved</span>}
-                                                            {req.status === 'rejected' && <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700">Rejected</span>}
-                                                            {req.status === 'pending' && <span className="px-2 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700">Pending</span>}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {formatDateTime(req.startDate, 'DD-MM-YYYY')}{req.startDate !== req.endDate ? ` to ${formatDateTime(req.endDate, 'DD-MM-YYYY')}` : ''}
-                                                        </div>
-                                                    </div>
-                                                    {req.status === 'pending' && (
-                                                        <button
-                                                            onClick={() => withdrawWFH(profile._id, req.id)}
-                                                            className="px-2 py-1 rounded text-white bg-red-600 text-xs hover:bg-red-700"
-                                                        >
-                                                            Withdraw
-                                                        </button>
-                                                    )}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    </>
-                )}
-            </aside>
-
-            <CalendarModal profile={profile} mutated={mutated} attendance={profile.attendance} employeeEvents={profile.events} showCalendar={showCalendar} setShowCalendar={setShowCalendar} />
-
-            {/* AR Modal */}
-            {showARModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <ARForm
-                        defaultDate={new Date().toISOString().slice(0, 10)}
-                        onClose={() => setShowARModal(false)}
-                        onSubmit={submitAR}
-                        submitting={arSubmitting}
+                    <input
+                        type="number"
+                        value={selectedYear}
+                        onChange={handleYearChange}
+                        min="1900"
+                        max="2100"
+                        className="w-16 text-center rounded-md p-0.5 text-sm hover:bg-gray-200"
                     />
                 </div>
-            )}
 
-            {/* WFH Modal */}
-            {showWFHModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <WFHForm
-                        defaultDate={new Date().toISOString().slice(0, 10)}
-                        onClose={() => setShowWFHModal(false)}
-                        onSubmit={submitWFH}
-                        submitting={wfhSubmitting}
-                    />
+                <button
+                    onClick={() => {
+                        const newDate = addMonths(currentDate, 1);
+                        setSelectedMonth(getMonth(newDate));
+                        setSelectedYear(getYear(newDate));
+                        setCurrentDate(newDate);
+                        setMonthName(getMonth(newDate))
+                    }}
+                    className="rounded-md bg-gray-200 p-1"
+                >
+                    <ChevronRightIcon className="w-4 h-4" />
+                </button>
+            </div>
+
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 text-xs text-gray-600 mt-5">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="text-center">{day}</div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 text-sm mt-2 text-center place-items-center">
+                {allDays.map((day, i) => {
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const att = attendanceMap[dayStr];
+                    const isTodayDate = dayStr === format(today, 'yyyy-MM-dd');
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isFutureDate = day > today;
+
+                    const dateOfJoining = profile?.dateOfJoining ? new Date(profile.dateOfJoining) : null;
+                    const isBeforeJoining = dateOfJoining ? day < dateOfJoining : false;
+
+                    const isSunday = isSundayHoliday(day);
+                    const isHolidayDay = isHoliday(day);
+
+                    let status = att?.status || null;
+
+                    if (status === "presentLate") status = "present";
+
+                    // No marking before joining
+                    if (isBeforeJoining) {
+                        status = null;
+                    } else if (!att && isCurrentMonth) {
+                        if (isHolidayDay) status = "holiday";
+                        else if (isSunday) status = "sunday";
+                    }
+
+                    if (!att && isFutureDate && isCurrentMonth && !isBeforeJoining) {
+                        if (isSunday) status = "sunday";
+                        else if (isHolidayDay) status = "holiday";
+                        else status = null;
+                    }
+
+                    const isLeaveApplied = att?.status === "leaveApplied";
+                    const isLeaveApproved = att?.status === "leaveApproved";
+
+                    // Determine if it's a working day (not Sunday, holiday)
+                    const isWorkingDay = !isSunday && !isHolidayDay;
+
+                    let dayTextColor = "text-gray-900";
+
+                    if (isBeforeJoining || !isCurrentMonth) {
+                        dayTextColor = "text-gray-300";
+                    } else if (isLeaveApplied) {
+                        dayTextColor = "text-gray-600";
+                    } else if (isLeaveApproved) {
+                        dayTextColor = "text-white";
+                    } else if (isTodayDate && isWorkingDay) {
+                        dayTextColor = "text-[#48a84dff] font-bold";
+                    } else if (status === 'sunday' || status === 'holiday') {
+                        dayTextColor = "text-gray-900";
+                    }
+
+                    const dayBgColor = isLeaveApproved ? "bg-[#e8d15dff] rounded-full" : "";
+
+                    return (
+                        <div
+                            key={i}
+                            onClick={() => {
+                                if (isBeforeJoining || !isCurrentMonth) return;
+
+                                setSelectedDate(day);
+                                const baseData = att || { status: status || "No data", checkIn: '-', checkOut: '-', workingHours: 0 };
+                                const isToday = dayStr === format(today, 'yyyy-MM-dd');
+                                setPopupData({
+                                    ...baseData,
+                                    isToday,
+                                    checkIn: baseData.checkIn || '-',
+                                    checkOut: baseData.checkOut || '-',
+                                    status: baseData.status || (isToday && isCheckedIn ? 'Checked In' : baseData.status),
+                                    workingHours: baseData.workingHours || 0,
+                                });
+                            }}
+                            className={`relative w-10 h-10 flex items-center justify-center rounded-full transition 
+                    ${dayBgColor} 
+                    ${isBeforeJoining || !isCurrentMonth
+                                    ? "cursor-not-allowed hover:ring-0"
+                                    : "cursor-pointer hover:ring-2 hover:ring-gray-300"
+                                }`}
+                            title={
+                                isBeforeJoining || !isCurrentMonth
+                                    ? ""
+                                    : isTodayDate
+                                        ? att?.checkIn
+                                            ? "Checked In"
+                                            : status === "approved"
+                                                ? "Leave Approved"
+                                                : "Today"
+                                        : status === "sunday"
+                                            ? "Sunday"
+                                            : status === "holiday"
+                                                ? "Holiday"
+                                                : att
+                                                    ? att.status
+                                                    : isFutureDate
+                                                        ? "Future Date"
+                                                        : "No data"
+                            }
+                        >
+                            {!isTodayDate &&
+                                !isBeforeJoining &&
+                                isCurrentMonth &&
+                                status && <SplitCircle status={status} isToday={false} size={40} />}
+
+                            <span
+                                className={`absolute text-xs font-bold ${dayTextColor}`}
+                            >
+                                {format(day, "d")}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Legend</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="today" size={16} isLegend={true} />
+                        <span>Today</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="present" size={16} isLegend={true} />
+                        <span>Present</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="absent" size={16} isLegend={true} />
+                        <span>Absent</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="wfh" size={16} isLegend={true} />
+                        <span>WFH</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="leaveApproved" size={16} isLegend={true} />
+                        <span>Leave</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="holiday" size={16} isLegend={true} />
+                        <span>Holiday</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <SplitCircle status="sunday" size={16} isLegend={true} />
+                        <span>Off Day</span>
+                    </div>
                 </div>
-            )}
+            </div>
+
+            {/* Day Popup Modal */}
+            <Transition appear show={popupData !== null} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setPopupData(null)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0"
+                                enterTo="opacity-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100"
+                                leaveTo="opacity-0"
+                            >
+                                <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all relative">
+
+                                    <button
+                                        className="absolute cursor-pointer top-3 right-3 text-gray-500 hover:text-gray-700"
+                                        onClick={() => setPopupData(null)}
+                                    >
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
+
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                                        {selectedDate ? format(selectedDate, 'PPP') : ''}
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-1 text-gray-800 text-capitalize">
+                                        {(() => {
+                                            const isTodayPopup = popupData?.isToday && selectedDate && format(selectedDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+                                            let displayStatus = popupData?.status;
+                                            let displayCheckOut = popupData?.checkOut;
+                                            let displayWorkingHours = popupData?.workingHours;
+                                            let remainingTime = null;
+                                            const requiredHalfDay = HALF_DAY_MINUTES;
+                                            const requiredFullDay = FULL_DAY_MINUTES;
+
+                                            if (isTodayPopup && isCheckedIn && popupData?.checkIn && popupData?.checkIn !== '-') {
+                                                const [inH, inM] = popupData.checkIn.split(':').map(Number);
+                                                const checkInTime = set(new Date(), { hours: inH, minutes: inM, seconds: 0, milliseconds: 0 });
+                                                const workedMinutes = differenceInMinutes(currentTime, checkInTime);
+                                                displayWorkingHours = workedMinutes / 60;
+                                                displayStatus = 'Checked In';
+                                                displayCheckOut = 'In Progress';
+
+                                                if (workedMinutes < HALF_DAY_MINUTES) {
+                                                    remainingTime = HALF_DAY_MINUTES - workedMinutes;
+                                                }
+                                            }
+
+                                            return (
+                                                <>
+                                                    <p><strong>Status:</strong> {
+                                                        displayStatus === "secondHalf" ? "Second Half" :
+                                                            displayStatus === "firstHalf" ? "First Half" :
+                                                                displayStatus === "sunday" ? "Sunday" :
+                                                                    displayStatus === "holiday" ? "Holiday" :
+                                                                        displayStatus
+                                                    }</p>
+                                                    <p><strong>Check-in:</strong> {popupData?.checkIn}</p>
+                                                    <p><strong>Check-out:</strong> {displayCheckOut}</p>
+                                                    <p><strong>Working Hours:</strong> {typeof displayWorkingHours === 'number' ? formatDuration(displayWorkingHours * 60) : '0.00'}</p>
+                                                    {isTodayPopup && isCheckedIn && remainingTime !== null && (
+                                                        <>
+                                                            <p><strong>Required for Half-Day:</strong> {formatDuration(HALF_DAY_MINUTES)}</p>
+                                                            <p><strong>Remaining:</strong> {formatDuration(remainingTime)}</p>
+                                                        </>
+                                                    )}
+                                                    {isTodayPopup && isCheckedIn && remainingTime === null && displayWorkingHours * 60 >= HALF_DAY_MINUTES && displayWorkingHours * 60 < FULL_DAY_MINUTES && (
+                                                        <p><strong>Half-Day requirement completed.</strong></p>
+                                                    )}
+                                                    {isTodayPopup && isCheckedIn && displayWorkingHours * 60 >= FULL_DAY_MINUTES && (
+                                                        <p><strong>Full-Day requirement completed.</strong></p>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Leave Modal */}
+            <Transition appear show={leaveModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={handleCloseLeaveModal}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all relative">
+                                    <button
+                                        className="absolute cursor-pointer top-3 right-3 text-gray-500 hover:text-gray-700"
+                                        onClick={handleCloseLeaveModal}
+                                    >
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                                        Apply Leave
+                                    </Dialog.Title>
+                                    {serviceCall && <Loading />}
+                                    <div className="mt-4 space-y-4 text-gray-800">
+                                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <p className="text-sm text-blue-800">
+                                                <strong>Note:</strong> Leave can only be applied for today ({format(today, 'MMM dd, yyyy')}) and future dates.
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Start Date *
+                                                </label>
+                                                <input
+                                                    id="startDate"
+                                                    type="date"
+                                                    value={leaveRange.start ? format(leaveRange.start, 'yyyy-MM-dd') : ''}
+                                                    onChange={(e) => {
+                                                        const date = e.target.value ? new Date(e.target.value) : null;
+                                                        setLeaveRange(prev => ({
+                                                            ...prev,
+                                                            start: date,
+                                                            end: date
+                                                        }));
+                                                    }}
+                                                    min={format(today, 'yyyy-MM-dd')}
+                                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                                    End Date *
+                                                </label>
+                                                <input
+                                                    id="endDate"
+                                                    type="date"
+                                                    value={leaveRange.end ? format(leaveRange.end, 'yyyy-MM-dd') : ''}
+                                                    onChange={(e) => {
+                                                        const date = e.target.value ? new Date(e.target.value) : null;
+                                                        setLeaveRange(prev => ({
+                                                            ...prev,
+                                                            end: date
+                                                        }));
+                                                    }}
+                                                    min={leaveRange.start ? format(leaveRange.start, 'yyyy-MM-dd') : format(today, 'yyyy-MM-dd')}
+                                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    required
+                                                />
+                                            </div>
+                                            <ComboBox
+                                                title={"Leave Type"}
+                                                data={["casual", "earned", "sick", "emergency", "first half", "second half"]}
+                                                required={true}
+                                                value={leaveRange.leaveType || ''}
+                                                onChange={(e) => setLeaveRange(prev => ({
+                                                    ...prev,
+                                                    leaveType: e
+                                                }))}
+                                            />
+                                            <div>
+                                                <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Reason
+                                                </label>
+                                                <textarea
+                                                    id="reason"
+                                                    value={leaveRange.reason || ''}
+                                                    onChange={(e) => setLeaveRange(prev => ({
+                                                        ...prev,
+                                                        reason: e.target.value
+                                                    }))}
+                                                    placeholder="Brief reason for leave (optional)"
+                                                    rows={3}
+                                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                                    maxLength={500}
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {leaveRange.reason ? leaveRange.reason.length : 0}/500 characters
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 pt-2">
+                                            <button
+                                                onClick={applyLeave}
+                                                disabled={isApplyButtonDisabled}
+                                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {serviceCall ? (
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Applying...
+                                                    </div>
+                                                ) : (
+                                                    'Submit Leave'
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={handleCloseLeaveModal}
+                                                disabled={serviceCall}
+                                                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Early Logout Confirmation Modal */}
+            <Transition appear show={earlyLogoutModal.open} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setEarlyLogoutModal({ ...earlyLogoutModal, open: false })}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+                    </Transition.Child>
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                                        ⚠️ Early Logout
+                                    </Dialog.Title>
+                                    <div className="mt-2">
+                                        <p className="text-sm text-gray-700 whitespace-pre-line">{earlyLogoutModal.message}</p>
+                                    </div>
+                                    <div className="mt-4 flex gap-2">
+                                        <button
+                                            onClick={confirmLogout}
+                                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                                        >
+                                            Logout
+                                        </button>
+                                        <button
+                                            onClick={() => setEarlyLogoutModal({ ...earlyLogoutModal, open: false })}
+                                            className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
         </div>
     );
 }
