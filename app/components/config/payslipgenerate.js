@@ -52,7 +52,7 @@ export function generatePayslip(employee, targetMonth, targetYear, holidaysData 
     }
 
     // ✅ Define holidays
-    const holidays = holidaysData 
+    const holidays = holidaysData
         ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd"))
         : [
             `${year}-01-01`, // New Year
@@ -78,9 +78,9 @@ export function generatePayslip(employee, targetMonth, targetYear, holidaysData 
         let diffMinutes = outTime - inTime;
 
         // Subtract 1 hour lunch break if worked more than 6 hours
-        if (diffMinutes > 360) {
-            diffMinutes -= 60;
-        }
+        // if (diffMinutes > 360) {
+        //     diffMinutes -= 60;
+        // }
 
         const hours = diffMinutes / 60;
         return Math.round(hours * 100) / 100;
