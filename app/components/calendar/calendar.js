@@ -71,16 +71,6 @@ const calculateWorkingHours = (checkIn, checkOut, date) => {
 
     let diffMinutes = Math.max(0, end - start);
 
-    // Adjust for lunch break based on day
-    const day = getDay(new Date(date));
-    if (day !== 6) { // Not Saturday
-        // Subtract 1 hour lunch break for normal days
-        diffMinutes = Math.max(0, diffMinutes - 60);
-    } else {
-        // Saturday: Subtract 30 minutes lunch break
-        diffMinutes = Math.max(0, diffMinutes - 30);
-    }
-
     return diffMinutes / 60; // hours as decimal
 };
 
@@ -270,6 +260,31 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                     </defs>
 
                     <g clipPath={`url(#circle-${size})`}>
+                        {/* Horizontal split */}
+                        <>
+                            <rect
+                                x="0"
+                                y="0"
+                                width={size}
+                                height={size / 2}
+                                fill={colors.top}
+                            />
+                            <rect
+                                x="0"
+                                y={size / 2}
+                                width={size}
+                                height={size / 2}
+                                fill={colors.bottom}
+                            />
+                            <line
+                                x1="0"
+                                y1={size / 2}
+                                x2={size}
+                                y2={size / 2}
+                                stroke="white"
+                                strokeWidth="1.5"
+                            />
+                        </>
                         {/* Horizontal split: left half and right half */}
                         <rect
                             x="0"
