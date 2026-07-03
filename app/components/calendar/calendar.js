@@ -143,6 +143,14 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
         return 'present';
     }
 
+    // Caputer the new API Statuses
+    if (leaveStatus === 'firstHalfPresent') {
+        return 'firstHalfp'
+    }
+    if (leaveStatus === 'secondHalfPresent') {
+        return 'secondhalfp'
+    }
+
     if (!checkIn && !checkOut) {
         if (isFutureDate) {
             return null;
@@ -158,7 +166,7 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
         if (checkIn) {
             const checkInTime = checkIn.split(':').map(Number);
             const checkInHour = checkInTime[0] + (checkInTime[1] / 60);
-            if (checkInHour <= 12.0) {
+            if (checkInHour <= 14.0) {
                 return 'firstHalfp';
             } else {
                 return 'secondhalfp';
@@ -222,9 +230,12 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
         'secondHalfApproved_present', 'secondHalfApproved_absent'
     ].includes(status);
 
-    // For split circles, we use a horizontal split (left/right) by default.
-    // The "isDiagonal" variable was removed; we use a simple left/right split.
-    // If you need diagonal, you can modify, but we'll keep horizontal for consistency.
+    const isDiagonal = [
+        'firstHalfApproved', 'secondHalfApproved',
+        'firstHalfApproved_present', 'firstHalfApproved_absent',
+        'secondHalfApproved_present', 'secondHalfApproved_absent'
+    ].includes(status);
+
     return (
         <div
             className="relative"
@@ -260,46 +271,19 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
                     </defs>
 
                     <g clipPath={`url(#circle-${size})`}>
-                        {/* Horizontal split */}
-                        <>
-                            <rect
-                                x="0"
-                                y="0"
-                                width={size}
-                                height={size / 2}
-                                fill={colors.top}
-                            />
-                            <rect
-                                x="0"
-                                y={size / 2}
-                                width={size}
-                                height={size / 2}
-                                fill={colors.bottom}
-                            />
-                            <line
-                                x1="0"
-                                y1={size / 2}
-                                x2={size}
-                                y2={size / 2}
-                                stroke="white"
-                                strokeWidth="1.5"
-                            />
-                        </>
-                        {/* Horizontal split: left half and right half */}
-                        <rect
-                            x="0"
-                            y="0"
-                            width={size / 2}
-                            height={size}
-                            fill={colors.top}
-                        />
-                        <rect
-                            x={size / 2}
-                            y="0"
-                            width={size / 2}
-                            height={size}
-                            fill={colors.bottom}
-                        />
+                        {isDiagonal ? (
+                            <>
+                                {/* Diagonal Split: Top-Left and Bottom-Right */}
+                                <polygon points={`0,0 ${size},0 0,${size}`} fill={colors.top} />
+                                <polygon points={`${size},0 ${size},${size} 0,${size}`} fill={colors.bottom} />
+                            </>
+                        ) : (
+                            <>
+                                {/* Horizontal Split: Top and Bottom */}
+                                <rect x="0" y="0" width={size} height={size / 2} fill={colors.top} />
+                                <rect x="0" y={size / 2} width={size} height={size / 2} fill={colors.bottom} />
+                            </>
+                        )}
                     </g>
                 </svg>
             )}

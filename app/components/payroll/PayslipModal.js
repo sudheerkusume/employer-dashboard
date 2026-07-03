@@ -53,16 +53,16 @@ export default function PayslipModal({ employee, month, onClose }) {
                     <div id="payslip-content" className="p-8 print:p-4 text-gray-900 text-[13px] font-sans leading-snug">
                         {/* Company Header */}
                         <div className="text-center mb-6">
-                            <h1 className="text-3xl font-black tracking-tight text-blue-900 uppercase">BMAX PROJECTS PRIVATE LIMITED</h1>
-                            <div className="mt-4 border-b border-black w-max mx-auto px-4 pb-1">
-                                <h2 className="text-base font-bold underline decoration-1 underline-offset-2 uppercase tracking-wide">
+                            <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-blue-900 uppercase">BMAX PROJECTS PRIVATE LIMITED</h1>
+                            <div className="mt-4 inline-block border-b border-black px-2 sm:px-4 pb-1">
+                                <h2 className="text-sm sm:text-base font-bold underline decoration-1 underline-offset-2 uppercase tracking-wide">
                                     Payslip for the month of {monthName}
                                 </h2>
                             </div>
                         </div>
 
                         {/* Employee Details Grid */}
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-8 px-2 font-medium">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-8 px-2 font-medium">
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
                                 <div className="text-gray-700">Employee ID:</div>
                                 <div>{employee.employeeCode || "-"}</div>
@@ -110,8 +110,8 @@ export default function PayslipModal({ employee, month, onClose }) {
                         </div>
 
                         {/* Salary Table */}
-                        <div className="border-2 border-gray-600 mb-6">
-                            <table className="w-full text-center border-collapse">
+                        <div className="border-2 border-gray-600 mb-6 overflow-x-auto">
+                            <table className="w-full text-center border-collapse whitespace-nowrap min-w-[600px] print:min-w-0 print:whitespace-normal">
                                 <thead>
                                     <tr className="bg-gray-300 text-gray-900 border-b-2 border-gray-600">
                                         <th className="py-2 px-2 border-r border-gray-600 font-bold w-1/3">Earnings</th>
@@ -217,10 +217,10 @@ export default function PayslipModal({ employee, month, onClose }) {
                         </div>
                     </div>
                 </motion.div>
-            </div>
+            </div >
 
             {/* Styles for printing */}
-            <style jsx global>{`
+            < style jsx global > {`
                 @media print {
                     @page {
                         margin: 0.5in;
@@ -240,7 +240,7 @@ export default function PayslipModal({ employee, month, onClose }) {
                         background: white !important;
                     }
                 }
-            `}</style>
-        </AnimatePresence>
+            `}</style >
+        </AnimatePresence >
     );
 }

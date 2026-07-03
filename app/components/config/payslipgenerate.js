@@ -183,24 +183,34 @@ export function generatePayslip(employee, targetMonth, targetYear, holidaysData 
 
         // If not absent, get working hours
         const workingHours = getWorkingHours(attendanceRecord);
-
+        const leaveStatus = attendanceRecord?.leaveStatus?.toLowerCase();
         // Check if present with working hours
-        if (workingHours >= 6) {
+        if (workingHours >= 8.5) {
             // Full day present
             fullDayPresents++;
             totalPresentDays++;
-        } else if (workingHours >= 4 && workingHours < 6) {
+        } else if (workingHours >= 4 && workingHours < 8.5) {
+
+            if (leaveStatus === 'firsthalfapproved' || leaveStatus === 'secondhalfapproved') {
+                fullDayPresents++;
+                totalPresentDays += 1;
+            } else {
+                halfDayPresents++;
+                totalPresentDays += 0.5;
+                lossOfPayDays += 0.5;
+                halfDayAbsents += 0.5;
+            }
             // Half day present - counts as present but LOP for half day
-            halfDayPresents++;
-            totalPresentDays += 0.5;
-            lossOfPayDays += 0.5; // Half day absent = 0.5 day LOP
-            halfDayAbsents += 0.5;
+            // halfDayPresents++;
+            // totalPresentDays += 0.5;
+            // lossOfPayDays += 0.5; // Half day absent = 0.5 day LOP
+            // halfDayAbsents += 0.5;
         } else if (workingHours > 0 && workingHours < 4) {
             // Less than 4 hours - treat as half day present with LOP
-            halfDayPresents += 0.5;
-            totalPresentDays += 0.5;
-            lossOfPayDays += 0.5; // Half day absent = 0.5 day LOP
-            halfDayAbsents += 0.5;
+            halfDayPresents += 0;
+            totalPresentDays += 0;
+            lossOfPayDays += 1; // Half day absent = 0.5 day LOP
+            halfDayAbsents += 1;
         } else {
             // If working hours is 0 but not marked as absent, check status
             const status = attendanceRecord?.status?.toLowerCase();

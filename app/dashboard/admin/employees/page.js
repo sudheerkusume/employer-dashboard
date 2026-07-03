@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                       </td>
                       {(currentUserRole === "super_admin" || currentUserRole === "admin") && (
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleEditEmployee(emp)}
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip-trigger"

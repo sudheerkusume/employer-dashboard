@@ -58,7 +58,7 @@ export async function POST(request) {
         if (employee.attendance) {
             for (const month of Object.keys(employee.attendance)) {
                 employee.attendance[month].forEach(entry => {
-                    if (leaveDates.includes(entry.date)) {
+                    if (leaveDates.includes(entry.date) && entry.leaveType) {
                         existingDates.push(entry.date);
                     }
                 });
@@ -80,21 +80,40 @@ export async function POST(request) {
             groupedByMonth[month].push(d);
         });
 
-        // --- Add leave entries to employee attendance ---
+        // --- Add or Update leave entries in employee attendance ---
         for (const [monthName, dates] of Object.entries(groupedByMonth)) {
             for (const date of dates) {
-                let leaveEntry;
-                leaveEntry = {
-                    date,
-                    status: "pending",
-                    leaveType,
-                    reason,
-                    markedOn: new Date().toISOString(),
-                };
-                await employees.updateOne(
-                    { _id: new ObjectId(employeeId) },
-                    { $push: { [`attendance.${monthName}`]: leaveEntry } }
-                );
+                const existingEntryIndex = employee.attendance[monthName] 
+                    ? employee.attendance[monthName].findIndex(a => a.date === date) 
+                    : -1;
+
+                if (existingEntryIndex > -1) {
+                    // Update existing attendance record with leave info (Keep check-in intact)
+                    await employees.updateOne(
+                        { _id: new ObjectId(employeeId), [`attendance.${monthName}.date`]: date },
+                        { 
+                            $set: { 
+                                [`attendance.${monthName}.$.leaveType`]: leaveType,
+                                [`attendance.${monthName}.$.leaveStatus`]: "pending",
+                                [`attendance.${monthName}.$.reason`]: reason
+                            } 
+                        }
+                    );
+                } else {
+                    // Push entirely new leave entry
+                    let leaveEntry = {
+                        date,
+                        status: "pending",
+                        leaveType,
+                        leaveStatus: "pending",
+                        reason,
+                        markedOn: new Date().toISOString(),
+                    };
+                    await employees.updateOne(
+                        { _id: new ObjectId(employeeId) },
+                        { $push: { [`attendance.${monthName}`]: leaveEntry } }
+                    );
+                }
             }
         }
 
