@@ -26,7 +26,7 @@ export default function AdminAttendancePage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState("today"); // "today" or "monthly"
   const [filterMode, setFilterMode] = useState("all"); // "all", "present", "late", "absent"
-  
+
   // Edit State
   const [editingAttendance, setEditingAttendance] = useState(null);
   const [editForm, setEditForm] = useState({ checkIn: "", checkOut: "", status: "absent" });
@@ -66,18 +66,18 @@ export default function AdminAttendancePage() {
     const monthEnd = endOfMonth(monthDate);
     const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
-    
+
     const totalWorkingDays = monthDates.filter(
       (d) => !isSunday(d) && !holidays.includes(format(d, "yyyy-MM-dd"))
     ).length;
 
     const monthName = monthDate.toLocaleString("default", { month: "long" });
     const monthData = emp.attendance?.[monthName] || [];
-    
+
     let totalPresent = 0;
     let lateDays = 0;
     let halfDays = 0;
-    
+
     const empLeaves = emp.leaves || [];
     const approvedLeaves = empLeaves.filter(l => l.status === "approved");
 
@@ -86,7 +86,7 @@ export default function AdminAttendancePage() {
     monthDates.forEach(date => {
       const dateStr = format(date, "yyyy-MM-dd");
       const isWorkingDay = !isSunday(date) && !holidays.includes(dateStr);
-      
+
       const isOnLeave = approvedLeaves.some(l => {
         const start = parse(l.startDate, "yyyy-MM-dd", new Date());
         const end = parse(l.endDate, "yyyy-MM-dd", new Date());
@@ -104,63 +104,63 @@ export default function AdminAttendancePage() {
             totalPresent += 0.5;
             halfDays += 1;
           }
-          
+
           if (record.checkIn) {
-             const lateThreshold = parse("10:00", "HH:mm", new Date());
-             const checkIn = parse(record.checkIn, "HH:mm", new Date());
-             if (isAfter(checkIn, lateThreshold)) lateDays++;
+            const lateThreshold = parse("10:00", "HH:mm", new Date());
+            const checkIn = parse(record.checkIn, "HH:mm", new Date());
+            if (isAfter(checkIn, lateThreshold)) lateDays++;
           }
         } else if (record.checkIn || record.status === "present") {
           let morningPresent = false;
           let afternoonPresent = false;
 
           if (record.checkIn) {
-             const checkInTime = parse(record.checkIn, "HH:mm", new Date());
-             const noonThreshold = parse("13:30", "HH:mm", new Date()); // 1:30 PM
-             const lateThreshold = parse("10:00", "HH:mm", new Date());
+            const checkInTime = parse(record.checkIn, "HH:mm", new Date());
+            const noonThreshold = parse("13:30", "HH:mm", new Date()); // 1:30 PM
+            const lateThreshold = parse("10:00", "HH:mm", new Date());
 
-             if (isBefore(checkInTime, noonThreshold)) {
-                morningPresent = true;
-             } else {
-                afternoonPresent = true;
-             }
-             
-             if (isAfter(checkInTime, lateThreshold)) lateDays++;
+            if (isBefore(checkInTime, noonThreshold)) {
+              morningPresent = true;
+            } else {
+              afternoonPresent = true;
+            }
+
+            if (isAfter(checkInTime, lateThreshold)) lateDays++;
           } else if (record.status === "present") {
-             morningPresent = true; // Fallback
+            morningPresent = true; // Fallback
           }
 
           if (record.checkOut) {
-             const checkOutTime = parse(record.checkOut, "HH:mm", new Date());
-             const eveningThreshold = parse("18:00", "HH:mm", new Date()); // 6:00 PM
-             
-             if (morningPresent) {
-                if (isAfter(checkOutTime, eveningThreshold)) {
-                   afternoonPresent = true; // Stayed till evening -> Full Day
-                }
-             } else if (afternoonPresent) {
-                if (isAfter(checkOutTime, eveningThreshold)) {
-                   afternoonPresent = true; // Validated afternoon checkout
-                } else {
-                   afternoonPresent = true; // Basic assumption if checked out before 6 but logged in afternoon
-                }
-             }
+            const checkOutTime = parse(record.checkOut, "HH:mm", new Date());
+            const eveningThreshold = parse("18:00", "HH:mm", new Date()); // 6:00 PM
+
+            if (morningPresent) {
+              if (isAfter(checkOutTime, eveningThreshold)) {
+                afternoonPresent = true; // Stayed till evening -> Full Day
+              }
+            } else if (afternoonPresent) {
+              if (isAfter(checkOutTime, eveningThreshold)) {
+                afternoonPresent = true; // Validated afternoon checkout
+              } else {
+                afternoonPresent = true; // Basic assumption if checked out before 6 but logged in afternoon
+              }
+            }
           } else {
-             // Forgot to checkout
-             if (morningPresent) {
-                afternoonPresent = false; // Morning half day
-             }
-             if (afternoonPresent && !morningPresent) {
-                afternoonPresent = false; // Absent
-             }
+            // Forgot to checkout
+            if (morningPresent) {
+              afternoonPresent = false; // Morning half day
+            }
+            if (afternoonPresent && !morningPresent) {
+              afternoonPresent = false; // Absent
+            }
           }
 
           // Calculate final present value
           if (morningPresent && afternoonPresent) {
-             totalPresent += 1;
+            totalPresent += 1;
           } else if (morningPresent || afternoonPresent) {
-             totalPresent += 0.5;
-             halfDays += 1;
+            totalPresent += 0.5;
+            halfDays += 1;
           }
         }
       }
@@ -191,7 +191,7 @@ export default function AdminAttendancePage() {
     visibleEmployees.forEach(emp => {
       const monthData = emp.attendance?.[currentMonthName] || [];
       const todayRecord = monthData.find(d => d.date === todayStr);
-      
+
       const empLeaves = emp.leaves || [];
       const isOnLeave = empLeaves.some(
         (leave) =>
@@ -232,14 +232,14 @@ export default function AdminAttendancePage() {
     setIsUpdating(true);
     try {
       const { empId, date, monthName, attendanceData } = editingAttendance;
-      
+
       const newAttendance = JSON.parse(JSON.stringify(attendanceData || {}));
       if (!newAttendance[monthName]) {
         newAttendance[monthName] = [];
       }
-      
+
       const recordIndex = newAttendance[monthName].findIndex(d => d.date === date);
-      
+
       if (recordIndex >= 0) {
         newAttendance[monthName][recordIndex] = {
           ...newAttendance[monthName][recordIndex],
@@ -255,17 +255,17 @@ export default function AdminAttendancePage() {
           status: editForm.status
         });
       }
-      
+
       const res = await fetch("/api/employees", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: empId, attendance: newAttendance })
       });
-      
+
       if (!res.ok) throw new Error("Failed to update attendance");
-      
+
       setEditingAttendance(null);
-      window.location.reload(); 
+      window.location.reload();
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -284,16 +284,16 @@ export default function AdminAttendancePage() {
           </h1>
           <p className="text-gray-500 mt-1 font-medium text-sm">Real-time attendance overview and monthly analytics.</p>
         </div>
-        
+
         {/* Toggle View */}
         <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-          <button 
+          <button
             onClick={() => setViewMode("today")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "today" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-500 hover:text-gray-700"}`}
           >
             <LayoutGrid size={16} /> Live Today
           </button>
-          <button 
+          <button
             onClick={() => setViewMode("monthly")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "monthly" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-500 hover:text-gray-700"}`}
           >
@@ -310,7 +310,7 @@ export default function AdminAttendancePage() {
           { id: "late", title: "Late Arrivals", value: todayStats.late, icon: Clock, color: "bg-amber-500", light: "bg-amber-50", text: "text-amber-600" },
           { id: "absent", title: "Absent / Leave", value: todayStats.absent + todayStats.onLeave, icon: AlertCircle, color: "bg-rose-500", light: "bg-rose-50", text: "text-rose-600" },
         ].map((stat, idx) => (
-          <motion.div 
+          <motion.div
             key={idx}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -337,7 +337,7 @@ export default function AdminAttendancePage() {
 
       <AnimatePresence mode="wait">
         {viewMode === "today" ? (
-          <motion.div 
+          <motion.div
             key="today"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -368,7 +368,7 @@ export default function AdminAttendancePage() {
                     visibleEmployees.map(emp => {
                       const monthData = emp.attendance?.[currentMonthName] || [];
                       const todayRecord = monthData.find(d => d.date === todayStr);
-                      
+
                       const empLeaves = emp.leaves || [];
                       const isOnLeave = empLeaves.some(
                         (leave) =>
@@ -380,7 +380,7 @@ export default function AdminAttendancePage() {
                       let statusText = "Absent";
                       let statusStyle = "bg-rose-50 text-rose-700 border-rose-200";
                       let filterKey = "absent";
-                      
+
                       if (isOnLeave) {
                         statusText = "On Leave";
                         statusStyle = "bg-purple-50 text-purple-700 border-purple-200";
@@ -405,7 +405,7 @@ export default function AdminAttendancePage() {
                       if (filterMode === "absent" && filterKey !== "absent") return null;
 
                       return (
-                        <motion.tr 
+                        <motion.tr
                           key={emp._id}
                           whileHover={{ backgroundColor: "rgba(249, 250, 251, 0.5)" }}
                           className="transition-colors group"
@@ -441,7 +441,7 @@ export default function AdminAttendancePage() {
             </div>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="monthly"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -502,8 +502,8 @@ export default function AdminAttendancePage() {
                       if (emp.role === "super_admin") roleColor = "bg-indigo-50 text-indigo-700 border-indigo-200";
 
                       return (
-                        <motion.tr 
-                          key={emp._id} 
+                        <motion.tr
+                          key={emp._id}
                           whileHover={{ backgroundColor: "rgba(249, 250, 251, 0.5)" }}
                           className="transition-colors group"
                         >
@@ -543,7 +543,7 @@ export default function AdminAttendancePage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button 
+                              <button
                                 onClick={() => setViewingReport({ emp, monthDate: selectedMonth, stats: { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth } })}
                                 className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
                                 title="View Detailed Report"
@@ -566,21 +566,21 @@ export default function AdminAttendancePage() {
       {/* Edit Attendance Modal */}
       {editingAttendance && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
           >
             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className={`${outfit.className} text-xl font-bold text-gray-900`}>Manual Adjust</h3>
-              <button 
+              <button
                 onClick={() => setEditingAttendance(null)}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-4">
                 <p className="text-sm text-gray-500 font-medium">Employee</p>
@@ -599,36 +599,36 @@ export default function AdminAttendancePage() {
                   <option value="halfDay">Half Day</option>
                 </select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">Check In Time</label>
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={editForm.checkIn}
-                    onChange={e => setEditForm({...editForm, checkIn: e.target.value})}
+                    onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-medium"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">Check Out Time</label>
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={editForm.checkOut}
-                    onChange={e => setEditForm({...editForm, checkOut: e.target.value})}
+                    onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-medium"
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => setEditingAttendance(null)}
                   className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleUpdateAttendance}
                   disabled={isUpdating}
                   className="px-4 py-2 text-sm font-bold text-white bg-orange-500 rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-200 transition-colors disabled:opacity-70 flex items-center gap-2"
@@ -644,7 +644,7 @@ export default function AdminAttendancePage() {
       {/* Detailed Monthly Report Modal */}
       {viewingReport && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
@@ -654,41 +654,41 @@ export default function AdminAttendancePage() {
                 <h3 className={`${outfit.className} text-xl font-bold text-gray-900`}>Monthly Report</h3>
                 <p className="text-sm text-gray-500">{viewingReport.emp.name} • {viewingReport.monthDate.toLocaleString("default", { month: "long", year: "numeric" })}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setViewingReport(null)}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-5 gap-4 mb-6">
-                 {/* 5 stat cards */}
-                 <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
-                    <p className="text-xs text-blue-600 font-bold mb-1">Work Days</p>
-                    <p className="text-xl font-black text-blue-800">{viewingReport.stats.totalWorkingDays}</p>
-                 </div>
-                 <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
-                    <p className="text-xs text-emerald-600 font-bold mb-1">Present</p>
-                    <p className="text-xl font-black text-emerald-800">{viewingReport.stats.totalPresent}</p>
-                 </div>
-                 <div className="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
-                    <p className="text-xs text-rose-600 font-bold mb-1">Absent</p>
-                    <p className="text-xl font-black text-rose-800">{viewingReport.stats.totalAbsent}</p>
-                 </div>
-                 <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
-                    <p className="text-xs text-amber-600 font-bold mb-1">Late</p>
-                    <p className="text-xl font-black text-amber-800">{viewingReport.stats.lateDays}</p>
-                 </div>
-                 <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 text-center">
-                    <p className="text-xs text-purple-600 font-bold mb-1">Leaves</p>
-                    <p className="text-xl font-black text-purple-800">{viewingReport.stats.leaveDaysInMonth}</p>
-                 </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                {/* 5 stat cards */}
+                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                  <p className="text-xs text-blue-600 font-bold mb-1">Work Days</p>
+                  <p className="text-xl font-black text-blue-800">{viewingReport.stats.totalWorkingDays}</p>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                  <p className="text-xs text-emerald-600 font-bold mb-1">Present</p>
+                  <p className="text-xl font-black text-emerald-800">{viewingReport.stats.totalPresent}</p>
+                </div>
+                <div className="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                  <p className="text-xs text-rose-600 font-bold mb-1">Absent</p>
+                  <p className="text-xl font-black text-rose-800">{viewingReport.stats.totalAbsent}</p>
+                </div>
+                <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
+                  <p className="text-xs text-amber-600 font-bold mb-1">Late</p>
+                  <p className="text-xl font-black text-amber-800">{viewingReport.stats.lateDays}</p>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 text-center">
+                  <p className="text-xs text-purple-600 font-bold mb-1">Leaves</p>
+                  <p className="text-xl font-black text-purple-800">{viewingReport.stats.leaveDaysInMonth}</p>
+                </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-sm text-left">
+              <div className="border border-gray-200 rounded-xl  shadow-sm overflow-x-auto">
+                <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-3 font-bold tracking-wider">Date</th>
@@ -700,9 +700,9 @@ export default function AdminAttendancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {eachDayOfInterval({ 
-                      start: startOfMonth(viewingReport.monthDate), 
-                      end: endOfMonth(viewingReport.monthDate) 
+                    {eachDayOfInterval({
+                      start: startOfMonth(viewingReport.monthDate),
+                      end: endOfMonth(viewingReport.monthDate)
                     }).map((date) => {
                       const dateStr = format(date, "yyyy-MM-dd");
                       const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
@@ -710,11 +710,11 @@ export default function AdminAttendancePage() {
                       const isHoliday = holidays.includes(dateStr);
                       const monthName = viewingReport.monthDate.toLocaleString("default", { month: "long" });
                       const record = (viewingReport.emp.attendance?.[monthName] || []).find(d => d.date === dateStr);
-                      
+
                       const empLeaves = viewingReport.emp.leaves || [];
-                      const isOnLeave = empLeaves.some(l => 
-                        l.status === "approved" && 
-                        parse(l.startDate, "yyyy-MM-dd", new Date()) <= date && 
+                      const isOnLeave = empLeaves.some(l =>
+                        l.status === "approved" &&
+                        parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
                         parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
                       );
 
@@ -728,21 +728,21 @@ export default function AdminAttendancePage() {
                       else if (record?.checkIn) {
                         const checkIn = parse(record.checkIn, "HH:mm", new Date());
                         const lateThreshold = parse("10:00", "HH:mm", new Date());
-                        
+
                         if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
-                           status = record.status === "present" ? "Present" : (record.status === "halfDay" ? "Half Day" : "Absent");
-                           style = status === "Present" ? "bg-emerald-50 text-emerald-700" : (status === "Half Day" ? "bg-orange-50 text-orange-700" : "bg-rose-50 text-rose-700");
+                          status = record.status === "present" ? "Present" : (record.status === "halfDay" ? "Half Day" : "Absent");
+                          style = status === "Present" ? "bg-emerald-50 text-emerald-700" : (status === "Half Day" ? "bg-orange-50 text-orange-700" : "bg-rose-50 text-rose-700");
                         } else if (isAfter(checkIn, lateThreshold)) {
-                           status = "Late"; style = "bg-amber-50 text-amber-700";
+                          status = "Late"; style = "bg-amber-50 text-amber-700";
                         } else {
-                           status = "Present"; style = "bg-emerald-50 text-emerald-700";
+                          status = "Present"; style = "bg-emerald-50 text-emerald-700";
                         }
-                        
+
                         if (record.checkOut) {
-                           const checkOut = parse(record.checkOut, "HH:mm", new Date());
-                           let workedHours = differenceInMinutes(checkOut, checkIn) / 60;
-                           if (workedHours < 0) workedHours += 24;
-                           hours = workedHours.toFixed(1) + "h";
+                          const checkOut = parse(record.checkOut, "HH:mm", new Date());
+                          let workedHours = differenceInMinutes(checkOut, checkIn) / 60;
+                          if (workedHours < 0) workedHours += 24;
+                          hours = workedHours.toFixed(1) + "h";
                         }
                       } else if (date > new Date()) {
                         status = "Upcoming"; style = "text-gray-400 bg-transparent";
@@ -766,26 +766,26 @@ export default function AdminAttendancePage() {
                           <td className="px-4 py-3 text-center text-xs font-bold text-gray-500 border-b border-gray-100">{hours}</td>
                           <td className="px-4 py-3 text-center border-b border-gray-100">
                             {date <= new Date() && !isHoliday && !isWeekend && (
-                                <button 
-                                  onClick={() => {
-                                    setEditingAttendance({
-                                      empId: viewingReport.emp._id,
-                                      name: viewingReport.emp.name,
-                                      date: dateStr,
-                                      monthName: viewingReport.monthDate.toLocaleString("default", { month: "long" }),
-                                      attendanceData: viewingReport.emp.attendance || {}
-                                    });
-                                    setEditForm({
-                                      checkIn: record?.checkIn || "",
-                                      checkOut: record?.checkOut || "",
-                                      status: record?.status || (record?.checkIn ? "present" : "absent")
-                                    });
-                                  }}
-                                  className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 p-1.5 rounded-lg transition-colors"
-                                  title="Edit Attendance"
-                                >
-                                  <Edit3 size={16} />
-                                </button>
+                              <button
+                                onClick={() => {
+                                  setEditingAttendance({
+                                    empId: viewingReport.emp._id,
+                                    name: viewingReport.emp.name,
+                                    date: dateStr,
+                                    monthName: viewingReport.monthDate.toLocaleString("default", { month: "long" }),
+                                    attendanceData: viewingReport.emp.attendance || {}
+                                  });
+                                  setEditForm({
+                                    checkIn: record?.checkIn || "",
+                                    checkOut: record?.checkOut || "",
+                                    status: record?.status || (record?.checkIn ? "present" : "absent")
+                                  });
+                                }}
+                                className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 p-1.5 rounded-lg transition-colors"
+                                title="Edit Attendance"
+                              >
+                                <Edit3 size={16} />
+                              </button>
                             )}
                           </td>
                         </tr>
