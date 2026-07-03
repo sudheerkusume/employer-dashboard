@@ -33,53 +33,67 @@ export async function PUT(request) {
         // 3. Update the employee's attendance records
         // The leave dates are stored in the pending request
         const leaveDates = pendingRequest.leaveDates || [];
+        const leaveType = pendingRequest.leaveType || "full";
+        
         for (const date of leaveDates) {
             const monthName = new Date(date).toLocaleString("default", { month: "long" });
             
             if (status === "approved") {
+                let targetLeaveStatus = "approved";
+                if (leaveType === "first half") targetLeaveStatus = "firstHalfApproved";
+                if (leaveType === "second half") targetLeaveStatus = "secondHalfApproved";
+
+                const updateObj = { [`attendance.${monthName}.$.leaveStatus`]: targetLeaveStatus };
+                if (leaveType !== "first half" && leaveType !== "second half") {
+                    updateObj[`attendance.${monthName}.$.status`] = "approved";
+                }
+
                 await employeesCollection.updateOne(
                     { _id: new ObjectId(employeeId), [`attendance.${monthName}.date`]: date },
-                    { $set: { [`attendance.${monthName}.$.status`]: "approved" } }
+                    { $set: updateObj }
                 );
             } else if (status === "rejected") {
-                // If rejected, we typically remove the attendance block completely or mark it rejected.
-                // We'll mark it rejected so the employee knows it was declined.
+                const updateObj = { [`attendance.${monthName}.$.leaveStatus`]: "rejected" };
+                if (leaveType !== "first half" && leaveType !== "second half") {
+                    updateObj[`attendance.${monthName}.$.status`] = "rejected";
+                }
+
                 await employeesCollection.updateOne(
                     { _id: new ObjectId(employeeId), [`attendance.${monthName}.date`]: date },
-                    { $set: { [`attendance.${monthName}.$.status`]: "rejected" } }
+                    { $set: updateObj }
                 );
             }
         }
 
         // 4. Remove from manager.pendingLeaves
         await employeesCollection.updateOne(
-            { _id: new ObjectId(managerId) },
-            {
-                $pull: {
-                    pendingLeaves: { _id: pendingRequest._id }
-                }
+        { _id: new ObjectId(managerId) },
+        {
+            $pull: {
+                pendingLeaves: { _id: pendingRequest._id }
             }
-        );
+        }
+    );
 
-        // 5. Add to manager's approved/rejected history
-        const reviewedRecord = {
-            ...pendingRequest,
-            status,
-            reviewedBy: manager.name,
-            reviewedOn: new Date().toISOString()
-        };
+    // 5. Add to manager's approved/rejected history
+    const reviewedRecord = {
+        ...pendingRequest,
+        status,
+        reviewedBy: manager.name,
+        reviewedOn: new Date().toISOString()
+    };
 
-        const fieldName = status === "approved" ? "approvedLeaves" : "rejectedLeaves";
-        
-        await employeesCollection.updateOne(
-            { _id: new ObjectId(managerId) },
-            { $push: { [fieldName]: reviewedRecord } }
-        );
+    const fieldName = status === "approved" ? "approvedLeaves" : "rejectedLeaves";
 
-        return NextResponse.json({ success: true, message: `Leave ${status} successfully` });
+    await employeesCollection.updateOne(
+        { _id: new ObjectId(managerId) },
+        { $push: { [fieldName]: reviewedRecord } }
+    );
 
-    } catch (error) {
-        console.error('PUT /api/leave/approve error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, message: `Leave ${status} successfully` });
+
+} catch (error) {
+    console.error('PUT /api/leave/approve error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+}
 }

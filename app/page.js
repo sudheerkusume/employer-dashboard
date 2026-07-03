@@ -51,8 +51,8 @@ export default function HomePage() {
   };
 
   // Show loading only while checking localStorage
-  if (isLoading) {
-    return <div className="min-h-screen text-center justify-center items-center bg-gray-50 p-4 text-gray-500">Loading...</div>;
+  if (isLoading || !role) {
+    return null; // Return null so the screen is blank while redirecting to /login
   }
 
   // If role exists (user is logged in), show welcome + dashboard button

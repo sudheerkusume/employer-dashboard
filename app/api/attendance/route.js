@@ -52,6 +52,21 @@ function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0, dateStr
     earlyOut = true;
   }
 
+  const workingHoursStr = checkOut ? calculateWorkingHours(checkIn, checkOut) : "0 hrs";
+  const workingHours = parseFloat(workingHoursStr);
+
+  if (checkOut && workingHours < 8.5) { // Added ')'
+    if (workingHours >= 4.0) {
+      if (checkInMins < timeToMinutes("14:00")) {
+        status = "firstHalfPresent";
+      } else {
+        status = "secondHalfPresent";
+      }
+    } else {
+      status = "absent";
+    }
+  }
+  // Removed the stray ' ) ' here
   // Only count late/early for loss of pay AFTER first 3
   let lossOfPay = 0;
   if (late || earlyOut) {
@@ -61,9 +76,9 @@ function determineStatusWithRules(checkIn, checkOut, lateEarlyCount = 0, dateStr
     }
   }
 
-  const workingHours = checkOut ? calculateWorkingHours(checkIn, checkOut) : 0;
+  // const workingHours = checkOut ? calculateWorkingHours(checkIn, checkOut) : 0;
 
-  return { status, workingHours, late, earlyOut, lossOfPay };
+  return { status, workingHours: workingHoursStr, late, earlyOut, lossOfPay };
 }
 
 // ✅ API route for check-in / check-out
