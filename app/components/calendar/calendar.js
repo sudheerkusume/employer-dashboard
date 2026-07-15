@@ -69,7 +69,13 @@ const calculateWorkingHours = (checkIn, checkOut, date) => {
     const start = inH * 60 + inM;
     const end = outH * 60 + outM;
 
-    let diffMinutes = Math.max(0, end - start);
+    let diffMinutes = end - start;
+    if (diffMinutes < 0) {
+        diffMinutes += 12 * 60;
+        if (diffMinutes < 0) {
+            diffMinutes += 12 * 60;
+        }
+    }
 
     return diffMinutes / 60; // hours as decimal
 };
@@ -91,10 +97,11 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
 
     let topStatus = 'absent';
     let bottomStatus = 'absent';
-    // Extract numeric working hours from string like "9.03 hrs" or "8.50"
-    const getNumericWorkingHours = (hoursStr) => {
-        if (!hoursStr) return 0;
-        const numericStr = hoursStr.toString().replace('hrs', '').trim();
+    // Extract numeric working hours from string or number
+    const getNumericWorkingHours = (hoursVal) => {
+        if (hoursVal === undefined || hoursVal === null) return 0;
+        if (typeof hoursVal === 'number') return hoursVal;
+        const numericStr = hoursVal.toString().replace('hrs', '').trim();
         return parseFloat(numericStr) || 0;
     };
 
@@ -149,6 +156,18 @@ const determineStatus = (checkIn, checkOut, leaveType, leaveStatus, date, workin
     }
     if (leaveStatus === 'secondHalfPresent') {
         return 'secondhalfp'
+    }
+    if (leaveStatus === 'halfDay') {
+        if (checkIn) {
+            const checkInTime = checkIn.split(':').map(Number);
+            const checkInHour = checkInTime[0] + (checkInTime[1] / 60);
+            if (checkInHour <= 14.0) {
+                return 'firstHalfp';
+            } else {
+                return 'secondhalfp';
+            }
+        }
+        return 'firstHalfp';
     }
 
     if (!checkIn && !checkOut) {
@@ -387,7 +406,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                         att.leaveType,
                         att.status,
                         att.date,
-                        att.workingHours
+                        workingHours // Use computed working hours instead of att.workingHours which might be stale
                     );
 
                     if (att.leaveType && att.status === "pending") {

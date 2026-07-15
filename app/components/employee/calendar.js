@@ -375,7 +375,13 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         const start = inH * 60 + inM;
         const end = outH * 60 + outM;
 
-        let diffMinutes = Math.max(0, end - start);
+        let diffMinutes = end - start;
+        if (diffMinutes < 0) {
+            diffMinutes += 12 * 60;
+            if (diffMinutes < 0) {
+                diffMinutes += 12 * 60;
+            }
+        }
 
         // Handle half-day approved leaves
         if (status === 'firsthalfapproved') {
@@ -1026,7 +1032,14 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
         if (checkIn && checkOut) {
             const checkInTime = parse(checkIn, "HH:mm", new Date());
             const checkOutTime = parse(checkOut, "HH:mm", new Date());
-            const minutesWorked = differenceInMinutes(checkOutTime, checkInTime);
+            let minutesWorked = differenceInMinutes(checkOutTime, checkInTime);
+
+            if (minutesWorked < 0) {
+                minutesWorked += 12 * 60;
+                if (minutesWorked < 0) {
+                    minutesWorked += 12 * 60;
+                }
+            }
 
             const hours = Math.floor(minutesWorked / 60);
             const minutes = minutesWorked % 60;

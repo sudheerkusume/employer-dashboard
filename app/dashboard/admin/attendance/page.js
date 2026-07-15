@@ -227,6 +227,53 @@ export default function AdminAttendancePage() {
     return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
   };
 
+  const handleTimeChange = (field, value) => {
+    const newForm = { ...editForm, [field]: value };
+    
+    if (newForm.checkIn && newForm.checkOut) {
+      try {
+        const checkInTime = parse(newForm.checkIn, "HH:mm", new Date());
+        const checkOutTime = parse(newForm.checkOut, "HH:mm", new Date());
+        
+        const noonThreshold = parse("13:30", "HH:mm", new Date());
+        const eveningThreshold = parse("18:00", "HH:mm", new Date());
+        
+        let morningPresent = false;
+        let afternoonPresent = false;
+        
+        if (isBefore(checkInTime, noonThreshold)) {
+          morningPresent = true;
+        } else {
+          afternoonPresent = true;
+        }
+        
+        if (morningPresent) {
+          if (isAfter(checkOutTime, eveningThreshold)) {
+            afternoonPresent = true;
+          }
+        } else if (afternoonPresent) {
+          if (isAfter(checkOutTime, eveningThreshold)) {
+            afternoonPresent = true;
+          } else {
+            afternoonPresent = true;
+          }
+        }
+        
+        if (morningPresent && afternoonPresent) {
+          newForm.status = "present";
+        } else if (morningPresent || afternoonPresent) {
+          newForm.status = "halfDay";
+        } else {
+          newForm.status = "absent";
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    setEditForm(newForm);
+  };
+
   const handleUpdateAttendance = async () => {
     if (!editingAttendance) return;
     setIsUpdating(true);
@@ -606,7 +653,7 @@ export default function AdminAttendancePage() {
                   <input
                     type="time"
                     value={editForm.checkIn}
-                    onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
+                    onChange={e => handleTimeChange("checkIn", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-medium"
                   />
                 </div>
@@ -615,7 +662,7 @@ export default function AdminAttendancePage() {
                   <input
                     type="time"
                     value={editForm.checkOut}
-                    onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
+                    onChange={e => handleTimeChange("checkOut", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-medium"
                   />
                 </div>

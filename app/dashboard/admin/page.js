@@ -14,12 +14,14 @@ import Loading from "@/app/components/common/loading";
 import { useSWRFetch } from "@/app/components/config/useswrfetch";
 import { format, parse, isAfter } from "date-fns";
 import RootContext from "@/app/components/config/rootcontext";
+import BirthdayCelebration from "@/app/components/common/BirthdayCelebration";
 
 export default function DashboardHome() {
   const [isClient, setIsClient] = useState(false);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [pendingARs, setPendingARs] = useState([]);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [currentUserData, setCurrentUserData] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userName, setUserName] = useState("Admin");
 
@@ -30,6 +32,7 @@ export default function DashboardHome() {
     if (storedUser) {
       try {
         userData = JSON.parse(storedUser);
+        setCurrentUserData(userData);
         if (userData.name) setUserName(userData.name);
       } catch (e) { }
     }
@@ -518,6 +521,9 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
+      
+      {/* Birthday Celebration Widget */}
+      <BirthdayCelebration currentUser={currentUserData} allEmployees={employeesData} />
     </div>
   );
 }

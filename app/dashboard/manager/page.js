@@ -9,13 +9,16 @@ import { formatDateTime } from "@/app/components/config/sitesettings";
 import { useRouter } from "next/navigation";
 import { Calendar, Sparkles } from "lucide-react";
 import { format, isAfter, isToday } from "date-fns";
+import BirthdayCelebration from "@/app/components/common/BirthdayCelebration";
 export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
+  const [currentUserData, setCurrentUserData] = useState(null);
   const { rootContext, setRootContext } = useContext(RootContext);
   const router = useRouter();
 
   useEffect(() => {
     const details = JSON.parse(localStorage.getItem("user_details") || "{}");
+    setCurrentUserData(details);
     if (details?.userId) setUserId(details.userId);
   }, []);
 
@@ -185,6 +188,7 @@ export default function ManagerDashboard() {
         {/* ---------------------------------------------------- */}
 
       </div>
+      <BirthdayCelebration currentUser={currentUserData} allEmployees={employeesData} />
     </div>
   );
 }
