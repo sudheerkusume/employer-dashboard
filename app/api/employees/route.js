@@ -197,7 +197,7 @@ export async function PUT(request) {
             const textFields = [
                 "name", "email", "mobile", "gender", "password", "summary", "reportingManager",
                 "panNumber", "aadhaarNumber", "designation", "department",
-                "employeeCode", "ctc", "regime", "isActive", "accountNo", "ifscCode"
+                "employeeCode", "ctc", "regime", "isActive", "accountNo", "ifscCode", "dateOfBirth", "dateOfJoining"
             ];
             textFields.forEach(key => {
                 const value = formData.get(key);

@@ -8,6 +8,7 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useContext } from "react";
 import RootContext from "@/app/components/config/rootcontext";
+import BirthdayCelebration from "@/app/components/common/BirthdayCelebration";
 
 export default function EmployeeDashboard() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function EmployeeDashboard() {
 
   const userId = user_details?.userId || "";
   const { data, error, isLoading } = useSWRFetch(userId ? `/api/employees?id=${userId}` : null);
+  const { data: allEmployees } = useSWRFetch('/api/employees');
   
   if (error) { return <Error /> }
 
@@ -64,6 +66,8 @@ export default function EmployeeDashboard() {
         {isLoading && <Loading />}
         <EmployeeProfile employeesData={data} />
       </div>
+
+      <BirthdayCelebration currentUser={user_details} allEmployees={allEmployees} />
     </div>
   );
 }
