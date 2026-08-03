@@ -240,6 +240,23 @@ export default function AdminSettings() {
                                             <option value="EUR">EUR (€)</option>
                                         </select>
                                     </div>
+                                    <div className="space-y-2 md:col-span-2 pt-4 border-t border-gray-100 mt-4">
+                                        <div className="flex items-center justify-between bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                            <div>
+                                                <h3 className="text-sm font-bold text-gray-900">Enable EOD System</h3>
+                                                <p className="text-xs text-gray-500 mt-1">Turns on the End-of-Day reporting flow (Day Plan & Evening Updates) for all employees and managers.</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer"
+                                                    checked={settings.eodEnabled ?? true}
+                                                    onChange={(e) => setSettings({...settings, eodEnabled: e.target.checked})}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}

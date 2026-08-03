@@ -54,6 +54,7 @@ export default function AdminLayout({ children }) {
   }, []);
 
   const { data: employeesData } = useSWRFetch("/api/employees");
+  const { data: globalSettings } = useSWRFetch("/api/settings");
 
   const pendingLeavesCount = React.useMemo(() => {
     if (!employeesData) return 0;
@@ -92,8 +93,7 @@ export default function AdminLayout({ children }) {
     { name: "Payroll", href: "/dashboard/admin/payroll", icon: FileText },
     { name: "Departments", href: "/dashboard/admin/departments", icon: Briefcase },
     { name: "Holidays", href: "/dashboard/admin/holidays", icon: CalendarDays },
-    // { name: "Recruitment", href: "/dashboard/admin/recruitment", icon: UserPlus },
-    // { name: "Reports", href: "/dashboard/admin/reports", icon: BarChart3 },
+    ...(globalSettings?.eodEnabled !== false ? [{ name: "EOD Reports", href: "/dashboard/admin/eod-reports", icon: FileText }] : []),
     { name: "Settings", href: "/dashboard/admin/settings", icon: Settings },
   ];
 

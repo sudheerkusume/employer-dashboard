@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import RootContext from "@/app/components/config/rootcontext";
-// import logo from '/images/logo1.png'
+import EodModal from "@/app/components/EodModal";
 import {
   LayoutDashboard,
   Users,
@@ -28,6 +28,8 @@ export default function ManagerLayout({ children }) {
   const [isMobile, setIsMobile] = useState(false);
 
   const [userId, setUserId] = useState(null);
+  const [showEveningModal, setShowEveningModal] = useState(false);
+  const [todayPlan, setTodayPlan] = useState(null);
 
   useEffect(() => {
     const details = JSON.parse(localStorage.getItem("user_details") || "{}");
@@ -37,6 +39,7 @@ export default function ManagerLayout({ children }) {
   // Fetch real-time data so badges update immediately after approvals
   const { data: managerData } = useSWRFetch(userId ? `/api/employees?id=${userId}` : null);
   const { data: allEmployeesData } = useSWRFetch("/api/employees");
+  const { data: globalSettings } = useSWRFetch("/api/settings");
 
   const pendingLeavesCount = managerData?.pendingLeaves?.length || 0;
   const pendingARsCount = managerData?.pendingRegularizations?.length || 0;
@@ -73,10 +76,86 @@ export default function ManagerLayout({ children }) {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (userId) {
+      try {
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        const res = await fetch(`/api/eod?role=employee&id=${userId}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success && data.reports) {
+          const todaysReport = data.reports.find(report => report.date === today);
+          if (todaysReport) {
+            setTodayPlan(todaysReport);
+
+            let morningTasks = [];
+            if (todaysReport.morningPlan) {
+              if (todaysReport.morningPlan.includes('<')) {
+                const doc = new DOMParser().parseFromString(todaysReport.morningPlan, 'text/html');
+                const listItems = doc.querySelectorAll('body > ul > li, body > ol > li');
+                if (listItems.length > 0) {
+                  morningTasks = Array.from(listItems).map(li => li.textContent.trim());
+                } else {
+                  morningTasks = [doc.body.textContent.trim()];
+                }
+              } else {
+                morningTasks = todaysReport.morningPlan.split('\n').filter(l => l.trim());
+              }
+            }
+
+            const eveningUpdate = todaysReport.eveningUpdate || '';
+            let allTasksAddressed = true;
+            if (morningTasks.length > 0) {
+              for (const task of morningTasks) {
+                const cleanTask = task.replace(/^\[ROLLOVER\]\s*/, '');
+                if (!eveningUpdate.includes(cleanTask)) {
+                  allTasksAddressed = false;
+                  break;
+                }
+              }
+            } else {
+              if (eveningUpdate.trim() === '') allTasksAddressed = false;
+            }
+
+            if (allTasksAddressed && eveningUpdate.trim() !== '') {
+              actualLogoutFunction();
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest plan before logout:", err);
+      }
+    }
+    setShowEveningModal(true);
+  };
+
+  const actualLogoutFunction = () => {
     localStorage.clear();
     setRootContext((prev) => ({ ...prev, authenticated: false }));
     router.push("/");
+  };
+
+  const submitEveningEod = async (formData) => {
+    const user_details = JSON.parse(localStorage.getItem("user_details") || "{}");
+    const payload = {
+      employeeId: user_details?._id || user_details?.userCode || user_details?.userId || 'unknown_id',
+      employeeName: user_details?.fullName || user_details?.name || 'Manager',
+      department: user_details?.designation || user_details?.role || 'Manager',
+      managerId: null,
+      ...formData
+    };
+    try {
+      const res = await fetch('/api/eod', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setShowEveningModal(false);
+        actualLogoutFunction();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const menuSections = [
@@ -99,8 +178,8 @@ export default function ManagerLayout({ children }) {
     {
       title: "REPORTS",
       items: [
-        { name: "Analytics", href: "/dashboard/manager/analytics", icon: BarChart3 }
-        // { name: "Payroll", href: "/dashboard/manager/payroll", icon: FileText },
+        { name: "Analytics", href: "/dashboard/manager/analytics", icon: BarChart3 },
+        ...(globalSettings?.eodEnabled !== false ? [{ name: "Team Reports", href: "/dashboard/manager/reports", icon: FileText }] : [])
       ]
     }
   ];
@@ -255,6 +334,16 @@ export default function ManagerLayout({ children }) {
         </main>
       </div>
 
+      <EodModal
+        type="evening"
+        isOpen={showEveningModal}
+        onClose={() => {
+          setShowEveningModal(false);
+          actualLogoutFunction();
+        }}
+        onSubmit={submitEveningEod}
+        todayPlan={todayPlan}
+      />
     </div>
   );
 }

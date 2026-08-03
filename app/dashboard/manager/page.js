@@ -10,17 +10,132 @@ import { useRouter } from "next/navigation";
 import { Calendar, Sparkles } from "lucide-react";
 import { format, isAfter, isToday } from "date-fns";
 import BirthdayCelebration from "@/app/components/common/BirthdayCelebration";
+import EodModal from "@/app/components/EodModal";
 export default function ManagerDashboard() {
   const [userId, setUserId] = useState("");
   const [currentUserData, setCurrentUserData] = useState(null);
   const { rootContext, setRootContext } = useContext(RootContext);
   const router = useRouter();
 
+  const [showMorningModal, setShowMorningModal] = useState(false);
+  const [todayPlan, setTodayPlan] = useState(null);
+  const [pendingMorningModal, setPendingMorningModal] = useState(false);
+
+  useEffect(() => {
+    if (pendingMorningModal && !rootContext?.toast?.show) {
+      setShowMorningModal(true);
+      setPendingMorningModal(false);
+    }
+  }, [pendingMorningModal, rootContext?.toast?.show]);
+
   useEffect(() => {
     const details = JSON.parse(localStorage.getItem("user_details") || "{}");
     setCurrentUserData(details);
     if (details?.userId) setUserId(details.userId);
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const checkMorningPlan = async () => {
+      try {
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        const res = await fetch(`/api/eod?role=employee&id=${userId}`, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.success && data.reports) {
+          const todaysReport = data.reports.find(report => report.date === today);
+          if (!todaysReport) {
+            const previousReports = data.reports.filter(r => r.date < today).sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (previousReports.length > 0) {
+              const lastReport = previousReports[0];
+              const updateText = lastReport.eveningUpdate || '';
+
+              const getSectionText = (startMarker, nextMarkers) => {
+                const startIdx = updateText.indexOf(startMarker);
+                if (startIdx === -1) return '';
+                let endIdx = updateText.length;
+                for (const marker of nextMarkers) {
+                  const idx = updateText.indexOf(marker);
+                  if (idx !== -1 && idx > startIdx && idx < endIdx) {
+                    endIdx = idx;
+                  }
+                }
+                return updateText.substring(startIdx, endIdx);
+              };
+
+              const completedSection = getSectionText('Completed Today:', ['In Progress:', 'Not Yet Picked / Unplanned Tasks:', 'Blocked:', 'Additional Accomplishments:']);
+
+              const rolloverTasks = [];
+              if (lastReport.morningPlan) {
+                const pastTasks = lastReport.morningPlan.split('\n').filter(line => line.trim() !== '');
+                for (const task of pastTasks) {
+                  const cleanTask = task.replace(/^\[ROLLOVER\]\s*/, '');
+                  if (!completedSection.includes(cleanTask)) {
+                    rolloverTasks.push(`[ROLLOVER] ${cleanTask}`);
+                  }
+                }
+              }
+
+              if (rolloverTasks.length > 0) {
+                const morningPlan = rolloverTasks.join('\n');
+                try {
+                  const payload = {
+                    action: 'morning_plan',
+                    employeeId: userId,
+                    employeeName: currentUserData?.fullName || currentUserData?.name || 'Manager',
+                    department: currentUserData?.designation || currentUserData?.role || 'Other',
+                    content: morningPlan
+                  };
+                  const submitRes = await fetch('/api/eod', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                  });
+                  if (submitRes.ok) {
+                    setTodayPlan({ morningPlan, status: 'pending', date: today, eveningUpdate: '' });
+                    return;
+                  }
+                } catch (err) {
+                  console.error("Failed to auto-rollover tasks:", err);
+                }
+              }
+            }
+            setPendingMorningModal(true);
+          } else {
+            setTodayPlan(todaysReport);
+            if (!todaysReport.morningPlan || todaysReport.morningPlan.trim() === '') {
+              setPendingMorningModal(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check morning plan:", err);
+      }
+    };
+    checkMorningPlan();
+  }, [userId]);
+
+  const submitEod = async (formData) => {
+    const payload = {
+      employeeId: currentUserData?._id || currentUserData?.userCode || currentUserData?.userId || 'unknown_id',
+      employeeName: currentUserData?.fullName || currentUserData?.name || 'Unknown',
+      department: currentUserData?.department || currentUserData?.designation || currentUserData?.role || 'Other',
+      managerId: null,
+      ...formData
+    };
+    try {
+      const res = await fetch('/api/eod', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.ok && formData.action === 'morning_plan') {
+        setShowMorningModal(false);
+        setTodayPlan({ morningPlan: formData.content, status: 'pending' });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const { data: managerData, error, isLoading } = useSWRFetch(
     userId ? `/api/employees?id=${userId}` : null
@@ -29,17 +144,17 @@ export default function ManagerDashboard() {
   const { data: employeesData, isLoading: employeesLoading } = useSWRFetch(
     "/api/employees"
   );
-  
+
   const { data: holidaysData } = useSWRFetch("/api/holidays");
 
   if (error) return <Error />;
   if (isLoading || employeesLoading || !userId) return <Loading />;
 
   const teamMembers = employeesData?.filter(emp => emp.reportingId === userId) || [];
-  const pendingLeaves = teamMembers.flatMap(emp => 
+  const pendingLeaves = teamMembers.flatMap(emp =>
     (emp.leaveRequests || []).filter(lr => lr.status === "pending")
   );
-  const pendingARs = teamMembers.flatMap(emp => 
+  const pendingARs = teamMembers.flatMap(emp =>
     (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending")
   );
 
@@ -127,11 +242,11 @@ export default function ManagerDashboard() {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900">{managerData?.name || "Manager Profile"}</h3>
               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs font-medium text-gray-400">
-                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> {managerData?.designation || "Engineering"}</span>
+                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> {managerData?.designation || "Engineering"}</span>
                 <span>•</span>
-                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg> {managerData?.location || "Hyderabad"}</span>
+                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> {managerData?.location || "Hyderabad"}</span>
                 <span>•</span>
-                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg> {managerData?.employeeCode || "EMP-XXXX"}</span>
+                <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" /></svg> {managerData?.employeeCode || "EMP-XXXX"}</span>
               </div>
             </div>
           </div>
@@ -183,12 +298,19 @@ export default function ManagerDashboard() {
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">My Profile Settings</h2>
             <div className="flex-1 h-px bg-gray-200"></div>
           </div>
-          <ManagerProfile employeesData={managerData} />
+          <ManagerProfile employeesData={managerData} todayPlan={todayPlan} />
         </div>
         {/* ---------------------------------------------------- */}
 
       </div>
       <BirthdayCelebration currentUser={currentUserData} allEmployees={employeesData} />
+
+      <EodModal
+        type="morning"
+        isOpen={showMorningModal}
+        onClose={() => setShowMorningModal(false)}
+        onSubmit={submitEod}
+      />
     </div>
   );
 }
