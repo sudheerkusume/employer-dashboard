@@ -17,7 +17,6 @@ import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 import { ArrowBigDown, ArrowBigUp, BadgePercent, HandCoins, Network, Plus } from 'lucide-react';
 import EodModal from '@/app/components/EodModal';
 import { employeesData } from '../components/config/data';
-import EodModal from '@/app/components/EodModal';
 
 export default function HomePage() {
     const router = useRouter();
