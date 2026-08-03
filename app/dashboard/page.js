@@ -15,6 +15,9 @@ import {
 } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 import { ArrowBigDown, ArrowBigUp, BadgePercent, HandCoins, Network, Plus } from 'lucide-react';
+import EodModal from '@/app/components/EodModal';
+import { employeesData } from '../components/config/data';
+import EodModal from '@/app/components/EodModal';
 
 export default function HomePage() {
     const router = useRouter();
@@ -43,6 +46,49 @@ export default function HomePage() {
     const storedRole = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_role') : null;
     const storedName = typeof window !== 'undefined' ? localStorage.getItem('mlm_user_name') : null;
     const isSuperAdmin = storedRole === 'super_admin';
+
+    // State for EOD Modals
+    const [showMorningModal, setShowMorningModal] = useState(false);
+    const [todayPlan, setTodayPlan] = useState(null);
+    const [showEveningModal, setShowEveningModal] = useState(false);
+
+    const checkTodayPlan = async (employeeData) => {
+
+    }
+
+    const handleLogoutClick = () => {
+        setShowEveningModal(true);
+    }
+
+    const submitEod = async (data) => {
+        const payload = {
+            employeeId: userData?._id || userData?.userCode || 'unknown_id',
+            employeeName: userData?.fullName || 'Unknown Employee',
+            department: userData?.department || 'Digital',
+            managerId: null,
+            ...data
+        };
+        try {
+            const res = await fetch('/api/eod', {
+                method: 'post',
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                setShowMorningModal(false);
+                if (data.action === 'evening_update') {
+                    setShowEveningModal(false);
+                    actualLogoutFunction();
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const actualLogoutFunction = () => {
+        localStorage.clear();
+        router.push('/login'); // Redirect to login page
+    };
 
     // 1. For super_admin: set placeholder userData without DB fetch, then load all users
     useEffect(() => {
@@ -599,11 +645,35 @@ export default function HomePage() {
                                 >
                                     <BadgePercent size={20} /> Record Sale
                                 </button>
+                                <button
+                                    onClick={handleLogoutClick}
+                                    className="w-full flex gap-1 items-center justify-center bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-600 transition shadow-md font-medium"
+                                >
+                                    Log Out (EOD)
+                                </button>
                             </div>
                         </div>
                     </>
                 )}
             </div>
+
+            <EodModal
+                type="morning"
+                isOpen={showMorningModal}
+                onClose={() => setShowMorningModal(false)}
+                onSubmit={submitEod}
+            />
+
+            <EodModal
+                type="evening"
+                isOpen={showEveningModal}
+                onClose={() => {
+                    setShowEveningModal(false);
+                    actualLogoutFunction(); // Log out anyway if they skip
+                }}
+                onSubmit={submitEod}
+            />
         </div>
     );
+
 }

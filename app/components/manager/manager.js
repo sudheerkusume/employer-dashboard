@@ -11,11 +11,12 @@ import AboutMe from '../employee/about';
 import Attendance from '../employee/attendance';
 import HRPolicy from '../employee/hrpolicy';
 import Payslip from '../employee/payslip';
+import Tasks from '../employee/tasks';
 import Loading from '../common/loading';
 import { formatDateTime } from '../config/sitesettings';
-
 const tabs = [
     { name: 'About Me', component: AboutMe },
+    { name: 'Tasks', component: Tasks },
     { name: 'Attendance', component: Attendance },
     { name: 'HR Policy', component: HRPolicy },
     { name: 'Payslips', component: Payslip },
@@ -29,7 +30,7 @@ const ASPECT_RATIOS = [
     { label: "16:9", value: 16 / 9 },
 ];
 
-function ManagerProfile({ employeesData }) {
+function ManagerProfile({ employeesData, todayPlan }) {
     const [activeTab, setActiveTab] = useState(0);
     const [profile, setProfile] = useState({
         name: '',
@@ -490,7 +491,7 @@ function ManagerProfile({ employeesData }) {
                         <div className="hidden sm:block">
                             <ButtonTab tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
                             <div className="py-3">
-                                <ActiveComponent profile={profile} />
+                                <ActiveComponent profile={profile} todayPlan={todayPlan} />
                             </div>
                         </div>
 
@@ -512,7 +513,7 @@ function ManagerProfile({ employeesData }) {
                                         </button>
                                         {isOpen && (
                                             <div className="p-2">
-                                                <Component profile={profile} />
+                                                <Component profile={profile} todayPlan={todayPlan} />
                                             </div>
                                         )}
                                     </div>

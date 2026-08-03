@@ -19,7 +19,8 @@ export async function GET(req) {
                 timezone: "Asia/Kolkata",
                 currency: "INR",
                 passwordPolicyLength: "8",
-                passwordPolicyExpiry: "90"
+                passwordPolicyExpiry: "90",
+                eodEnabled: true
             };
         }
 

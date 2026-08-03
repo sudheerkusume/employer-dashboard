@@ -9,15 +9,17 @@ import Attendance from "./attendance";
 import HRPolicy from "./hrpolicy";
 import Payslip from "./payslip";
 import Holidays from "./holidays";
+import Tasks from "./tasks";
 import ButtonTab from "../common/buttontab";
 import RootContext from "../config/rootcontext";
-import { Mutated } from "../config/useswrfetch";
+import { Mutated, useSWRFetch } from "../config/useswrfetch";
 import Loading from "../common/loading";
 import { formatDateTime } from "../config/sitesettings";
 import { useRouter } from "next/navigation";
 
 const tabs = [
     { name: "About Me", component: AboutMe },
+    { name: "Tasks", component: Tasks },
     { name: "Attendance", component: Attendance },
     { name: "Holidays", component: Holidays },
     { name: "HR Policy", component: HRPolicy },
@@ -32,7 +34,7 @@ const ASPECT_RATIOS = [
     { label: "16:9", value: 16 / 9 },
 ];
 
-export default function EmployeeProfile({ employeesData }) {
+export default function EmployeeProfile({ employeesData, todayPlan }) {
     const [activeTab, setActiveTab] = useState(0);
     const [profile, setProfile] = useState({});
     const [tempProfile, setTempProfile] = useState({});
@@ -74,6 +76,13 @@ export default function EmployeeProfile({ employeesData }) {
     const role = user_details?.role || "";
     const employeeID = user_details.userId;
     const mutated = Mutated(employeeID ? `/api/employees?id=${employeeID}` : null);
+    const { data: globalSettings } = useSWRFetch("/api/settings");
+
+    const eodEnabled = globalSettings?.eodEnabled !== false;
+    const visibleTabs = tabs.filter(tab => {
+        if (tab.name === "Tasks" && !eodEnabled) return false;
+        return true;
+    });
 
     useEffect(() => {
         if (employeesData) {
@@ -98,7 +107,7 @@ export default function EmployeeProfile({ employeesData }) {
         };
     }, [previewImage]);
 
-    const ActiveComponent = tabs[activeTab].component;
+    const ActiveComponent = visibleTabs[activeTab] ? visibleTabs[activeTab].component : visibleTabs[0].component;
 
     /** ─── Enhanced Image Upload + Crop ────────────────────── **/
     const handleImageChange = (e) => {
@@ -536,7 +545,7 @@ export default function EmployeeProfile({ employeesData }) {
                         {/* Desktop Tabs */}
                         <div className="hidden sm:block">
                             <div className="flex gap-2 p-1.5 bg-gray-200/50 rounded-xl mb-6 w-full border border-gray-200/60 shadow-sm">
-                                {tabs.map((tab, index) => (
+                                {visibleTabs.map((tab, index) => (
                                     <button
                                         key={tab.name}
                                         onClick={() => setActiveTab(index)}
@@ -553,13 +562,13 @@ export default function EmployeeProfile({ employeesData }) {
                             </div>
                             
                             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
-                                <ActiveComponent profile={profile} />
+                                <ActiveComponent profile={profile} todayPlan={todayPlan} />
                             </div>
                         </div>
 
                         {/* Mobile Accordion */}
                         <div className="sm:hidden space-y-3">
-                            {tabs.map((tab, index) => {
+                            {visibleTabs.map((tab, index) => {
                                 const Component = tab.component;
                                 const isOpen = accordionOpen === index;
                                 return (
@@ -579,7 +588,7 @@ export default function EmployeeProfile({ employeesData }) {
                                         </button>
                                         {isOpen && (
                                             <div className="p-4 border-t border-gray-100 bg-gray-50/30 animate-in slide-in-from-top-2 fade-in duration-200">
-                                                <Component profile={profile} />
+                                                <Component profile={profile} todayPlan={todayPlan} />
                                             </div>
                                         )}
                                     </div>

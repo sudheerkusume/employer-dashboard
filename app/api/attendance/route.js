@@ -90,7 +90,7 @@ export async function POST(req) {
       return Response.json({ error: "Missing fields" }, { status: 400 });
 
     const today = date || new Date().toISOString().split("T")[0];
-    const nowTime = time || new Date().toLocaleTimeString("en-GB", { hour12: false }).slice(0, 5);
+    const nowTime = time || new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour12: false, hour: "2-digit", minute: "2-digit" }).slice(0, 5);
     const monthName = new Date(today).toLocaleString("default", { month: "long" });
 
     const client = await clientPromise;

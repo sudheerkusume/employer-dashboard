@@ -55,6 +55,7 @@ export default function AdminAttendancePage() {
     data: employeesData,
     error: employeesError,
     isLoading: employeesLoading,
+    mutate: mutateEmployees,
   } = useSWRFetch("/api/employees");
 
   const {
@@ -311,8 +312,18 @@ export default function AdminAttendancePage() {
 
       if (!res.ok) throw new Error("Failed to update attendance");
 
+      if (viewingReport && (viewingReport.emp._id === empId || viewingReport.emp.userId === empId)) {
+        const updatedEmp = { ...viewingReport.emp, attendance: newAttendance };
+        const { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth } = calculateAttendance(updatedEmp, viewingReport.monthDate);
+        setViewingReport(prev => ({
+          ...prev,
+          emp: updatedEmp,
+          stats: { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth }
+        }));
+      }
+
       setEditingAttendance(null);
-      window.location.reload();
+      if (mutateEmployees) mutateEmployees();
     } catch (error) {
       console.error(error);
       alert(error.message);
