@@ -20,7 +20,7 @@ export default function Attendance({ profile }) {
     });
     const [canCheckOut, setCanCheckOut] = useState(false);
     const [serviceCall, setServiceCall] = useState(false);
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const { setRootContext } = useContext(RootContext);
     // ✅ Fetch today's attendance from profile on mount
     useEffect(() => {
@@ -420,6 +420,7 @@ export default function Attendance({ profile }) {
                 onCheckIn={handleCheckIn}
                 onCheckOut={handleCheckOut}
                 isCheckedIn={isCheckedIn}
+                todayCheckInTime={todayAttendance.checkIn}
             />
         </div>
     );

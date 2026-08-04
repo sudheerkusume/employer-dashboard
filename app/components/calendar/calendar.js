@@ -324,7 +324,7 @@ const SplitCircle = ({ status, isToday, size = 40, isLegend = false }) => {
 };
 
 
-export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn, setMonthName }) {
+export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOut, isCheckedIn, setMonthName, todayCheckInTime }) {
     const today = new Date();
     const [currentDate, setCurrentDate] = useState(today);
     const [selectedMonth, setSelectedMonth] = useState(getMonth(today));
@@ -745,12 +745,14 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
         // Compute worked minutes from check-in to now
         const todayStr = format(today, 'yyyy-MM-dd');
         const att = attendanceMap[todayStr];
-        if (!att || !att.checkIn) {
+        const actualCheckInTime = att?.checkIn || todayCheckInTime;
+
+        if (!actualCheckInTime) {
             onCheckOut();
             return;
         }
 
-        const [inH, inM] = att.checkIn.split(':').map(Number);
+        const [inH, inM] = actualCheckInTime.split(':').map(Number);
         const checkInTime = set(new Date(), { hours: inH, minutes: inM, seconds: 0, milliseconds: 0 });
         const workedMinutes = differenceInMinutes(currentTime, checkInTime);
 
