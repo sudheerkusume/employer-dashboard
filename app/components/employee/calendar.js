@@ -329,7 +329,7 @@ function WFHForm({ defaultDate, onClose, onSubmit, submitting }) {
 }
 
 
-export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn }) {
+export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedIn, todayCheckInTime }) {
     const myDate = new Date();
     const [currentDate, setCurrentDate] = useState(myDate);
     const [showCalendar, setShowCalendar] = useState(false);
@@ -1068,6 +1068,7 @@ export default function CalendarTab({ profile, onCheckIn, onCheckOut, isCheckedI
                     onCheckIn={onCheckIn}
                     onCheckOut={onCheckOut}
                     isCheckedIn={isCheckedIn}
+                    todayCheckInTime={todayCheckInTime}
                     onGoToCalendar={() => setShowCalendar(true)}
                     setMonthName={handleMonthChange}
                     onRequestAR={(dateStr) => {

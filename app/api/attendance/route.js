@@ -89,9 +89,13 @@ export async function POST(req) {
     if (!employeeId || !action)
       return Response.json({ error: "Missing fields" }, { status: 400 });
 
-    const today = date || new Date().toISOString().split("T")[0];
+    const today = date || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const nowTime = time || new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour12: false, hour: "2-digit", minute: "2-digit" }).slice(0, 5);
-    const monthName = new Date(today).toLocaleString("default", { month: "long" });
+    
+    // Safely extract the month without timezone shifts
+    const [year, monthNum, dayNum] = today.split("-");
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthName = months[parseInt(monthNum, 10) - 1];
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DBNAME);
