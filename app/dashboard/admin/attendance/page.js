@@ -95,16 +95,27 @@ export default function AdminAttendancePage() {
         return start <= date && end >= date;
       });
 
-      if (isOnLeave && isWorkingDay) leaveDaysInMonth++;
+      const isLopLeave = approvedLeaves.some(l => {
+        const start = parse(l.startDate, "yyyy-MM-dd", new Date());
+        const end = parse(l.endDate, "yyyy-MM-dd", new Date());
+        return start <= date && end >= date && l.isLop === true;
+      });
+
+      if (isOnLeave && isWorkingDay && !isLopLeave) {
+         leaveDaysInMonth++; // Only credit paid leaves
+      }
 
       const record = monthData.find(d => d.date === dateStr);
       if (record) {
-        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay" || record.status === "paidLeave" || record.status === "lopLeave") {
           // If manually overridden by admin, or explicitly absent/halfDay, respect it over hours calculation
           if (record.status === "present") totalPresent += 1;
           else if (record.status === "halfDay" || record.status === "firstHalfApproved" || record.status === "secondHalfApproved") {
             totalPresent += 0.5;
             halfDays += 1;
+          }
+          else if (record.status === "paidLeave" && !isOnLeave) {
+            leaveDaysInMonth++; // Add manually given paid leave (if not already on a requested leave)
           }
 
           if (record.checkIn) {
@@ -482,12 +493,18 @@ export default function AdminAttendancePage() {
           parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
           parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
         );
-        if (isWorkingDay && isOnLeave) leaveDaysInPeriod++;
+        const isLopLeave = empLeaves.some(l =>
+          l.status === "approved" &&
+          parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
+          parse(l.endDate, "yyyy-MM-dd", new Date()) >= date &&
+          l.isLop === true
+        );
+        if (isWorkingDay && isOnLeave && !isLopLeave) leaveDaysInPeriod++;
         if (isWorkingDay) totalWorkingDays++;
         const record = monthData.find(d => d.date === dateStr);
         if (isWeekend) return "Weekend";
         if (isHoliday) return "Holiday";
-        if (isOnLeave) return "Leave";
+        if (isOnLeave) return isLopLeave ? "Leave (LOP)" : "Leave (Paid)";
 
         if (record) {
           let statusLabel = "Absent";
@@ -892,6 +909,8 @@ export default function AdminAttendancePage() {
                   <option value="absent">Absent</option>
                   <option value="present">Present</option>
                   <option value="halfDay">Half Day</option>
+                  <option value="paidLeave">Paid Leave</option>
+                  <option value="lopLeave">LOP (Loss of Pay)</option>
                 </select>
               </div>
 
@@ -1024,9 +1043,17 @@ export default function AdminAttendancePage() {
                         const checkIn = parse(record.checkIn, "HH:mm", new Date());
                         const lateThreshold = parse("10:00", "HH:mm", new Date());
 
-                        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
-                          status = record.status === "present" ? "Present" : (record.status === "halfDay" ? "Half Day" : "Absent");
-                          style = status === "Present" ? "bg-emerald-50 text-emerald-700" : (status === "Half Day" ? "bg-orange-50 text-orange-700" : "bg-rose-50 text-rose-700");
+                        if (record.isManualOverride || record.status === "absent" || record.status === "halfDay" || record.status === "paidLeave" || record.status === "lopLeave") {
+                          if (record.status === "paidLeave") {
+                            status = "Paid Leave (Manual)";
+                            style = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                          } else if (record.status === "lopLeave") {
+                            status = "LOP (Manual)";
+                            style = "bg-orange-50 text-orange-700 border-orange-200";
+                          } else {
+                            status = record.status === "present" ? "Present" : (record.status === "halfDay" ? "Half Day" : "Absent");
+                            style = status === "Present" ? "bg-emerald-50 text-emerald-700" : (status === "Half Day" ? "bg-orange-50 text-orange-700" : "bg-rose-50 text-rose-700");
+                          }
                         } else if (isAfter(checkIn, lateThreshold)) {
                           status = "Late"; style = "bg-amber-50 text-amber-700";
                         } else {

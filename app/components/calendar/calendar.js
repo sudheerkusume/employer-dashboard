@@ -1234,7 +1234,7 @@ export default function Calendar({ profile, onGoToCalendar, onCheckIn, onCheckOu
                                                         ...prev,
                                                         reason: e.target.value
                                                     }))}
-                                                    placeholder="Brief reason for leave (optional)"
+                                                    placeholder="Brief reason for leave"
                                                     rows={3}
                                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                                     maxLength={500}

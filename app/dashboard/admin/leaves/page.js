@@ -67,7 +67,7 @@ export default function AdminLeavesPage() {
     return { pendingLeaves: pending, historyLeaves: history };
   }, [employeesData, currentUserRole]);
 
-  const handleStatusChange = async (empId, originalIndex, newStatus, leaveId) => {
+  const handleStatusChange = async (empId, originalIndex, newStatus, leaveId, isLop = false) => {
     setActionLoading(leaveId);
     try {
       // Find the employee
@@ -78,6 +78,9 @@ export default function AdminLeavesPage() {
       const updatedLeaves = [...(emp.leaves || [])];
       if (updatedLeaves[originalIndex]) {
         updatedLeaves[originalIndex].status = newStatus;
+        if (newStatus === "approved") {
+          updatedLeaves[originalIndex].isLop = isLop;
+        }
       }
 
       // Send PUT request
@@ -213,20 +216,27 @@ export default function AdminLeavesPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3 mt-2">
+                      <div className="flex gap-2 mt-2">
                         <button 
                           onClick={() => handleStatusChange(leave.empId, leave.originalIndex, "rejected", leave.leaveId)}
                           disabled={actionLoading === leave.leaveId}
-                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 hover:border-red-200 transition-all disabled:opacity-50"
+                          className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 transition-all disabled:opacity-50"
                         >
-                          <X size={16} /> Reject
+                          <X size={14} /> Reject
                         </button>
                         <button 
-                          onClick={() => handleStatusChange(leave.empId, leave.originalIndex, "approved", leave.leaveId)}
+                          onClick={() => handleStatusChange(leave.empId, leave.originalIndex, "approved", leave.leaveId, false)}
                           disabled={actionLoading === leave.leaveId}
-                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white bg-orange-500 shadow-sm shadow-orange-200 hover:bg-orange-600 hover:shadow transition-all disabled:opacity-50"
+                          className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-500 shadow-sm shadow-emerald-200 hover:bg-emerald-600 transition-all disabled:opacity-50"
                         >
-                          <Check size={16} /> Approve
+                          <Check size={14} /> Paid
+                        </button>
+                        <button 
+                          onClick={() => handleStatusChange(leave.empId, leave.originalIndex, "approved", leave.leaveId, true)}
+                          disabled={actionLoading === leave.leaveId}
+                          className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold text-white bg-orange-500 shadow-sm shadow-orange-200 hover:bg-orange-600 transition-all disabled:opacity-50"
+                        >
+                          <Check size={14} /> LOP
                         </button>
                       </div>
                     </motion.div>

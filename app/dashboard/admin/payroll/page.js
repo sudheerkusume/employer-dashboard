@@ -47,6 +47,7 @@ export default function AdminPayrollPage() {
         const approvedLeaves = empLeaves.filter(l => l.status === "approved");
 
         let leaveDaysInMonth = 0;
+        let lopLeaveDays = 0;
 
         monthDates.forEach(date => {
           const dateStr = format(date, "yyyy-MM-dd");
@@ -58,15 +59,30 @@ export default function AdminPayrollPage() {
             return start <= date && end >= date;
           });
 
-          if (isOnLeave && isWorkingDay) leaveDaysInMonth++;
+          const isLopLeave = approvedLeaves.some(l => {
+            const start = parse(l.startDate, "yyyy-MM-dd", new Date());
+            const end = parse(l.endDate, "yyyy-MM-dd", new Date());
+            return start <= date && end >= date && l.isLop === true;
+          });
+
+          if (isWorkingDay) {
+            if (isOnLeave && !isLopLeave) leaveDaysInMonth++;
+            if (isOnLeave && isLopLeave) lopLeaveDays++;
+          }
 
           const record = monthData.find(d => d.date === dateStr);
           if (record) {
-            if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+            if (record.isManualOverride || record.status === "absent" || record.status === "halfDay" || record.status === "paidLeave" || record.status === "lopLeave") {
               if (record.status === "present") totalPresent += 1;
               else if (record.status === "halfDay" || record.status === "firstHalfApproved" || record.status === "secondHalfApproved") {
                 totalPresent += 0.5;
                 halfDays += 1;
+              }
+              else if (record.status === "paidLeave" && !isOnLeave) {
+                leaveDaysInMonth++; // Add manually given paid leave
+              }
+              else if (record.status === "lopLeave" && !isOnLeave) {
+                lopLeaveDays++; // Add manually given LOP leave
               }
               if (record.checkIn) {
                  const lateThreshold = parse("10:00", "HH:mm", new Date());
@@ -131,7 +147,7 @@ export default function AdminPayrollPage() {
 
         const totalAbsent = Math.max(0, totalWorkingDays - Math.floor(totalPresent) - leaveDaysInMonth);
 
-        return { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth, halfDays };
+        return { totalWorkingDays, totalPresent, totalAbsent, lateDays, leaveDaysInMonth, lopLeaveDays, halfDays };
     };
 
     const payrollData = useMemo(() => {
@@ -149,6 +165,8 @@ export default function AdminPayrollPage() {
             const stats = calculateAttendance(emp, selectedMonth);
             const daysPresent = stats.totalPresent;
             const daysAbsent = stats.totalAbsent;
+            const paidLeaves = stats.leaveDaysInMonth;
+            const lopLeaves = stats.lopLeaveDays;
 
             const perDaySalary = monthlyBaseSalary / daysInMonth;
             const deductions = daysAbsent * perDaySalary;
@@ -164,6 +182,8 @@ export default function AdminPayrollPage() {
                 monthlyBaseSalary,
                 daysPresent,
                 daysAbsent,
+                paidLeaves,
+                lopLeaves,
                 deductions,
                 netSalary
             };

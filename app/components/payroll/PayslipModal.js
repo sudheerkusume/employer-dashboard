@@ -74,11 +74,24 @@ export default function PayslipModal({ employee, month, onClose }) {
 
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
                                 <div className="text-gray-700">DOJ:</div>
-                                <div>{employee.dateOfJoining ? format(new Date(employee.dateOfJoining), "yyyy-MM-dd HH:mm:ss") : "-"}</div>
+                                <div>{employee.dateOfJoining ? format(new Date(employee.dateOfJoining), "yyyy-MM-dd") : "-"}</div>
                             </div>
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
-                                <div className="text-gray-700">No. Days:</div>
+                                <div className="text-gray-700">Total Days:</div>
                                 <div>{totalDays}</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Present Days:</div>
+                                <div>{employee.daysPresent || 0}</div>
+                            </div>
+
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">Paid Leave:</div>
+                                <div className="text-emerald-600 font-bold">{employee.paidLeaves || 0}</div>
+                            </div>
+                            <div className="grid grid-cols-[140px_auto] gap-2 items-center">
+                                <div className="text-gray-700">LOP Leave:</div>
+                                <div className="text-red-500 font-bold">{employee.lopLeaves || 0}</div>
                             </div>
 
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
