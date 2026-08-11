@@ -53,7 +53,10 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (employeesData && (currentUserRole === "super_admin" || currentUserRole === "admin")) {
-      const allPendingLeaves = employeesData.flatMap(emp =>
+      // Create a filtered list of only active employees
+      const activeEmployees = employeesData.filter(emp => emp.isActive !== false);
+
+      const allPendingLeaves = activeEmployees.flatMap(emp =>
         (emp.leaves || []).filter(lr => lr.status === "pending").map(lr => ({ ...lr, employeeName: emp.name }))
       );
 
@@ -63,7 +66,7 @@ export default function DashboardHome() {
       );
       setPendingLeaves(allPendingLeaves);
 
-      const allPendingARs = employeesData.flatMap(emp =>
+      const allPendingARs = activeEmployees.flatMap(emp =>
         (emp.attendanceRegularizationRequests || []).filter(ar => ar.status === "pending").map(ar => ({ ...ar, employeeName: emp.name }))
       );
       setPendingARs(allPendingARs);
@@ -73,7 +76,9 @@ export default function DashboardHome() {
   if (!isClient || employeesLoading) return <Loading />;
 
   // Calculate stats from real data
-  const totalEmployees = employeesData ? employeesData.length : 0;
+  // Calculate stats from real active data
+  const activeEmployeesList = employeesData ? employeesData.filter(emp => emp.isActive !== false) : [];
+  const totalEmployees = activeEmployeesList.length;
   let presentToday = 0;
   let onLeaveToday = 0;
   let lateCheckins = 0;
@@ -84,8 +89,8 @@ export default function DashboardHome() {
   const monthName = format(new Date(), "MMMM");
   const isSundayToday = new Date().getDay() === 0;
 
-  if (employeesData) {
-    employeesData.forEach(emp => {
+  if (activeEmployeesList.length > 0) {
+    activeEmployeesList.forEach(emp => {
       // Check Leaves
       const isOnLeave = (emp.leaves || []).some(leave =>
         leave.status === "approved" &&
@@ -521,7 +526,7 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
-      
+
       {/* Birthday Celebration Widget */}
       <BirthdayCelebration currentUser={currentUserData} allEmployees={employeesData} />
     </div>

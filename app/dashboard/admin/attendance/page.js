@@ -27,7 +27,7 @@ export default function AdminAttendancePage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState("today"); // "today" or "monthly"
   const [filterMode, setFilterMode] = useState("all"); // "all", "present", "late", "absent"
-
+  const [downloadPeriod, setDownloadPeriod] = useState("month");
   // Edit State
   const [editingAttendance, setEditingAttendance] = useState(null);
   const [editForm, setEditForm] = useState({ checkIn: "", checkOut: "", status: "absent" });
@@ -175,9 +175,11 @@ export default function AdminAttendancePage() {
 
   const visibleEmployees = useMemo(() => {
     if (!employeesData) return [];
+
+    const activeEmps = employeesData.filter(emp => emp.isActive !== false);
     return currentUserRole === "super_admin"
-      ? employeesData
-      : employeesData.filter((emp) => emp.role !== "admin");
+      ? activeEmps
+      : activeEmps.filter((emp) => emp.role !== "admin");
   }, [employeesData, currentUserRole]);
 
   // Today's Metrics
@@ -231,24 +233,24 @@ export default function AdminAttendancePage() {
 
   const handleTimeChange = (field, value) => {
     const newForm = { ...editForm, [field]: value };
-    
+
     if (newForm.checkIn && newForm.checkOut) {
       try {
         const checkInTime = parse(newForm.checkIn, "HH:mm", new Date());
         const checkOutTime = parse(newForm.checkOut, "HH:mm", new Date());
-        
+
         const noonThreshold = parse("13:30", "HH:mm", new Date());
         const eveningThreshold = parse("18:00", "HH:mm", new Date());
-        
+
         let morningPresent = false;
         let afternoonPresent = false;
-        
+
         if (isBefore(checkInTime, noonThreshold)) {
           morningPresent = true;
         } else {
           afternoonPresent = true;
         }
-        
+
         if (morningPresent) {
           if (isAfter(checkOutTime, eveningThreshold)) {
             afternoonPresent = true;
@@ -260,7 +262,7 @@ export default function AdminAttendancePage() {
             afternoonPresent = true;
           }
         }
-        
+
         if (morningPresent && afternoonPresent) {
           newForm.status = "present";
         } else if (morningPresent || afternoonPresent) {
@@ -272,7 +274,7 @@ export default function AdminAttendancePage() {
         console.error(err);
       }
     }
-    
+
     setEditForm(newForm);
   };
 
@@ -333,14 +335,122 @@ export default function AdminAttendancePage() {
     }
   };
 
+  // const handleDownloadExcel = () => {
+  //   if (!visibleEmployees || visibleEmployees.length === 0) return;
+
+  //   const monthStart = startOfMonth(selectedMonth);
+  //   const monthEnd = endOfMonth(selectedMonth);
+  //   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  //   // Create header row - formatted as "dd MMM" (e.g. 01 Jul)
+  //   const headers = [
+  //     "Employee Name",
+  //     "Role",
+  //     "Designation",
+  //     "Work Days",
+  //     "Present",
+  //     "Absent",
+  //     "Late",
+  //     "Leaves",
+  //     ...daysInMonth.map(d => format(d, "dd MMM"))
+  //   ];
+
+  //   const data = visibleEmployees.map(emp => {
+  //     // Get summary stats
+  //     const stats = calculateAttendance(emp, selectedMonth);
+  //     const monthName = selectedMonth.toLocaleString("default", { month: "long" });
+  //     const monthData = emp.attendance?.[monthName] || [];
+  //     const empLeaves = emp.leaves || [];
+
+  //     const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+
+  //     // Get daily statuses
+  //     const dailyStatuses = daysInMonth.map(date => {
+  //       const dateStr = format(date, "yyyy-MM-dd");
+  //       const isWeekend = isSunday(date);
+  //       const isHoliday = holidays.includes(dateStr);
+
+  //       const isOnLeave = empLeaves.some(l =>
+  //         l.status === "approved" &&
+  //         parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
+  //         parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
+  //       );
+
+  //       if (isWeekend) return "Weekend";
+  //       if (isHoliday) return "Holiday";
+  //       if (isOnLeave) return "Leave";
+
+  //       const record = monthData.find(d => d.date === dateStr);
+  //       if (record) {
+  //          let statusLabel = "Absent";
+
+  //          if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+  //             if (record.status === "present") statusLabel = "Present";
+  //             else if (record.status === "halfDay") statusLabel = "Half Day";
+  //          } else if (record.checkIn) {
+  //             const checkIn = parse(record.checkIn, "HH:mm", new Date());
+  //             const lateThreshold = parse("10:00", "HH:mm", new Date());
+  //             if (isAfter(checkIn, lateThreshold)) statusLabel = "Late";
+  //             else statusLabel = "Present";
+  //          }
+
+  //          if (record.checkIn || record.checkOut) {
+  //              return `${statusLabel} (${record.checkIn || '--:--'} to ${record.checkOut || '--:--'})`;
+  //          }
+  //          return statusLabel;
+  //       }
+  //       return "Absent";
+  //     });
+
+  //     return [
+  //       emp.name,
+  //       emp.role.replace('_', ' '),
+  //       emp.designation || 'N/A',
+  //       stats.totalWorkingDays,
+  //       stats.totalPresent,
+  //       stats.totalAbsent,
+  //       stats.lateDays,
+  //       stats.leaveDaysInMonth,
+  //       ...dailyStatuses
+  //     ];
+  //   });
+
+  //   // Create and save the workbook
+  //   const wsData = [headers, ...data];
+  //   const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  //   // Set column widths so text is clearly visible
+  //   ws['!cols'] = [
+  //     { wch: 25 }, // Employee Name
+  //     { wch: 15 }, // Role
+  //     { wch: 25 }, // Designation
+  //     { wch: 12 }, // Work Days
+  //     { wch: 10 }, // Present
+  //     { wch: 10 }, // Absent
+  //     { wch: 10 }, // Late
+  //     { wch: 10 }, // Leaves
+  //     ...daysInMonth.map(() => ({ wch: 24 })) // Daily statuses with time
+  //   ];
+
+  //   const wb = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
+  //   const fileName = `Attendance_${format(selectedMonth, "MMMM_yyyy")}.xlsx`;
+  //   XLSX.writeFile(wb, fileName);
+  // };
   const handleDownloadExcel = () => {
     if (!visibleEmployees || visibleEmployees.length === 0) return;
-
     const monthStart = startOfMonth(selectedMonth);
     const monthEnd = endOfMonth(selectedMonth);
-    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    
-    // Create header row - formatted as "dd MMM" (e.g. 01 Jul)
+    let allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    // Determine the export range based on the selected period
+    let exportDays = allDays;
+    if (downloadPeriod === "week1") exportDays = allDays.slice(0, 7);
+    else if (downloadPeriod === "week2") exportDays = allDays.slice(7, 14);
+    else if (downloadPeriod === "week3") exportDays = allDays.slice(14, 21);
+    else if (downloadPeriod === "week4") exportDays = allDays.slice(21, 28);
+    else if (downloadPeriod === "week5") exportDays = allDays.slice(28);
+
     const headers = [
       "Employee Name",
       "Role",
@@ -350,90 +460,90 @@ export default function AdminAttendancePage() {
       "Absent",
       "Late",
       "Leaves",
-      ...daysInMonth.map(d => format(d, "dd MMM"))
+      ...exportDays.map(d => format(d, "dd MMM"))
     ];
-
     const data = visibleEmployees.map(emp => {
-      // Get summary stats
-      const stats = calculateAttendance(emp, selectedMonth);
       const monthName = selectedMonth.toLocaleString("default", { month: "long" });
       const monthData = emp.attendance?.[monthName] || [];
       const empLeaves = emp.leaves || [];
-      
       const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
-
-      // Get daily statuses
-      const dailyStatuses = daysInMonth.map(date => {
+      // Setup period stats specifically for the selected days
+      let totalWorkingDays = 0;
+      let totalPresent = 0;
+      let lateDays = 0;
+      let leaveDaysInPeriod = 0;
+      const dailyStatuses = exportDays.map(date => {
         const dateStr = format(date, "yyyy-MM-dd");
         const isWeekend = isSunday(date);
         const isHoliday = holidays.includes(dateStr);
-
+        const isWorkingDay = !isWeekend && !isHoliday;
         const isOnLeave = empLeaves.some(l =>
           l.status === "approved" &&
           parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
           parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
         );
-
+        if (isWorkingDay && isOnLeave) leaveDaysInPeriod++;
+        if (isWorkingDay) totalWorkingDays++;
+        const record = monthData.find(d => d.date === dateStr);
         if (isWeekend) return "Weekend";
         if (isHoliday) return "Holiday";
         if (isOnLeave) return "Leave";
-        
-        const record = monthData.find(d => d.date === dateStr);
+
         if (record) {
-           let statusLabel = "Absent";
-           
-           if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
-              if (record.status === "present") statusLabel = "Present";
-              else if (record.status === "halfDay") statusLabel = "Half Day";
-           } else if (record.checkIn) {
-              const checkIn = parse(record.checkIn, "HH:mm", new Date());
-              const lateThreshold = parse("10:00", "HH:mm", new Date());
-              if (isAfter(checkIn, lateThreshold)) statusLabel = "Late";
-              else statusLabel = "Present";
-           }
-           
-           if (record.checkIn || record.checkOut) {
-               return `${statusLabel} (${record.checkIn || '--:--'} to ${record.checkOut || '--:--'})`;
-           }
-           return statusLabel;
+          let statusLabel = "Absent";
+
+          if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+            if (record.status === "present") { statusLabel = "Present"; totalPresent += 1; }
+            else if (record.status === "halfDay") { statusLabel = "Half Day"; totalPresent += 0.5; }
+          } else if (record.checkIn) {
+            const checkIn = parse(record.checkIn, "HH:mm", new Date());
+            const lateThreshold = parse("10:00", "HH:mm", new Date());
+            if (isAfter(checkIn, lateThreshold)) { statusLabel = "Late"; lateDays++; }
+            else { statusLabel = "Present"; }
+
+            // Simplistic logic for present calculation on partial weeks
+            if (record.checkOut) {
+              const noonThreshold = parse("13:30", "HH:mm", new Date());
+              if (isAfter(parse(record.checkOut, "HH:mm", new Date()), noonThreshold)) totalPresent += 1;
+              else totalPresent += 0.5;
+            } else {
+              totalPresent += 0.5; // if missing checkout, assume half day for strict metrics
+            }
+          }
+
+          if (record.checkIn || record.checkOut) {
+            return `${statusLabel} (${record.checkIn || '--:--'} to ${record.checkOut || '--:--'})`;
+          }
+          return statusLabel;
         }
         return "Absent";
       });
-
+      const totalAbsent = Math.max(0, totalWorkingDays - Math.floor(totalPresent) - leaveDaysInPeriod);
       return [
         emp.name,
         emp.role.replace('_', ' '),
         emp.designation || 'N/A',
-        stats.totalWorkingDays,
-        stats.totalPresent,
-        stats.totalAbsent,
-        stats.lateDays,
-        stats.leaveDaysInMonth,
+        totalWorkingDays,
+        totalPresent,
+        totalAbsent,
+        lateDays,
+        leaveDaysInPeriod,
         ...dailyStatuses
       ];
     });
-
-    // Create and save the workbook
     const wsData = [headers, ...data];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Set column widths so text is clearly visible
-    ws['!cols'] = [
-      { wch: 25 }, // Employee Name
-      { wch: 15 }, // Role
-      { wch: 25 }, // Designation
-      { wch: 12 }, // Work Days
-      { wch: 10 }, // Present
-      { wch: 10 }, // Absent
-      { wch: 10 }, // Late
-      { wch: 10 }, // Leaves
-      ...daysInMonth.map(() => ({ wch: 24 })) // Daily statuses with time
-    ];
 
+    ws['!cols'] = [
+      { wch: 25 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      ...exportDays.map(() => ({ wch: 24 }))
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-    
-    const fileName = `Attendance_${format(selectedMonth, "MMMM_yyyy")}.xlsx`;
+
+    let periodName = "Monthly";
+    if (downloadPeriod !== "month") periodName = `Week${downloadPeriod.replace("week", "")}`;
+    const fileName = `Attendance_${format(selectedMonth, "MMMM_yyyy")}_${periodName}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
@@ -624,13 +734,28 @@ export default function AdminAttendancePage() {
                   />
                 </div>
               </div>
-              
-              <button
-                onClick={handleDownloadExcel}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg shadow-sm hover:bg-gray-50 hover:text-green-600 hover:border-green-200 transition-all"
-              >
-                <Download size={16} /> Download Excel
-              </button>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={downloadPeriod}
+                  onChange={(e) => setDownloadPeriod(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg shadow-sm text-sm font-bold text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="month">Full Month</option>
+                  <option value="week1">Week 1 (1st - 7th)</option>
+                  <option value="week2">Week 2 (8th - 14th)</option>
+                  <option value="week3">Week 3 (15th - 21st)</option>
+                  <option value="week4">Week 4 (22nd - 28th)</option>
+                  <option value="week5">Week 5 (29th - End)</option>
+                </select>
+
+                <button
+                  onClick={handleDownloadExcel}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg shadow-sm hover:bg-gray-50 hover:text-green-600 hover:border-green-200 transition-all"
+                >
+                  <Download size={16} /> Download Excel
+                </button>
+              </div>
             </div>
 
             {/* Table */}

@@ -224,10 +224,16 @@ export default function AdminDashboard() {
   if (employeesError) return <Error />;
   if (employeesLoading) return <Loading />;
 
-  const visibleEmployees =
+  const visibleEmployees = (
     currentUserRole === "super_admin"
       ? employeesData || []
-      : (employeesData || []).filter((emp) => emp.role !== "admin");
+      : (employeesData || []).filter((emp) => emp.role !== "admin")
+  ).sort((a, b) => {
+    // Sort so active employees come first, inactive go to the bottom
+    const aActive = a.isActive !== false ? 1 : 0;
+    const bActive = b.isActive !== false ? 1 : 0;
+    return bActive - aActive; 
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 font-sans text-gray-900">
