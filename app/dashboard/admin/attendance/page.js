@@ -15,10 +15,11 @@ import {
 import Loading from "@/app/components/common/loading";
 import Error from "@/app/components/common/error";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, UserCheck, Users, Clock, AlertCircle, CalendarDays, LayoutGrid, List, Edit3, X, Eye } from "lucide-react";
+import { Calendar, UserCheck, Users, Clock, AlertCircle, CalendarDays, LayoutGrid, List, Edit3, X, Eye, Download } from "lucide-react";
 import RootContext from "@/app/components/config/rootcontext";
 import { useRouter } from "next/navigation";
 import { Outfit } from "next/font/google";
+import * as XLSX from 'xlsx';
 
 const outfit = Outfit({ subsets: ["latin"] });
 
@@ -332,6 +333,110 @@ export default function AdminAttendancePage() {
     }
   };
 
+  const handleDownloadExcel = () => {
+    if (!visibleEmployees || visibleEmployees.length === 0) return;
+
+    const monthStart = startOfMonth(selectedMonth);
+    const monthEnd = endOfMonth(selectedMonth);
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    // Create header row - formatted as "dd MMM" (e.g. 01 Jul)
+    const headers = [
+      "Employee Name",
+      "Role",
+      "Designation",
+      "Work Days",
+      "Present",
+      "Absent",
+      "Late",
+      "Leaves",
+      ...daysInMonth.map(d => format(d, "dd MMM"))
+    ];
+
+    const data = visibleEmployees.map(emp => {
+      // Get summary stats
+      const stats = calculateAttendance(emp, selectedMonth);
+      const monthName = selectedMonth.toLocaleString("default", { month: "long" });
+      const monthData = emp.attendance?.[monthName] || [];
+      const empLeaves = emp.leaves || [];
+      
+      const holidays = holidaysData ? holidaysData.map(h => format(new Date(h.date), "yyyy-MM-dd")) : ["2025-01-01", "2025-01-26", "2025-03-25", "2025-08-15", "2025-10-02", "2025-10-18", "2025-10-20", "2025-12-25"];
+
+      // Get daily statuses
+      const dailyStatuses = daysInMonth.map(date => {
+        const dateStr = format(date, "yyyy-MM-dd");
+        const isWeekend = isSunday(date);
+        const isHoliday = holidays.includes(dateStr);
+
+        const isOnLeave = empLeaves.some(l =>
+          l.status === "approved" &&
+          parse(l.startDate, "yyyy-MM-dd", new Date()) <= date &&
+          parse(l.endDate, "yyyy-MM-dd", new Date()) >= date
+        );
+
+        if (isWeekend) return "Weekend";
+        if (isHoliday) return "Holiday";
+        if (isOnLeave) return "Leave";
+        
+        const record = monthData.find(d => d.date === dateStr);
+        if (record) {
+           let statusLabel = "Absent";
+           
+           if (record.isManualOverride || record.status === "absent" || record.status === "halfDay") {
+              if (record.status === "present") statusLabel = "Present";
+              else if (record.status === "halfDay") statusLabel = "Half Day";
+           } else if (record.checkIn) {
+              const checkIn = parse(record.checkIn, "HH:mm", new Date());
+              const lateThreshold = parse("10:00", "HH:mm", new Date());
+              if (isAfter(checkIn, lateThreshold)) statusLabel = "Late";
+              else statusLabel = "Present";
+           }
+           
+           if (record.checkIn || record.checkOut) {
+               return `${statusLabel} (${record.checkIn || '--:--'} to ${record.checkOut || '--:--'})`;
+           }
+           return statusLabel;
+        }
+        return "Absent";
+      });
+
+      return [
+        emp.name,
+        emp.role.replace('_', ' '),
+        emp.designation || 'N/A',
+        stats.totalWorkingDays,
+        stats.totalPresent,
+        stats.totalAbsent,
+        stats.lateDays,
+        stats.leaveDaysInMonth,
+        ...dailyStatuses
+      ];
+    });
+
+    // Create and save the workbook
+    const wsData = [headers, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Set column widths so text is clearly visible
+    ws['!cols'] = [
+      { wch: 25 }, // Employee Name
+      { wch: 15 }, // Role
+      { wch: 25 }, // Designation
+      { wch: 12 }, // Work Days
+      { wch: 10 }, // Present
+      { wch: 10 }, // Absent
+      { wch: 10 }, // Late
+      { wch: 10 }, // Leaves
+      ...daysInMonth.map(() => ({ wch: 24 })) // Daily statuses with time
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+    
+    const fileName = `Attendance_${format(selectedMonth, "MMMM_yyyy")}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 md:p-10 font-sans text-gray-900">
       {/* Header Section */}
@@ -519,6 +624,13 @@ export default function AdminAttendancePage() {
                   />
                 </div>
               </div>
+              
+              <button
+                onClick={handleDownloadExcel}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg shadow-sm hover:bg-gray-50 hover:text-green-600 hover:border-green-200 transition-all"
+              >
+                <Download size={16} /> Download Excel
+              </button>
             </div>
 
             {/* Table */}
