@@ -1,16 +1,20 @@
 "use client";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { XMarkIcon, PrinterIcon } from "@heroicons/react/24/outline";
-import { format, getDaysInMonth } from "date-fns";
+import { XMarkIcon, PrinterIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval, isSunday } from "date-fns";
 
 export default function PayslipModal({ employee, month, onClose }) {
     const monthName = format(month, "MMMM yyyy");
-    const totalDays = getDaysInMonth(month);
+    const totalMonthDays = getDaysInMonth(month);
 
-    const printPayslip = () => {
-        window.print();
-    };
+    // Calculate Working Days
+    const start = startOfMonth(month);
+    const end = endOfMonth(month);
+    const allDays = eachDayOfInterval({ start, end });
+    const sundaysCount = allDays.filter(isSunday).length;
+    const publicHolidaysCount = employee.publicHolidays || employee.holidays || 0;
+    const totalWorkingDays = totalMonthDays - sundaysCount - publicHolidaysCount;
 
     // Calculate details safely
     const basicFixed = employee.monthlyBaseSalary || 0;
@@ -20,6 +24,117 @@ export default function PayslipModal({ employee, month, onClose }) {
     const leaveDeductions = employee.deductions || 0;
     const totalDeductions = leaveDeductions;
     const netPay = (basicEarned - totalDeductions) || 0;
+
+    // Calculate LOP Leaves dynamically
+    let displayLopLeaves = employee.lopLeaves;
+    if (displayLopLeaves === undefined || displayLopLeaves === 0) {
+        if (leaveDeductions > 0 && basicFixed > 0) {
+            const perDaySalary = basicFixed / totalMonthDays;
+            displayLopLeaves = Math.round(leaveDeductions / perDaySalary);
+        } else {
+            const present = employee.daysPresent || 0;
+            const paid = employee.paidLeaves || 0;
+            const weekOffs = employee.weekOffs !== undefined ? employee.weekOffs : sundaysCount;
+            const calcLop = totalMonthDays - present - paid - weekOffs - publicHolidaysCount;
+            displayLopLeaves = calcLop > 0 ? calcLop : 0;
+        }
+    }
+
+    const printPayslip = () => {
+        window.print();
+    };
+
+    const downloadPDF = async () => {
+        try {
+            const { default: jsPDF } = await import("jspdf");
+            const { default: autoTable } = await import("jspdf-autotable");
+            
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(22);
+            doc.setTextColor(30, 58, 138); 
+            doc.setFont("helvetica", "bold");
+            doc.text("BMAX PROJECTS PRIVATE LIMITED", 105, 20, { align: "center" });
+            
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`PAYSLIP FOR THE MONTH OF ${monthName.toUpperCase()}`, 105, 30, { align: "center" });
+            doc.setLineWidth(0.5);
+            doc.line(60, 32, 150, 32);
+
+            // Details
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            
+            const detailsLeft = [
+                ["Employee ID:", employee.employeeCode || "-"],
+                ["DOJ:", employee.dateOfJoining ? format(new Date(employee.dateOfJoining), "yyyy-MM-dd") : "-"],
+                ["Present Days:", (employee.daysPresent || 0).toString()],
+                ["LOP Leave:", displayLopLeaves.toString()],
+                ["Department:", employee.department || "-"],
+                ["IFSC Code:", employee.ifscCode || "-"],
+                ["Place of Work:", "Hyderabad, TS"],
+            ];
+            
+            const detailsRight = [
+                ["Name:", employee.name || "-"],
+                ["Working Days:", totalWorkingDays.toString()],
+                ["Paid Leave:", (employee.paidLeaves || 0).toString()],
+                ["Designation:", employee.designation || (employee.role ? employee.role.replace('_', ' ') : "-")],
+                ["Bank Account No.:", employee.accountNo || "-"],
+                ["Client Name:", "BMAX PROJECTS PRIVATE LIMITED"],
+            ];
+
+            let startY = 45;
+            detailsLeft.forEach((item, index) => {
+                doc.setFont("helvetica", "bold");
+                doc.text(item[0], 14, startY + (index * 7));
+                doc.setFont("helvetica", "normal");
+                doc.text(item[1], 50, startY + (index * 7));
+            });
+
+            detailsRight.forEach((item, index) => {
+                doc.setFont("helvetica", "bold");
+                doc.text(item[0], 110, startY + (index * 7));
+                doc.setFont("helvetica", "normal");
+                doc.text(item[1], 150, startY + (index * 7));
+            });
+
+            // Table
+            autoTable(doc, {
+                startY: startY + (detailsLeft.length * 7) + 5,
+                theme: 'grid',
+                headStyles: { fillColor: [209, 213, 219], textColor: [0, 0, 0], fontStyle: 'bold' }, 
+                head: [['Earnings', 'Fixed', 'Earnings Amount', 'Deduction', 'Amount']],
+                body: [
+                    ['BASIC', Math.round(basicFixed).toString(), Math.round(basicEarned).toString(), 'Leave Deductions', Math.round(leaveDeductions).toString()],
+                    ['HRA', '0', '0', 'ID card Deduction', '0'],
+                    ['Bonus', '0', '0', 'PPEs Deduction', '0'],
+                    ['Public Holiday Wages', '0', '0', 'Other Deductions', '0'],
+                    ['Earned leaves', '0', '0', 'PT', '0'],
+                    ['PPEs.', '0', '0', 'TDS', '0'],
+                    ['Other Allowances', '0', '0', '-', '-'],
+                    ['Reimbursement of Transport', '0', '0', '-', '-'],
+                    ['Attendance Bonus', '0', '0', '-', '-'],
+                    ['OT', '0', '0', '-', '-'],
+                    [{ content: 'Total Earnings(A)', fontStyle: 'bold' }, { content: Math.round(basicFixed).toString(), fontStyle: 'bold' }, { content: Math.round(basicEarned).toString(), fontStyle: 'bold' }, { content: 'Total Deduction(B)', fontStyle: 'bold' }, { content: Math.round(totalDeductions).toString(), fontStyle: 'bold' }],
+                    [{ content: 'Net pay(A-B)', colSpan: 2, fontStyle: 'bold' }, { content: `${Math.round(netPay)}/-`, fontStyle: 'bold' }, { content: '', colSpan: 2 }],
+                ],
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 20;
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            doc.text("**Thanks for Your Hard work**", 105, finalY, { align: "center" });
+            doc.text("*This is system Generated Pay Slip and does not require signature*", 105, finalY + 5, { align: "center" });
+
+            doc.save(`Payslip_${employee.name || "Employee"}_${monthName.replace(" ", "_")}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF", error);
+            alert("Could not generate PDF. Please use the Print option and 'Save as PDF'.");
+        }
+    };
 
     return (
         <AnimatePresence>
@@ -35,10 +150,16 @@ export default function PayslipModal({ employee, month, onClose }) {
                         <h2 className="text-lg font-bold text-gray-900">Salary Slip - {monthName}</h2>
                         <div className="flex gap-2">
                             <button
+                                onClick={downloadPDF}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700"
+                            >
+                                <ArrowDownTrayIcon className="w-4 h-4" /> Download PDF
+                            </button>
+                            <button
                                 onClick={printPayslip}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50"
                             >
-                                <PrinterIcon className="w-4 h-4" /> Print PDF
+                                <PrinterIcon className="w-4 h-4" /> Print
                             </button>
                             <button
                                 onClick={onClose}
@@ -77,8 +198,8 @@ export default function PayslipModal({ employee, month, onClose }) {
                                 <div>{employee.dateOfJoining ? format(new Date(employee.dateOfJoining), "yyyy-MM-dd") : "-"}</div>
                             </div>
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
-                                <div className="text-gray-700">Total Days:</div>
-                                <div>{totalDays}</div>
+                                <div className="text-gray-700">Working Days:</div>
+                                <div>{totalWorkingDays}</div>
                             </div>
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
                                 <div className="text-gray-700">Present Days:</div>
@@ -91,7 +212,7 @@ export default function PayslipModal({ employee, month, onClose }) {
                             </div>
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
                                 <div className="text-gray-700">LOP Leave:</div>
-                                <div className="text-red-500 font-bold">{employee.lopLeaves || 0}</div>
+                                <div className="text-red-500 font-bold">{displayLopLeaves}</div>
                             </div>
 
                             <div className="grid grid-cols-[140px_auto] gap-2 items-center">
