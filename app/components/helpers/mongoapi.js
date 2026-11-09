@@ -1,9 +1,11 @@
 // https://www.mongodb.com/docs/atlas/app-services/data-api/examples/
 
-const mongoUrl = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DBNAME;
+const mongoUrl = process.env.MONGODB_URI || "";
+const dbName = process.env.MONGODB_DBNAME || "";
 
-if (!mongoUrl ||  !dbName) { throw new Error("Missing required environment variables"); }
+if (!mongoUrl || !dbName) {
+    console.warn("Missing MONGODB_URI or MONGODB_DBNAME environment variables");
+}
 
 const headerData = {
     'Content-Type': 'application/json',
